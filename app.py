@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 st.set_page_config(page_title="박가이버 작전 통제실", page_icon="🛡️", layout="wide")
 
 st.title("🛡️ 박가이버표 작전 통제실 (실전 백테스터)")
-st.caption("위험은 원하는 손절선으로 딱 막고, 회전율과 리스크 관리를 극대화하는 자동 매매 시뮬레이터입니다.")
+st.caption("위험은 원하는 손절선으로 딱 막고, 진입 타점과 회전율을 극대화하는 자동 매매 시뮬레이터입니다.")
 st.markdown("---")
 
 # --- 2. 왼쪽 사이드바 (조종간 세팅) ---
@@ -19,6 +19,16 @@ ticker = st.sidebar.text_input("🎯 종목코드", value="089030.KQ")
 invest_amount = st.sidebar.number_input("💰 회당 진입금액(원)", value=500000, step=100000)
 max_agents = st.sidebar.slider("⚔️ 최대 요원 수(명)", min_value=1, max_value=10, value=5)
 years = st.sidebar.slider("🗓️ 조회 기간(년)", min_value=1, max_value=10, value=5)
+
+# 🌟 1%~20% 진입(출격) 조건 조종간 추가!
+buy_cond_input = st.sidebar.slider(
+    "🛒 진입(출격) 기준 (-% 하락 시)", 
+    min_value=1, 
+    max_value=20, 
+    value=5, 
+    step=1,
+    help="당일 주가가 설정한 % 이상 하락했을 때 신규 요원이 출격합니다."
+)
 
 # 0%~50% 손절 조종간
 stop_loss_input = st.sidebar.slider(
@@ -59,8 +69,8 @@ if run_btn:
 
             df['Daily_Return'] = df['Close'].pct_change() * 100
 
-            # 매매 조건 세팅
-            buy_cond = -5.0
+            # 매매 조건 세팅 (사용자 설정값 반영)
+            buy_cond = -float(buy_cond_input)
             sell_target = 5.0
             stop_loss_limit = -float(stop_loss_input) if stop_loss_input > 0 else None
 
@@ -141,6 +151,7 @@ if run_btn:
 
                 positions = survived_positions
 
+                # 🛒 설정된 하락률 이하일 때 출격
                 if daily_return <= buy_cond and len(positions) < max_agents:
                     agent_counter += 1
                     positions.append({
@@ -157,8 +168,9 @@ if run_btn:
 
             # --- 4. 화면 출력 (대시보드) ---
             st.subheader(f"🏆 [{ticker}] {stock_name} 작전 성과표")
+            st.caption(f"⚙️ 작전 기준: 당일 **-{buy_cond_input}% 이하** 하락 시 출격 | **+5%** 익절 | **-{stop_loss_input}%** 손절")
             
-            # 상단 성과 지표 (5개 카드로 직관적 구성)
+            # 상단 성과 지표
             col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("총 작전 종료", f"{total_trades}회")
             col2.metric("익절 성공", f"{success_trades}회")
@@ -187,7 +199,7 @@ if run_btn:
             
             st.dataframe(yearly_df, use_container_width=True)
 
-            # ⚔️ 현재 대기 중인 요원 현황 (평가손실 집계 반영)
+            # ⚔️ 현재 대기 중인 요원 현황
             st.write("### ⚔️ 현재 대기 중인 요원 현황")
             if len(positions) > 0:
                 total_diff = total_current_value - total_invested
