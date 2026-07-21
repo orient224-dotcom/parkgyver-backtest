@@ -166,7 +166,6 @@ if run_btn:
             stop_loss_label = f"손절(-{stop_loss_input}%)" if stop_loss_input > 0 else "손절(미사용)"
             col3.metric(stop_loss_label, f"{stop_loss_trades}회", delta=f"{format_money(stop_loss_amount)}원", delta_color="inverse")
             
-            # 전리품 방식에 따른 성과 지표 명확화
             if reward_type == '주식으로 모으기 (공짜 주식)':
                 col4.metric("📦 획득 공짜 주식", f"{format_money(free_shares)}주", delta=f"가치 {format_money(free_shares_value)}원")
                 col5.metric("💵 누적 잔돈 수익", f"{format_money(cash_profit)}원")
@@ -176,7 +175,7 @@ if run_btn:
 
             st.markdown("---")
 
-            # 연도별 정산 (소수점 제거 및 깔끔한 포맷팅)
+            # 연도별 정산
             st.write("### 🗓️ 연도별 성적표 (연말 정산)")
             yearly_df = pd.DataFrame.from_dict(yearly_stats, orient='index')
             yearly_df.index.name = "연도"
@@ -188,10 +187,26 @@ if run_btn:
             
             st.dataframe(yearly_df, use_container_width=True)
 
-            # 미복귀 병사
+            # ⚔️ 현재 대기 중인 요원 현황 (평가손실 집계 반영)
             st.write("### ⚔️ 현재 대기 중인 요원 현황")
             if len(positions) > 0:
-                st.warning(f"현재 총 {len(positions)}명의 요원이 대기 중입니다. (투입 원금: {format_money(total_invested)}원)")
+                total_diff = total_current_value - total_invested
+                total_loss = total_invested - total_current_value
+                total_loss_pct = (total_diff / total_invested) * 100 if total_invested > 0 else 0
+
+                if total_diff < 0:
+                    st.error(
+                        f"📊 **대기 요원 총 평가손실 집계** | "
+                        f"전체 투입금: **{format_money(total_invested)}원** − 현재 평가금액: **{format_money(total_current_value)}원** = "
+                        f"🚨 **전체 평가손실액: -{format_money(total_loss)}원 ({total_loss_pct:.2f}%)**"
+                    )
+                else:
+                    st.success(
+                        f"📊 **대기 요원 총 평가수익 집계** | "
+                        f"전체 투입금: **{format_money(total_invested)}원** | 현재 평가금액: **{format_money(total_current_value)}원** | "
+                        f"✨ **전체 평가수익액: +{format_money(total_diff)}원 (+{total_loss_pct:.2f}%)**"
+                    )
+
                 unreturned_data = []
                 for p in positions:
                     ret = ((final_price - p['entry_price']) / p['entry_price']) * 100
@@ -229,9 +244,6 @@ if run_btn:
                         "정산 내역": reward_detail
                     })
                 st.dataframe(pd.DataFrame(logs), use_container_width=True)
-
-    except Exception as e:
-        st.error(f"❌ 에러가 발생했습니다: {e}")
 
     except Exception as e:
         st.error(f"❌ 에러가 발생했습니다: {e}")
