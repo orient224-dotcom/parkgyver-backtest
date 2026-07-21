@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 st.set_page_config(page_title="박가이버 작전 통제실", page_icon="🛡️", layout="wide")
 
 st.title("🛡️ 박가이버표 작전 통제실 (실전 백테스터)")
-st.caption("위험은 -15%로 딱 막고, 회전율과 리스크 관리를 극대화하는 자동 매매 시뮬레이터입니다.")
+st.caption("위험은 원하는 손절선으로 딱 막고, 회전율과 리스크 관리를 극대화하는 자동 매매 시뮬레이터입니다.")
 st.markdown("---")
 
 # --- 2. 왼쪽 사이드바 (조종간 세팅) ---
@@ -19,6 +19,16 @@ ticker = st.sidebar.text_input("🎯 종목코드", value="089030.KQ")
 invest_amount = st.sidebar.number_input("💰 회당 진입금액(원)", value=500000, step=100000)
 max_agents = st.sidebar.slider("⚔️ 최대 요원 수(명)", min_value=1, max_value=10, value=5)
 years = st.sidebar.slider("🗓️ 조회 기간(년)", min_value=1, max_value=10, value=5)
+
+# 🌟 0%~50%까지 5% 단위로 자유롭게 조절하는 손절 스위치 추가!
+stop_loss_input = st.sidebar.slider(
+    "🚨 강제 청산(손절) 기준 (-%)", 
+    min_value=0, 
+    max_value=50, 
+    value=15, 
+    step=5,
+    help="0%로 설정하면 손절 없이 목표 수익 달성 시까지 무한 대기합니다."
+)
 
 reward_type = st.sidebar.selectbox(
     "🎁 전리품 수령 방식",
@@ -48,10 +58,11 @@ if run_btn:
 
             df['Daily_Return'] = df['Close'].pct_change() * 100
 
-            # 매매 조건 고정값
+            # 매매 조건 설정
             buy_cond = -5.0
             sell_target = 5.0
-            stop_loss_limit = -15.0
+            # 손절 값이 0보다 클 때만 마이너스 기준선 생성 (0이면 None으로 설정하여 손절 안 함)
+            stop_loss_limit = -float(stop_loss_input) if stop_loss_input > 0 else None
 
             positions = []
             free_shares = 0
@@ -80,12 +91,14 @@ if run_btn:
                     is_exit = False
                     exit_reason = ""
 
+                    # 익절 조건
                     if ret >= sell_target:
                         is_exit = True
                         exit_reason = "🎯 정상 타격 (익절)"
-                    elif ret <= stop_loss_limit:
+                    # 손절 조건 (손절 설정이 되어 있고 기준치 이하로 떨어졌을 때만 발동)
+                    elif stop_loss_limit is not None and ret <= stop_loss_limit:
                         is_exit = True
-                        exit_reason = "🚨 -15% 강제 청산 (손절)"
+                        exit_reason = f"🚨 -{stop_loss_input}% 강제 청산 (손절)"
 
                     if is_exit:
                         profit = invest_amount * (ret / 100)
@@ -151,7 +164,9 @@ if run_btn:
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("총 작전 종료", f"{total_trades}회")
             col2.metric("익절 성공", f"{success_trades}회")
-            col3.metric("손절(강제청산)", f"{stop_loss_trades}회", delta=f"{format_money(stop_loss_amount)}원", delta_color="inverse")
+            
+            stop_loss_label = f"손절(-{stop_loss_input}%)" if stop_loss_input > 0 else "손절(미사용)"
+            col3.metric(stop_loss_label, f"{stop_loss_trades}회", delta=f"{format_money(stop_loss_amount)}원", delta_color="inverse")
             col4.metric("최종 순현금 수익", f"{format_money(cash_profit)}원")
 
             st.markdown("---")
