@@ -20,7 +20,7 @@ invest_amount = st.sidebar.number_input("💰 회당 진입금액(원)", value=5
 max_agents = st.sidebar.slider("⚔️ 최대 요원 수(명)", min_value=1, max_value=10, value=5)
 years = st.sidebar.slider("🗓️ 조회 기간(년)", min_value=1, max_value=10, value=5)
 
-# 🌟 0%~50%까지 5% 단위로 자유롭게 조절하는 손절 스위치 추가!
+# 0%~50% 손절 조종간
 stop_loss_input = st.sidebar.slider(
     "🚨 강제 청산(손절) 기준 (-%)", 
     min_value=0, 
@@ -38,7 +38,8 @@ reward_type = st.sidebar.selectbox(
 run_btn = st.sidebar.button("▶️ 특수 요원 작전 개시!", type="primary")
 
 def format_money(num):
-    return f"{int(num):,}"
+    # 소수점 이하 버림 및 천단위 콤마 포맷팅
+    return f"{int(round(num)):,}"
 
 # --- 3. 작전 시뮬레이션 알고리즘 ---
 if run_btn:
@@ -58,10 +59,9 @@ if run_btn:
 
             df['Daily_Return'] = df['Close'].pct_change() * 100
 
-            # 매매 조건 설정
+            # 매매 조건 세팅
             buy_cond = -5.0
             sell_target = 5.0
-            # 손절 값이 0보다 클 때만 마이너스 기준선 생성 (0이면 None으로 설정하여 손절 안 함)
             stop_loss_limit = -float(stop_loss_input) if stop_loss_input > 0 else None
 
             positions = []
@@ -91,11 +91,9 @@ if run_btn:
                     is_exit = False
                     exit_reason = ""
 
-                    # 익절 조건
                     if ret >= sell_target:
                         is_exit = True
                         exit_reason = "🎯 정상 타격 (익절)"
-                    # 손절 조건 (손절 설정이 되어 있고 기준치 이하로 떨어졌을 때만 발동)
                     elif stop_loss_limit is not None and ret <= stop_loss_limit:
                         is_exit = True
                         exit_reason = f"🚨 -{stop_loss_input}% 강제 청산 (손절)"
@@ -160,22 +158,34 @@ if run_btn:
             # --- 4. 화면 출력 (대시보드) ---
             st.subheader(f"🏆 [{ticker}] {stock_name} 작전 성과표")
             
-            # 지표 상자 (Metrics)
-            col1, col2, col3, col4 = st.columns(4)
+            # 상단 성과 지표 (5개 카드로 직관적 구성)
+            col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("총 작전 종료", f"{total_trades}회")
             col2.metric("익절 성공", f"{success_trades}회")
             
             stop_loss_label = f"손절(-{stop_loss_input}%)" if stop_loss_input > 0 else "손절(미사용)"
             col3.metric(stop_loss_label, f"{stop_loss_trades}회", delta=f"{format_money(stop_loss_amount)}원", delta_color="inverse")
-            col4.metric("최종 순현금 수익", f"{format_money(cash_profit)}원")
+            
+            # 전리품 방식에 따른 성과 지표 명확화
+            if reward_type == '주식으로 모으기 (공짜 주식)':
+                col4.metric("📦 획득 공짜 주식", f"{format_money(free_shares)}주", delta=f"가치 {format_money(free_shares_value)}원")
+                col5.metric("💵 누적 잔돈 수익", f"{format_money(cash_profit)}원")
+            else:
+                col4.metric("📦 획득 공짜 주식", "0주 (전액 현금화)")
+                col5.metric("💵 최종 누적 현금", f"{format_money(cash_profit)}원")
 
             st.markdown("---")
 
-            # 연도별 정산
+            # 연도별 정산 (소수점 제거 및 깔끔한 포맷팅)
             st.write("### 🗓️ 연도별 성적표 (연말 정산)")
             yearly_df = pd.DataFrame.from_dict(yearly_stats, orient='index')
             yearly_df.index.name = "연도"
             yearly_df.columns = ["작전 횟수", "획득 주식(주)", "누적 현금(원)"]
+            
+            yearly_df["작전 횟수"] = yearly_df["작전 횟수"].astype(int)
+            yearly_df["획득 주식(주)"] = yearly_df["획득 주식(주)"].apply(lambda x: f"{int(x):,}주")
+            yearly_df["누적 현금(원)"] = yearly_df["누적 현금(원)"].apply(lambda x: f"{format_money(x)}원")
+            
             st.dataframe(yearly_df, use_container_width=True)
 
             # 미복귀 병사
@@ -203,6 +213,11 @@ if run_btn:
             if matched_trades:
                 logs = []
                 for t in reversed(matched_trades):
+                    if t['shares'] > 0:
+                        reward_detail = f"{t['shares']}주 + 잔돈 {format_money(t['cash'])}원"
+                    else:
+                        reward_detail = f"{format_money(t['cash'])}원"
+
                     logs.append({
                         "구분": t['exit_reason'],
                         "요원": t['agent_name'],
@@ -211,9 +226,12 @@ if run_btn:
                         "복귀일": t['exit_date'],
                         "청산단가": f"{format_money(t['exit_price'])}원 ({t['exit_return']:.2f}%)",
                         "최종수익률": f"{t['ret']:.1f}%",
-                        "정산 금액": f"{format_money(t['cash'])}원"
+                        "정산 내역": reward_detail
                     })
                 st.dataframe(pd.DataFrame(logs), use_container_width=True)
+
+    except Exception as e:
+        st.error(f"❌ 에러가 발생했습니다: {e}")
 
     except Exception as e:
         st.error(f"❌ 에러가 발생했습니다: {e}")
