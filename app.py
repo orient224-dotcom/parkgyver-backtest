@@ -235,7 +235,7 @@ if run_btn:
 
         st.markdown("---")
 
-        # 🌟 🌟 [신규 추가] 연도별 성적표 (연말 정산) 🌟 🌟
+        # 연도별 성적표 (연말 정산)
         st.write("### 🗓️ 연도별 성적표 (연말 정산)")
         yearly_df = pd.DataFrame.from_dict(yearly_stats, orient='index')
         yearly_df.index.name = "연도"
@@ -266,16 +266,29 @@ if run_btn:
                         })
                 st.table(pd.DataFrame(free_shares_table))
 
-        # 대기 중인 요원 (고립 자산)
+        # ⚔️ [보완 완료] 현재 현장에서 대기 중인 요원 (인원수 명시)
         st.write("### ⚔️ 현재 현장에서 대기 중인 요원 (고립 포지션)")
-        if len(active_positions) > 0:
+        active_count = len(active_positions)
+        available_slots = max_active_slots - active_count
+
+        if active_count > 0:
             diff_eval = active_eval_value - active_invest_total
             diff_pct = (diff_eval / active_invest_total) * 100 if active_invest_total > 0 else 0
 
+            status_text = f"⚔️ **현재 대기(고립) 요원:** **{active_count}명** / 최대 **{max_active_slots}명** (출격 가능: **{available_slots}명**)"
+
             if diff_eval < 0:
-                st.error(f"📊 **대기 요원 총 평가손실** | 투입금: **{format_money(active_invest_total)}원** | 현재가치: **{format_money(active_eval_value)}원** | 🚨 **평가손실액: {format_money(diff_eval)}원 ({diff_pct:.2f}%)**")
+                st.error(
+                    f"{status_text} | 📊 **대기 요원 총 평가손실** | "
+                    f"투입금: **{format_money(active_invest_total)}원** | 현재가치: **{format_money(active_eval_value)}원** | "
+                    f"🚨 **평가손실액: {format_money(diff_eval)}원 ({diff_pct:.2f}%)**"
+                )
             else:
-                st.success(f"📊 **대기 요원 총 평가수익** | 투입금: **{format_money(active_invest_total)}원** | 현재가치: **{format_money(active_eval_value)}원** | ✨ **평가수익액: +{format_money(diff_eval)}원 (+{diff_pct:.2f}%)**")
+                st.success(
+                    f"{status_text} | 📊 **대기 요원 총 평가수익** | "
+                    f"투입금: **{format_money(active_invest_total)}원** | 현재가치: **{format_money(active_eval_value)}원** | "
+                    f"✨ **평가수익액: +{format_money(diff_eval)}원 (+{diff_pct:.2f}%)**"
+                )
 
             active_table = []
             for p in active_positions:
@@ -291,7 +304,7 @@ if run_btn:
                 })
             st.table(pd.DataFrame(active_table))
         else:
-            st.success("🎉 현재 물려있는 요원이 전혀 없습니다! 현금으로 100% 회수된 상태입니다!")
+            st.success(f"🎉 현재 물려있는 요원이 전혀 없습니다! (대기 0명 / 출격 가능 {max_active_slots}명) 현금으로 100% 회수된 상태입니다!")
 
         # 매매 장부 및 엑셀 다운로드
         st.write("### 📜 10개 종목 통합 출격-복귀 매칭 장부 (최근 순)")
