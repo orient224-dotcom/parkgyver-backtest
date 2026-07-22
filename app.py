@@ -40,7 +40,7 @@ buy_cond_input = st.sidebar.slider("🛒 진입(출격) 기준 (-% 하락 시)",
 sell_target_input = st.sidebar.slider("🎯 익절(복귀) 목표 (+%)", min_value=1, max_value=30, value=5, step=1)
 stop_loss_input = st.sidebar.slider("🚨 강제 청산(손절) 기준 (-%)", min_value=0, max_value=50, value=15, step=5)
 
-# 전리품 수령 방식 스위치 (보안 용어 적용)
+# 전리품 수령 방식 스위치
 reward_type = st.sidebar.selectbox(
     "🎁 전리품 수령 방식",
     ["전액 현금으로 챙기기", "열매로 결실 모으기"]
@@ -51,7 +51,7 @@ run_btn = st.sidebar.button("🚀 작전 검증 개시!", type="primary")
 def format_money(num):
     return f"{int(round(num)):,}"
 
-# 🌟 🌟 [신규 추가] 상단 실시간 감시 작전 구역 목록표 🌟 🌟
+# 상단 실시간 감시 작전 구역 목록표
 st.write("### 🛡️ 현재 실시간 감시 중인 작전 구역 (10선)")
 universe_list = []
 for name, code in PORTFOLIO_UNIVERSE.items():
@@ -64,7 +64,6 @@ for name, code in PORTFOLIO_UNIVERSE.items():
         "전략적 특성": "주도 테마 / 고회전 알짜 구역"
     })
 
-# 2줄 카드로 깔끔하게 표출
 st.dataframe(pd.DataFrame(universe_list), use_container_width=True, hide_index=True)
 st.markdown("---")
 
@@ -101,6 +100,9 @@ if run_btn:
         total_success = 0
         total_stop_loss = 0
         total_cash_profit = 0
+
+        # 🌟 풀 출격(자금 완판) 감지 리스트
+        full_deployment_days = []
 
         for date, row in close_df.iterrows():
             date_str = date.strftime('%Y-%m-%d')
@@ -149,7 +151,6 @@ if run_btn:
                         returned_cash = pos['invest_amount'] + leftover
                         current_cash += returned_cash
 
-                        # 연도별 통계 집계
                         yearly_stats[year]['missions'] += 1
                         yearly_stats[year]['shares'] += buyable
                         yearly_stats[year]['cash'] += leftover
@@ -204,6 +205,14 @@ if run_btn:
                                 'invest_amount': invest_amount_input
                             })
 
+            # 🌟 [체크] 당일 예산이 풀 소진(슬롯 만석)되었는지 감지
+            if len(active_positions) == max_active_slots:
+                full_deployment_days.append({
+                    "발생 일자": date_str,
+                    "동원 요원 수": f"{max_active_slots}명 (풀 출격)",
+                    "참여 구역 목록": ", ".join([p['stock_name'] for p in active_positions])
+                })
+
         # 최종 가치 평가
         last_date = close_df.index[-1]
         last_row = close_df.iloc[-1]
@@ -216,7 +225,6 @@ if run_btn:
                 c_price = float(last_row[t_code])
                 active_eval_value += pos['invest_amount'] * (c_price / pos['entry_price'])
 
-        # 모아둔 열매(주식)의 현재 가치 평가
         total_free_shares_count = sum(free_shares_dict.values())
         total_free_shares_value = 0
         for s_name, count in free_shares_dict.items():
@@ -249,7 +257,19 @@ if run_btn:
 
         st.markdown("---")
 
-        # 연도별 성적표 (연말 정산)
+        # 🌟 🌟 [신규 추가] 한날 자금 완판 (풀 출격) 추적 현황 🌟 🌟
+        st.write("### 🚨 한날 자금 완판(풀 출격) 발생일 추적")
+        if full_deployment_days:
+            # 중복 날짜 제거 및 표출
+            unique_full_days = pd.DataFrame(full_deployment_days).drop_duplicates(subset=['발생 일자'])
+            st.warning(f"⚠️ 백테스트 기간 중 자금이 100% 소진(최대 {max_active_slots}명 풀 출격)되었던 날이 **총 {len(unique_full_days)}일** 감지되었습니다.")
+            st.dataframe(unique_full_days, use_container_width=True, hide_index=True)
+        else:
+            st.success(f"🎉 백테스트 기간 중 자금이 100% 한날에 소진된 적이 없습니다! 항상 여유 슬롯이 안전하게 유지되었습니다.")
+
+        st.markdown("---")
+
+        # 연도별 성적표
         st.write("### 🗓️ 연도별 성적표 (연말 정산)")
         yearly_df = pd.DataFrame.from_dict(yearly_stats, orient='index')
         yearly_df.index.name = "연도"
@@ -261,7 +281,7 @@ if run_btn:
         
         st.dataframe(yearly_df, use_container_width=True)
 
-        # 열매(주식) 보유 현황표
+        # 열매 보유 현황표
         if reward_type == '열매로 결실 모으기':
             st.write("### 📦 구역별 획득 열매 & 잔돈 정산 현황")
             st.info(f"💡 복귀 시 챙긴 **총 잔돈 현금 수익:** **{format_money(total_cash_profit)}원** (위 현금 잔고에 자동 합산되었습니다.)")
@@ -280,7 +300,7 @@ if run_btn:
                         })
                 st.table(pd.DataFrame(free_shares_table))
 
-        # ⚔️ 현재 현장에서 대기 중인 요원
+        # ⚔️ 현재 대기 요원
         st.write("### ⚔️ 현재 현장에서 대기 중인 요원 (고립 포지션)")
         active_count = len(active_positions)
         available_slots = max_active_slots - active_count
