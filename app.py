@@ -8,8 +8,8 @@ from dateutil.relativedelta import relativedelta
 # --- 1. 페이지 웹 디자인 세팅 ---
 st.set_page_config(page_title="박가이버 작전 통제실 V5", page_icon="🛡️", layout="wide")
 
-st.title("🛡️ 박가이버표 실전 작전 통제실 (V5 복리 & 미래 예측 엔진)")
-st.caption("1,000만 원 자본금과 알짜 5개 구역으로 시작하는 5년 은퇴 자금 스노우볼 시뮬레이터입니다.")
+st.title("🛡️ 박가이버표 실전 작전 통제실 (V5 회전율 진단 & 미래 예측)")
+st.caption("1,000만 원 자본금과 알짜 구역으로 시작하는 5년 은퇴 자금 스노우볼 시뮬레이터입니다.")
 st.markdown("---")
 
 # --- 2. 사전 정의 종목 사전 (인기 주도주 20선) ---
@@ -70,7 +70,6 @@ if max_active_slots < 1: max_active_slots = 1
 
 st.sidebar.info(f"💡 동원 가능한 요원 슬롯: **{max_active_slots}개**")
 
-# 🌟 복리 스케일업 옵션
 use_compounding = st.sidebar.checkbox("🚀 복리 스케일업 모드 (자산증가 시 출격금 확대)", value=True)
 
 time_unit = st.sidebar.radio("🗓️ 기간 단위 선택", ["월 단위 (개월)", "년 단위 (년)"], horizontal=True)
@@ -168,8 +167,9 @@ if run_btn:
             total_cash_profit = 0
             total_fee_tax_paid = 0
 
-            max_deployed_count = 0
-            peak_deployment_records = []
+            # 🌟 역사적 동시 출격 진단용 변수
+            global_max_deployed = 0
+            daily_deployment_snapshots = []
 
             for date, row in close_df.iterrows():
                 date_str = date.strftime('%Y-%m-%d')
@@ -260,14 +260,15 @@ if run_btn:
                 
                 active_positions = survived_positions
 
-                # B. 복리 스케일업 계산 (자산 증가 시 진입금 확대)
-                if use_compounding:
-                    dynamic_invest_amount = max(float(invest_amount_input), current_cash / max_active_slots)
+                # B. 출격금 연산
+                remaining_slots = max_active_slots - len(active_positions)
+                if use_compounding and remaining_slots > 0:
+                    dynamic_invest_amount = max(float(invest_amount_input), current_cash / remaining_slots)
                 else:
                     dynamic_invest_amount = float(invest_amount_input)
 
                 # C. 신규 출격 종목 탐색
-                if current_cash >= dynamic_invest_amount and len(active_positions) < max_active_slots:
+                if current_cash > 0 and len(active_positions) < max_active_slots:
                     day_returns = return_df.loc[date] if date in return_df.index else None
                     
                     if day_returns is not None:
@@ -282,30 +283,32 @@ if run_btn:
                         candidates.sort(key=lambda x: x[2])
 
                         for cand in candidates:
-                            if current_cash >= dynamic_invest_amount and len(active_positions) < max_active_slots:
+                            actual_invest = min(dynamic_invest_amount, current_cash)
+
+                            if actual_invest >= 500000 and len(active_positions) < max_active_slots:
                                 agent_counter += 1
                                 s_name, t_code, ret_val, c_price = cand
                                 
-                                current_cash -= dynamic_invest_amount
+                                current_cash -= actual_invest
                                 active_positions.append({
                                     'name': f"{agent_counter}호 요원",
                                     'stock_name': s_name,
                                     'ticker': t_code,
                                     'entry_price': c_price,
                                     'entry_date': date_str,
-                                    'invest_amount': dynamic_invest_amount
+                                    'invest_amount': actual_invest
                                 })
 
-                current_deployed_count = len(active_positions)
-                if current_deployed_count > max_deployed_count:
-                    max_deployed_count = current_deployed_count
+                # 🌟 당일 동시 출격 상태 기록
+                curr_count = len(active_positions)
+                if curr_count > global_max_deployed:
+                    global_max_deployed = curr_count
 
-                if current_deployed_count > 0:
-                    peak_deployment_records.append({
+                if curr_count > 0:
+                    daily_deployment_snapshots.append({
                         "발생 일자": date_str,
-                        "동원 요원 수": current_deployed_count,
-                        "자금 소진율": f"{(current_deployed_count / max_active_slots) * 100:.1f}%",
-                        "참여 구역 목록": ", ".join([p['stock_name'] for p in active_positions])
+                        "동시 출격 수": curr_count,
+                        "출격 종목 리스트": ", ".join([p['stock_name'] for p in active_positions])
                     })
 
             # 최종 가치 평가
@@ -356,7 +359,29 @@ if run_btn:
 
             st.markdown("---")
 
-            # 🎲 🎲 [신규 기능] 몬테카를로 미래 5년 확률 시뮬레이터 🎲 🎲
+            # 🌟 🌟 [핵심 신규 추가] 자금 회전율 최적화를 위한 역사적 피크 진단 센터 🌟 🌟
+            st.write("### 🔍 [회전율 극대화 진단] 과거 역사적 최대 동시 출격 리포트")
+            
+            st.warning(f"📊 **{period_label} 백테스트 전체 기간 중 발생한 절대 역사적 최고 동시 출격 수:** **총 {global_max_deployed}개 종목** (설정된 전체 슬롯: {max_active_slots}개)")
+
+            if daily_deployment_snapshots:
+                snap_df = pd.DataFrame(daily_deployment_snapshots)
+                # 역사적 최고 수치와 일치하는 날만 필터링
+                peak_df = snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자'])
+                
+                st.write(f"▼ **역대 최고 기록({global_max_deployed}개 동시 물림)이 발생했던 정확한 일자 및 당시 출격 종목:**")
+                st.dataframe(peak_df, use_container_width=True, hide_index=True)
+
+                # 💡 박가이버님을 위한 맞춤형 회전율 가이드
+                if global_max_deployed < max_active_slots:
+                    st.success(f"💡 **[회전율 극대화 제언]:** 지난 {period_label} 동안 최대 {global_max_deployed}개까지만 동시 출격했습니다! "
+                               f"슬롯 수를 **{global_max_deployed}개**로 맞추고 1회 진입금을 늘리거나, 진입 기준(-{buy_cond_input}%)을 약간 낮추면 현금 유휴 비율이 줄어들어 회전율이 대폭 상승합니다.")
+                else:
+                    st.info(f"💡 **[슬롯 풀가동 확인]:** 준비된 {max_active_slots}개 슬롯이 100% 알뜰하게 모두 활용되었습니다. 자금 효율이 최적화된 상태입니다!")
+
+            st.markdown("---")
+
+            # 몬테카를로 미래 5년 확률 시뮬레이터
             st.write("### 🎲 몬테카를로 미래 5년 자산 확률 예측기 (1,000회 가상 시뮬레이션)")
             st.caption("과거 백테스트의 수익률 분포를 기반으로, 앞으로 5년 동안 시장의 파동이 어떻게 펼쳐질지 1,000번 가상으로 돌려본 확률 통계입니다.")
 
@@ -364,7 +389,6 @@ if run_btn:
                 mean_ret = np.mean(daily_returns_history) / 100
                 std_ret = np.std(daily_returns_history) / 100
                 
-                # 1,000회 5년(약 100회 작전) 시뮬레이션
                 sim_runs = 1000
                 sim_trades = 80
                 mc_results = []
@@ -377,10 +401,10 @@ if run_btn:
                     mc_results.append(sim_asset)
 
                 mc_results = np.array(mc_results)
-                p10 = np.percentile(mc_results, 10)  # 최악 시나리오
-                p50 = np.percentile(mc_results, 50)  # 평균 시나리오
-                p90 = np.percentile(mc_results, 90)  # 최선 시나리오
-                target_prob = (np.sum(mc_results >= (total_capital_input * 3)) / sim_runs) * 100  # 3배 달성 확률
+                p10 = np.percentile(mc_results, 10)
+                p50 = np.percentile(mc_results, 50)
+                p90 = np.percentile(mc_results, 90)
+                target_prob = (np.sum(mc_results >= (total_capital_input * 3)) / sim_runs) * 100
 
                 mc_col1, mc_col2, mc_col3, mc_col4 = st.columns(4)
                 mc_col1.metric("🌧️ 최악의 경우 (하위 10%)", f"{format_money(p10)}원")
