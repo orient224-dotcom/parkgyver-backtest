@@ -14,8 +14,48 @@ st.markdown("---")
 # --- 2. 왼쪽 사이드바 (조종간 세팅) ---
 st.sidebar.header("🎛️ 작전 조종간")
 
-stock_name = st.sidebar.text_input("🏷️ 종목명", value="테크윙")
-ticker = st.sidebar.text_input("🎯 종목코드", value="089030.KQ")
+# 🌟 박가이버 특선 인기 종목 사전 (클릭 한 번으로 종목명/코드 완벽 연동)
+STOCK_DICT = {
+    "테크윙": "089030.KQ",
+    "삼성전자": "005930.KS",
+    "SK하이닉스": "000660.KS",
+    "한미반도체": "042700.KS",
+    "HPSP": "403870.KQ",
+    "이오테크닉스": "039030.KQ",
+    "리노공업": "058470.KQ",
+    "ISC": "095340.KQ",
+    "주성엔지니어링": "036930.KQ",
+    "원익IPS": "240810.KQ",
+    "솔브레인": "357780.KQ",
+    "현대차": "005380.KS",
+    "기아": "000270.KS",
+    "NAVER": "035420.KS",
+    "카카오": "035720.KS",
+    "LG에너지솔루션": "373220.KS",
+    "삼성바이오로직스": "207940.KS",
+    "셀트리온": "068270.KS",
+    "알테오젠": "196170.KQ",
+    "에코프로비엠": "247540.KQ",
+    "에코프로": "086520.KQ",
+    "✍️ 직접 입력": "CUSTOM"
+}
+
+# 🌟 종목 선택 드롭다운 상자
+selected_option = st.sidebar.selectbox(
+    "🏷️ 종목 선택",
+    options=list(STOCK_DICT.keys()),
+    index=0  # 기본값: 테크윙
+)
+
+# 🌟 선택에 따른 자동 연동 로직
+if selected_option == "✍️ 직접 입력":
+    stock_name = st.sidebar.text_input("🏷️ 종목명 직접 입력", value="삼성전자")
+    ticker = st.sidebar.text_input("🎯 종목코드 입력 (예: 005930.KS)", value="005930.KS")
+else:
+    stock_name = selected_option
+    ticker = STOCK_DICT[selected_option]
+    st.sidebar.success(f"📌 선택된 코드: **{ticker}**")
+
 invest_amount = st.sidebar.number_input("💰 회당 진입금액(원)", value=500000, step=100000)
 max_agents = st.sidebar.slider("⚔️ 최대 요원 수(명)", min_value=1, max_value=10, value=5)
 years = st.sidebar.slider("🗓️ 조회 기간(년)", min_value=1, max_value=10, value=5)
@@ -30,7 +70,7 @@ buy_cond_input = st.sidebar.slider(
     help="당일 주가가 설정한 % 이상 하락했을 때 신규 요원이 출격합니다."
 )
 
-# 🎯 익절 목표 조종간 (추가)
+# 🎯 익절 목표 조종간
 sell_target_input = st.sidebar.slider(
     "🎯 익절(복귀) 목표 (+%)", 
     min_value=1, 
@@ -223,7 +263,7 @@ if run_btn:
 
             st.markdown("---")
 
-            # ⚔️ [신규 기능 1] 단순 보유 vs 박가이버 전략 한판 승부!
+            # ⚔️ 단순 보유 vs 박가이버 전략 한판 승부!
             st.write("### ⚔️ 단순 보유(Buy & Hold) vs 박가이버 전략 한판 승부")
             comp_col1, comp_col2, comp_col3 = st.columns(3)
             
@@ -247,7 +287,7 @@ if run_btn:
                 delta_color="normal" if diff_pct >= 0 else "inverse"
             )
 
-            # 📈 [신규 기능 2] 누적 자산 성장 곡선 그래프
+            # 📈 누적 자산 성장 곡선 그래프
             st.write("### 📈 누적 자산 성장 추이 그래프")
             chart_df = pd.DataFrame(daily_history).set_index('Date')
             st.line_chart(chart_df, height=350)
@@ -302,7 +342,7 @@ if run_btn:
             else:
                 st.success("🎉 현재 물려있는 요원이 없습니다! 전원 무사 귀환 완료!")
 
-            # 1대1 완결 장부 및 📥 [신규 기능 3] 엑셀 다운로드
+            # 1대1 완결 장부 및 📥 엑셀 다운로드
             st.write("### 📜 1대1 출격-복귀 매칭 장부 (최근 작전순)")
             if matched_trades:
                 logs = []
@@ -326,7 +366,7 @@ if run_btn:
                 logs_df = pd.DataFrame(logs)
                 st.dataframe(logs_df, use_container_width=True)
 
-                # CSV 엑셀 다운로드 버튼 (한글 깨짐 방지 utf-8-sig)
+                # CSV 엑셀 다운로드 버튼
                 csv_data = logs_df.to_csv(index=False).encode('utf-8-sig')
                 st.download_button(
                     label=f"📥 [{stock_name}] 백테스트 매매 장부 엑셀(CSV) 다운로드",
