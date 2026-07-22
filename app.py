@@ -78,15 +78,22 @@ if run_btn:
         trade_logs = []
         agent_counter = 0
 
+        # 연도별 통계 저장 사전
+        yearly_stats = {}
+
         # 종목별 누적 공짜 주식 수량 저장 사전
         free_shares_dict = {s_name: 0 for s_name in PORTFOLIO_UNIVERSE.keys()}
 
         total_success = 0
         total_stop_loss = 0
-        total_cash_profit = 0  # 누적 현금 수익 정산 변수
+        total_cash_profit = 0
 
         for date, row in close_df.iterrows():
             date_str = date.strftime('%Y-%m-%d')
+            year = date.year
+
+            if year not in yearly_stats:
+                yearly_stats[year] = {'missions': 0, 'shares': 0, 'cash': 0}
             
             # A. 기존 출격 포지션 익절/손절 체크
             survived_positions = []
@@ -123,10 +130,15 @@ if run_btn:
                             leftover = profit
 
                         free_shares_dict[pos['stock_name']] += buyable
-                        total_cash_profit += leftover  # 현금 수익/잔돈 누적
+                        total_cash_profit += leftover
                         
                         returned_cash = pos['invest_amount'] + leftover
                         current_cash += returned_cash
+
+                        # 연도별 통계 집계
+                        yearly_stats[year]['missions'] += 1
+                        yearly_stats[year]['shares'] += buyable
+                        yearly_stats[year]['cash'] += leftover
 
                         log_reward = f"{buyable}주 + 잔돈 {format_money(leftover)}원" if buyable > 0 else f"{format_money(leftover)}원"
 
@@ -208,13 +220,12 @@ if run_btn:
         st.subheader("🏆 3,000만 원 은퇴 프로젝트 최종 검증 결과")
         st.caption(f"⚙️ 검증 조건: 알짜 주도주 10선 | 당일 **-{buy_cond_input}% 이하** 하락 시 출격 | **+{sell_target_input}%** 익절 | **-{stop_loss_input}%** 손절")
 
-        # 상단 핵심 성과 지표 (5개 카드 명확화)
+        # 상단 핵심 성과 지표 (5개 카드)
         col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric("🏁 초기 투입 자금", f"{format_money(total_capital_input)}원")
         col2.metric("✨ 5년 후 최종 총자산", f"{format_money(final_total_asset)}원")
         col3.metric("📈 총 순수익 (수익률)", f"{format_money(total_net_profit)}원", delta=f"{total_return_pct:.2f}%")
         
-        # 💵 현금 잔고 및 수익 정산카드
         if reward_type == '주식으로 모으기 (공짜 주식)':
             col4.metric("💵 현금 잔고 (원금+잔돈)", f"{format_money(current_cash)}원", delta=f"누적 잔돈: +{format_money(total_cash_profit)}원")
             col5.metric("📦 획득 공짜 주식", f"{format_money(total_free_shares_count)}주", delta=f"가치: {format_money(total_free_shares_value)}원")
@@ -223,6 +234,18 @@ if run_btn:
             col5.metric("🔄 작전 승률", f"{total_trades}회 중 {total_success}회", delta=f"승률 {(total_success/total_trades*100 if total_trades>0 else 0):.1f}%")
 
         st.markdown("---")
+
+        # 🌟 🌟 [신규 추가] 연도별 성적표 (연말 정산) 🌟 🌟
+        st.write("### 🗓️ 연도별 성적표 (연말 정산)")
+        yearly_df = pd.DataFrame.from_dict(yearly_stats, orient='index')
+        yearly_df.index.name = "연도"
+        yearly_df.columns = ["작전 종료 횟수", "획득 주식(주)", "누적 현금 수익(원)"]
+        
+        yearly_df["작전 종료 횟수"] = yearly_df["작전 종료 횟수"].astype(int)
+        yearly_df["획득 주식(주)"] = yearly_df["획득 주식(주)"].apply(lambda x: f"{int(x):,}주")
+        yearly_df["누적 현금 수익(원)"] = yearly_df["누적 현금 수익(원)"].apply(lambda x: f"{format_money(x)}원")
+        
+        st.dataframe(yearly_df, use_container_width=True)
 
         # 공짜 주식 보유 현황표 (주식으로 모으기 선택 시)
         if reward_type == '주식으로 모으기 (공짜 주식)':
