@@ -167,7 +167,6 @@ if run_btn:
             total_cash_profit = 0
             total_fee_tax_paid = 0
 
-            # 🌟 역사적 동시 출격 진단용 변수
             global_max_deployed = 0
             daily_deployment_snapshots = []
 
@@ -299,7 +298,6 @@ if run_btn:
                                     'invest_amount': actual_invest
                                 })
 
-                # 🌟 당일 동시 출격 상태 기록
                 curr_count = len(active_positions)
                 if curr_count > global_max_deployed:
                     global_max_deployed = curr_count
@@ -359,60 +357,22 @@ if run_btn:
 
             st.markdown("---")
 
-            # 🌟 🌟 [핵심 신규 추가] 자금 회전율 최적화를 위한 역사적 피크 진단 센터 🌟 🌟
+            # 자금 회전율 최적화 진단
             st.write("### 🔍 [회전율 극대화 진단] 과거 역사적 최대 동시 출격 리포트")
-            
             st.warning(f"📊 **{period_label} 백테스트 전체 기간 중 발생한 절대 역사적 최고 동시 출격 수:** **총 {global_max_deployed}개 종목** (설정된 전체 슬롯: {max_active_slots}개)")
 
             if daily_deployment_snapshots:
                 snap_df = pd.DataFrame(daily_deployment_snapshots)
-                # 역사적 최고 수치와 일치하는 날만 필터링
                 peak_df = snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자'])
                 
                 st.write(f"▼ **역대 최고 기록({global_max_deployed}개 동시 물림)이 발생했던 정확한 일자 및 당시 출격 종목:**")
                 st.dataframe(peak_df, use_container_width=True, hide_index=True)
 
-                # 💡 박가이버님을 위한 맞춤형 회전율 가이드
                 if global_max_deployed < max_active_slots:
                     st.success(f"💡 **[회전율 극대화 제언]:** 지난 {period_label} 동안 최대 {global_max_deployed}개까지만 동시 출격했습니다! "
                                f"슬롯 수를 **{global_max_deployed}개**로 맞추고 1회 진입금을 늘리거나, 진입 기준(-{buy_cond_input}%)을 약간 낮추면 현금 유휴 비율이 줄어들어 회전율이 대폭 상승합니다.")
                 else:
                     st.info(f"💡 **[슬롯 풀가동 확인]:** 준비된 {max_active_slots}개 슬롯이 100% 알뜰하게 모두 활용되었습니다. 자금 효율이 최적화된 상태입니다!")
-
-            st.markdown("---")
-
-            # 몬테카를로 미래 5년 확률 시뮬레이터
-            st.write("### 🎲 몬테카를로 미래 5년 자산 확률 예측기 (1,000회 가상 시뮬레이션)")
-            st.caption("과거 백테스트의 수익률 분포를 기반으로, 앞으로 5년 동안 시장의 파동이 어떻게 펼쳐질지 1,000번 가상으로 돌려본 확률 통계입니다.")
-
-            if len(daily_returns_history) > 5:
-                mean_ret = np.mean(daily_returns_history) / 100
-                std_ret = np.std(daily_returns_history) / 100
-                
-                sim_runs = 1000
-                sim_trades = 80
-                mc_results = []
-
-                for _ in range(sim_runs):
-                    sim_returns = np.random.normal(mean_ret, std_ret, sim_trades)
-                    sim_asset = float(total_capital_input)
-                    for r in sim_returns:
-                        sim_asset *= (1 + r)
-                    mc_results.append(sim_asset)
-
-                mc_results = np.array(mc_results)
-                p10 = np.percentile(mc_results, 10)
-                p50 = np.percentile(mc_results, 50)
-                p90 = np.percentile(mc_results, 90)
-                target_prob = (np.sum(mc_results >= (total_capital_input * 3)) / sim_runs) * 100
-
-                mc_col1, mc_col2, mc_col3, mc_col4 = st.columns(4)
-                mc_col1.metric("🌧️ 최악의 경우 (하위 10%)", f"{format_money(p10)}원")
-                mc_col2.metric("🌤️ 평균 기대 자산 (중위 50%)", f"{format_money(p50)}원")
-                mc_col3.metric("☀️ 최선의 경우 (상위 10%)", f"{format_money(p90)}원")
-                mc_col4.metric("🔥 3배(3,000만 원) 돌파 확률", f"{target_prob:.1f}%", delta="목표 달성 유력" if target_prob>70 else "안정적 성장")
-            else:
-                st.warning("⚠️ 백테스트 거래 횟수가 부족하여 몬테카를로 시뮬레이션을 실행할 수 없습니다. 기간을 늘려주세요.")
 
             st.markdown("---")
 
@@ -450,6 +410,56 @@ if run_btn:
                 
                 stock_summary_df = pd.DataFrame(stock_summary)
                 st.dataframe(stock_summary_df, use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+
+            # 🌟 🌟 [완벽 복구!] 연도별 성적표 (연말 정산) 🌟 🌟
+            st.write("### 🗓️ 연도별 성적표 (연말 정산)")
+            yearly_df = pd.DataFrame.from_dict(yearly_stats, orient='index')
+            yearly_df.index.name = "연도"
+            yearly_df.columns = ["익절 성공(회)", "강제 손절(회)", "획득 열매(개)", "누적 현금 수익(원)"]
+            
+            yearly_df["익절 성공(회)"] = yearly_df["익절 성공(회)"].astype(int)
+            yearly_df["강제 손절(회)"] = yearly_df["강제 손절(회)"].astype(int)
+            yearly_df["획득 열매(개)"] = yearly_df["획득 열매(개)"].apply(lambda x: f"{int(x):,}개")
+            yearly_df["누적 현금 수익(원)"] = yearly_df["누적 현금 수익(원)"].apply(lambda x: f"{format_money(x)}원")
+            
+            st.dataframe(yearly_df, use_container_width=True)
+
+            st.markdown("---")
+
+            # 몬테카를로 미래 5년 확률 시뮬레이터
+            st.write("### 🎲 몬테카를로 미래 5년 자산 확률 예측기 (1,000회 가상 시뮬레이션)")
+            st.caption("과거 백테스트의 수익률 분포를 기반으로, 앞으로 5년 동안 시장의 파동이 어떻게 펼쳐질지 1,000번 가상으로 돌려본 확률 통계입니다.")
+
+            if len(daily_returns_history) > 5:
+                mean_ret = np.mean(daily_returns_history) / 100
+                std_ret = np.std(daily_returns_history) / 100
+                
+                sim_runs = 1000
+                sim_trades = 80
+                mc_results = []
+
+                for _ in range(sim_runs):
+                    sim_returns = np.random.normal(mean_ret, std_ret, sim_trades)
+                    sim_asset = float(total_capital_input)
+                    for r in sim_returns:
+                        sim_asset *= (1 + r)
+                    mc_results.append(sim_asset)
+
+                mc_results = np.array(mc_results)
+                p10 = np.percentile(mc_results, 10)
+                p50 = np.percentile(mc_results, 50)
+                p90 = np.percentile(mc_results, 90)
+                target_prob = (np.sum(mc_results >= (total_capital_input * 3)) / sim_runs) * 100
+
+                mc_col1, mc_col2, mc_col3, mc_col4 = st.columns(4)
+                mc_col1.metric("🌧️ 최악의 경우 (하위 10%)", f"{format_money(p10)}원")
+                mc_col2.metric("🌤️ 평균 기대 자산 (중위 50%)", f"{format_money(p50)}원")
+                mc_col3.metric("☀️ 최선의 경우 (상위 10%)", f"{format_money(p90)}원")
+                mc_col4.metric("🔥 3배(3,000만 원) 돌파 확률", f"{target_prob:.1f}%", delta="목표 달성 유력" if target_prob>70 else "안정적 성장")
+            else:
+                st.warning("⚠️ 백테스트 거래 횟수가 부족하여 몬테카를로 시뮬레이션을 실행할 수 없습니다. 기간을 늘려주세요.")
 
             st.markdown("---")
 
