@@ -38,7 +38,7 @@ MASTER_STOCK_DICT = {
 # --- 3. 왼쪽 사이드바 (조종간 세팅) ---
 st.sidebar.header("🎛️ 작전 조종간")
 
-# 🌟 🌟 [신규 기능] 작전 구역 커스터마이징 선택창 🌟 🌟
+# 작전 구역 커스터마이징 선택창
 st.sidebar.subheader("🎯 작전 구역(종목) 설정")
 selected_stock_names = st.sidebar.multiselect(
     "감시할 작전 구역 선택 (1개~10개)",
@@ -55,7 +55,6 @@ if use_custom:
     custom_stock_name = st.sidebar.text_input("종목명 입력", value="삼성전자")
     custom_stock_ticker = st.sidebar.text_input("종목코드 입력 (예: 005930.KS)", value="005930.KS")
 
-# 실제 시뮬레이션에 적용할 유니버스 생성
 PORTFOLIO_UNIVERSE = {}
 for s_name in selected_stock_names:
     PORTFOLIO_UNIVERSE[s_name] = MASTER_STOCK_DICT[s_name]
@@ -73,7 +72,16 @@ invest_amount_input = st.sidebar.number_input("💰 회당 진입금액(원)", v
 max_active_slots = int(total_capital_input // invest_amount_input)
 st.sidebar.info(f"💡 동시에 동원 가능한 최대 요원 슬롯: **{max_active_slots}개**")
 
-years_input = st.sidebar.slider("🗓️ 백테스트 검증 기간(년)", min_value=1, max_value=10, value=5)
+# 🌟 🌟 [신규 기능 1] 월단위/년단위 검증 기간 설정 선택 🌟 🌟
+time_unit = st.sidebar.radio("🗓️ 기간 단위 선택", ["월 단위 (개월)", "년 단위 (년)"], horizontal=True)
+
+if time_unit == "월 단위 (개월)":
+    months_input = st.sidebar.slider("백테스트 기간(개월)", min_value=1, max_value=120, value=60, step=1)
+    period_label = f"{months_input}개월"
+else:
+    years_val = st.sidebar.slider("백테스트 기간(년)", min_value=1, max_value=10, value=5, step=1)
+    months_input = years_val * 12
+    period_label = f"{years_val}년"
 
 # 진입, 익절, 손절 조종간
 buy_cond_input = st.sidebar.slider("🛒 진입(출격) 기준 (-% 하락 시)", min_value=1, max_value=20, value=4, step=1)
@@ -91,7 +99,7 @@ run_btn = st.sidebar.button("🚀 작전 검증 개시!", type="primary")
 def format_money(num):
     return f"{int(round(num)):,}"
 
-# 상단 실시간 감시 작전 구역 목록표 (동적 연동)
+# 상단 실시간 감시 작전 구역 목록표
 st.write(f"### 🛡️ 현재 실시간 감시 중인 작전 구역 ({len(PORTFOLIO_UNIVERSE)}선)")
 universe_list = []
 for name, code in PORTFOLIO_UNIVERSE.items():
@@ -116,7 +124,7 @@ if run_btn:
         
         try:
             end_date = datetime.datetime.today()
-            start_date = end_date - relativedelta(years=years_input)
+            start_date = end_date - relativedelta(months=months_input)
             
             tickers = list(PORTFOLIO_UNIVERSE.values())
             raw_df = yf.download(tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), progress=False)
@@ -126,7 +134,6 @@ if run_btn:
             else:
                 close_df = raw_df
 
-            # 단일 종목일 경우 시리즈를 데이터프레임 구조로 맞춰줌
             if isinstance(close_df, pd.Series):
                 close_df = pd.DataFrame({tickers[0]: close_df})
 
@@ -143,7 +150,12 @@ if run_btn:
 
             yearly_stats = {}
             free_shares_dict = {s_name: 0 for s_name in PORTFOLIO_UNIVERSE.keys()}
-            stock_win_stats = {s_name: {'success': 0, 'stop': 0, 'profit': 0} for s_name in PORTFOLIO_UNIVERSE.keys()}
+            
+            # 🌟 🌟 [손익 정산 확장] 구역별 익절금, 손절금, 순손익 정산 집계 🌟 🌟
+            stock_win_stats = {
+                s_name: {'success': 0, 'stop': 0, 'profit_gain': 0, 'loss_cost': 0} 
+                for s_name in PORTFOLIO_UNIVERSE.keys()
+            }
 
             total_success = 0
             total_stop_loss = 0
@@ -185,6 +197,8 @@ if run_btn:
                                 total_success += 1
                                 yearly_stats[year]['success'] += 1
                                 stock_win_stats[s_name]['success'] += 1
+                                stock_win_stats[s_name]['profit_gain'] += profit
+                                
                                 if reward_type == '열매로 결실 모으기':
                                     buyable = int(profit // curr_price)
                                     leftover = profit - (buyable * curr_price)
@@ -195,12 +209,12 @@ if run_btn:
                                 total_stop_loss += 1
                                 yearly_stats[year]['stop'] += 1
                                 stock_win_stats[s_name]['stop'] += 1
+                                stock_win_stats[s_name]['loss_cost'] += profit  # 음수 손절금
                                 buyable = 0
                                 leftover = profit
 
                             free_shares_dict[s_name] += buyable
                             total_cash_profit += leftover
-                            stock_win_stats[s_name]['profit'] += profit
                             
                             returned_cash = pos['invest_amount'] + leftover
                             current_cash += returned_cash
@@ -298,12 +312,12 @@ if run_btn:
 
             # --- 5. 화면 출력 대시보드 ---
             st.subheader("🏆 작전 프로젝트 최종 검증 결과")
-            st.caption(f"⚙️ 검증 조건: 선택된 {len(PORTFOLIO_UNIVERSE)}개 작전 구역 | {years_input}년 백테스트 | 당일 **-{buy_cond_input}% 이하** 진입 | **+{sell_target_input}%** 복귀 | **-{stop_loss_input}%** 철수")
+            st.caption(f"⚙️ 검증 조건: 선택된 {len(PORTFOLIO_UNIVERSE)}개 작전 구역 | {period_label} 백테스트 | 당일 **-{buy_cond_input}% 이하** 진입 | **+{sell_target_input}%** 복귀 | **-{stop_loss_input}%** 철수")
 
-            # 상단 핵심 성과 지표
+            # 상단 핵심 성과 지표 (동적 기간 연동)
             col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("🏁 초기 투입 자금", f"{format_money(total_capital_input)}원")
-            col2.metric(f"✨ {years_input}년 후 최종 총자산", f"{format_money(final_total_asset)}원")
+            col2.metric(f"✨ {period_label} 후 최종 총자산", f"{format_money(final_total_asset)}원")
             col3.metric("📈 총 순수익 (수익률)", f"{format_money(total_net_profit)}원", delta=f"{total_return_pct:.2f}%")
             
             if reward_type == '열매로 결실 모으기':
@@ -315,10 +329,10 @@ if run_btn:
 
             st.markdown("---")
 
-            # 승률 분석 시각화 센터
-            st.write("### 📊 승률 데이터 시각화 분석 센터")
+            # 🌟 🌟 [신규 기능 2] 승률 + 정밀 손익계산서 합계 통합 센터 🌟 🌟
+            st.write("### 📊 승률 데이터 & 구역별 정밀 손익계산서")
             
-            v_col1, v_col2 = st.columns([1, 1])
+            v_col1, v_col2 = st.columns([1, 1.2])
 
             with v_col1:
                 st.write("#### 🗓️ 연도별 익절 vs 손절 건수 추이")
@@ -332,18 +346,20 @@ if run_btn:
                 st.bar_chart(chart_pivot)
 
             with v_col2:
-                st.write("#### 🎯 작전 구역(종목)별 승률 & 정산 수익 순위")
+                st.write("#### 🎯 작전 구역(종목)별 승률 & 손익계산 합계 표")
                 stock_summary = []
                 for s_name, stats in stock_win_stats.items():
                     s_total = stats['success'] + stats['stop']
                     s_win_rate = (stats['success'] / s_total * 100) if s_total > 0 else 0
+                    s_net_profit = stats['profit_gain'] + stats['loss_cost']  # 순손익 합계
+                    
                     stock_summary.append({
                         "작전 구역": s_name,
-                        "총 작전 수": f"{s_total}회",
-                        "익절": f"{stats['success']}회",
-                        "손절": f"{stats['stop']}회",
-                        "구역 승률": f"{s_win_rate:.1f}%",
-                        "누적 정산 수익": f"{format_money(stats['profit'])}원"
+                        "총작전": f"{s_total}회",
+                        "승률": f"{s_win_rate:.1f}%",
+                        "🎯 총 익절 수익금": f"+{format_money(stats['profit_gain'])}원",
+                        "🚨 총 손절 손실금": f"{format_money(stats['loss_cost'])}원",
+                        "✨ 구역 순손익 합계": f"{format_money(s_net_profit)}원"
                     })
                 
                 stock_summary_df = pd.DataFrame(stock_summary)
@@ -354,7 +370,7 @@ if run_btn:
             # 역대 자금 소진 피크 추적
             st.write("### 🚨 역대 자금 소진 피크(최대 동원 요원 수) 분석")
             peak_rate = (max_deployed_count / max_active_slots) * 100
-            st.info(f"📊 {years_input}년 백테스트 기간 중 **역대 한날 최고 자금 소진 기록:** 총 {max_active_slots}명 슬롯 중 **최대 {max_deployed_count}명 출격 ({peak_rate:.1f}% 소진)**")
+            st.info(f"📊 {period_label} 백테스트 기간 중 **역대 한날 최고 자금 소진 기록:** 총 {max_active_slots}명 슬롯 중 **최대 {max_deployed_count}명 출격 ({peak_rate:.1f}% 소진)**")
 
             if peak_deployment_records:
                 peak_df = pd.DataFrame(peak_deployment_records)
