@@ -47,7 +47,6 @@ selected_stock_names = st.sidebar.multiselect(
     help="X 버튼을 눌러 제거하거나 목록에서 클릭하여 추가할 수 있습니다. (최대 10개 권장)"
 )
 
-# 직접 입력 추가 기능
 use_custom = st.sidebar.checkbox("✍️ 목록에 없는 종목 직접 입력 추가")
 custom_stock_name = ""
 custom_stock_ticker = ""
@@ -72,7 +71,6 @@ invest_amount_input = st.sidebar.number_input("💰 회당 진입금액(원)", v
 max_active_slots = int(total_capital_input // invest_amount_input)
 st.sidebar.info(f"💡 동시에 동원 가능한 최대 요원 슬롯: **{max_active_slots}개**")
 
-# 🌟 🌟 [신규 기능 1] 월단위/년단위 검증 기간 설정 선택 🌟 🌟
 time_unit = st.sidebar.radio("🗓️ 기간 단위 선택", ["월 단위 (개월)", "년 단위 (년)"], horizontal=True)
 
 if time_unit == "월 단위 (개월)":
@@ -88,7 +86,16 @@ buy_cond_input = st.sidebar.slider("🛒 진입(출격) 기준 (-% 하락 시)",
 sell_target_input = st.sidebar.slider("🎯 익절(복귀) 목표 (+%)", min_value=1, max_value=30, value=5, step=1)
 stop_loss_input = st.sidebar.slider("🚨 강제 청산(손절) 기준 (-%)", min_value=0, max_value=50, value=15, step=5)
 
-# 전리품 수령 방식 스위치
+# 🌟 🌟 [신규 기능] 수수료 & 세금 조종간 🌟 🌟
+st.sidebar.subheader("💸 실전 거래비용 반영")
+use_fee = st.sidebar.checkbox("수수료 및 증권거래세 차감 적용", value=True)
+if use_fee:
+    broker_fee_pct = st.sidebar.number_input("위탁수수료율 (%) (매수/매도 각각)", value=0.015, format="%.3f") / 100
+    tax_pct = st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100
+else:
+    broker_fee_pct = 0.0
+    tax_pct = 0.0
+
 reward_type = st.sidebar.selectbox(
     "🎁 전리품 수령 방식",
     ["전액 현금으로 챙기기", "열매로 결실 모으기"]
@@ -151,7 +158,6 @@ if run_btn:
             yearly_stats = {}
             free_shares_dict = {s_name: 0 for s_name in PORTFOLIO_UNIVERSE.keys()}
             
-            # 🌟 🌟 [손익 정산 확장] 구역별 익절금, 손절금, 순손익 정산 집계 🌟 🌟
             stock_win_stats = {
                 s_name: {'success': 0, 'stop': 0, 'profit_gain': 0, 'loss_cost': 0} 
                 for s_name in PORTFOLIO_UNIVERSE.keys()
@@ -160,6 +166,7 @@ if run_btn:
             total_success = 0
             total_stop_loss = 0
             total_cash_profit = 0
+            total_fee_tax_paid = 0  # 🌟 총 지불한 수수료 및 거래세 합계
 
             max_deployed_count = 0
             peak_deployment_records = []
@@ -177,41 +184,52 @@ if run_btn:
                     t_code = pos['ticker']
                     if t_code in row and not pd.isna(row[t_code]):
                         curr_price = float(row[t_code])
-                        ret = ((curr_price - pos['entry_price']) / pos['entry_price']) * 100
+                        gross_ret = ((curr_price - pos['entry_price']) / pos['entry_price']) * 100
                         
                         is_exit = False
                         exit_reason = ""
 
-                        if ret >= sell_target:
+                        if gross_ret >= sell_target:
                             is_exit = True
                             exit_reason = f"🎯 정상 복귀(+{sell_target_input}%)"
-                        elif stop_loss_limit is not None and ret <= stop_loss_limit:
+                        elif stop_loss_limit is not None and gross_ret <= stop_loss_limit:
                             is_exit = True
                             exit_reason = f"🚨 강제 철수(-{stop_loss_input}%)"
 
                         if is_exit:
-                            profit = pos['invest_amount'] * (ret / 100)
+                            # 🌟 수수료 및 거래세 계산
+                            sell_gross_val = pos['invest_amount'] * (curr_price / pos['entry_price'])
+                            buy_fee = pos['invest_amount'] * broker_fee_pct
+                            sell_fee = sell_gross_val * broker_fee_pct
+                            sell_tax = sell_gross_val * tax_pct
+                            
+                            total_trade_cost = buy_fee + sell_fee + sell_tax
+                            total_fee_tax_paid += total_trade_cost
+
+                            # 비용을 차감한 순수익
+                            net_profit = (sell_gross_val - pos['invest_amount']) - total_trade_cost
+                            net_ret = (net_profit / pos['invest_amount']) * 100
                             s_name = pos['stock_name']
                             
-                            if ret >= sell_target:
+                            if gross_ret >= sell_target:
                                 total_success += 1
                                 yearly_stats[year]['success'] += 1
                                 stock_win_stats[s_name]['success'] += 1
-                                stock_win_stats[s_name]['profit_gain'] += profit
+                                stock_win_stats[s_name]['profit_gain'] += net_profit
                                 
                                 if reward_type == '열매로 결실 모으기':
-                                    buyable = int(profit // curr_price)
-                                    leftover = profit - (buyable * curr_price)
+                                    buyable = int(max(0, net_profit) // curr_price)
+                                    leftover = net_profit - (buyable * curr_price)
                                 else:
                                     buyable = 0
-                                    leftover = profit
+                                    leftover = net_profit
                             else:
                                 total_stop_loss += 1
                                 yearly_stats[year]['stop'] += 1
                                 stock_win_stats[s_name]['stop'] += 1
-                                stock_win_stats[s_name]['loss_cost'] += profit  # 음수 손절금
+                                stock_win_stats[s_name]['loss_cost'] += net_profit
                                 buyable = 0
-                                leftover = profit
+                                leftover = net_profit
 
                             free_shares_dict[s_name] += buyable
                             total_cash_profit += leftover
@@ -231,7 +249,7 @@ if run_btn:
                                 '진입단가': f"{format_money(pos['entry_price'])}원",
                                 '복귀일': date_str,
                                 '청산단가': f"{format_money(curr_price)}원",
-                                '수익률': f"{ret:.2f}%",
+                                '순수익률(수수료차감)': f"{net_ret:.2f}%",
                                 '정산내역': log_reward,
                                 '구분': exit_reason
                             })
@@ -312,9 +330,9 @@ if run_btn:
 
             # --- 5. 화면 출력 대시보드 ---
             st.subheader("🏆 작전 프로젝트 최종 검증 결과")
-            st.caption(f"⚙️ 검증 조건: 선택된 {len(PORTFOLIO_UNIVERSE)}개 작전 구역 | {period_label} 백테스트 | 당일 **-{buy_cond_input}% 이하** 진입 | **+{sell_target_input}%** 복귀 | **-{stop_loss_input}%** 철수")
+            st.caption(f"⚙️ 검증 조건: 선택된 {len(PORTFOLIO_UNIVERSE)}개 작전 구역 | {period_label} 백테스트 | 수수료/거래세 차감 적용 중")
 
-            # 상단 핵심 성과 지표 (동적 기간 연동)
+            # 상단 핵심 성과 지표
             col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("🏁 초기 투입 자금", f"{format_money(total_capital_input)}원")
             col2.metric(f"✨ {period_label} 후 최종 총자산", f"{format_money(final_total_asset)}원")
@@ -327,10 +345,13 @@ if run_btn:
                 col4.metric("💵 최종 현금 잔고", f"{format_money(current_cash)}원", delta=f"누적 현금수익: +{format_money(total_cash_profit)}원")
                 col5.metric("🎯 전체 작전 승률", f"{win_rate:.1f}%", delta=f"총 {total_trades}회 중 {total_success}회 승리")
 
+            if use_fee:
+                st.info(f"💸 **실전 거래비용 차감 완료:** 백테스트 기간 동안 지불된 누적 증권 수수료 및 거래세 총액은 **-{format_money(total_fee_tax_paid)}원**입니다.")
+
             st.markdown("---")
 
-            # 🌟 🌟 [신규 기능 2] 승률 + 정밀 손익계산서 합계 통합 센터 🌟 🌟
-            st.write("### 📊 승률 데이터 & 구역별 정밀 손익계산서")
+            # 승률 + 정밀 손익계산서 합계 통합 센터
+            st.write("### 📊 승률 데이터 & 구역별 정밀 손익계산서 (수수료 차감 후)")
             
             v_col1, v_col2 = st.columns([1, 1.2])
 
@@ -351,7 +372,7 @@ if run_btn:
                 for s_name, stats in stock_win_stats.items():
                     s_total = stats['success'] + stats['stop']
                     s_win_rate = (stats['success'] / s_total * 100) if s_total > 0 else 0
-                    s_net_profit = stats['profit_gain'] + stats['loss_cost']  # 순손익 합계
+                    s_net_profit = stats['profit_gain'] + stats['loss_cost']
                     
                     stock_summary.append({
                         "작전 구역": s_name,
