@@ -101,8 +101,9 @@ if run_btn:
         total_stop_loss = 0
         total_cash_profit = 0
 
-        # 🌟 풀 출격(자금 완판) 감지 리스트
-        full_deployment_days = []
+        # 🌟 자금 소진 피크 감지 변수
+        max_deployed_count = 0
+        peak_deployment_records = []
 
         for date, row in close_df.iterrows():
             date_str = date.strftime('%Y-%m-%d')
@@ -205,11 +206,16 @@ if run_btn:
                                 'invest_amount': invest_amount_input
                             })
 
-            # 🌟 [체크] 당일 예산이 풀 소진(슬롯 만석)되었는지 감지
-            if len(active_positions) == max_active_slots:
-                full_deployment_days.append({
+            # 🌟 [피크 감지] 당일 동원된 요원 수 기록 및 최다 기록 갱신
+            current_deployed_count = len(active_positions)
+            if current_deployed_count > max_deployed_count:
+                max_deployed_count = current_deployed_count
+
+            if current_deployed_count > 0:
+                peak_deployment_records.append({
                     "발생 일자": date_str,
-                    "동원 요원 수": f"{max_active_slots}명 (풀 출격)",
+                    "동원 요원 수": current_deployed_count,
+                    "자금 소진율": f"{(current_deployed_count / max_active_slots) * 100:.1f}%",
                     "참여 구역 목록": ", ".join([p['stock_name'] for p in active_positions])
                 })
 
@@ -257,15 +263,21 @@ if run_btn:
 
         st.markdown("---")
 
-        # 🌟 🌟 [신규 추가] 한날 자금 완판 (풀 출격) 추적 현황 🌟 🌟
-        st.write("### 🚨 한날 자금 완판(풀 출격) 발생일 추적")
-        if full_deployment_days:
-            # 중복 날짜 제거 및 표출
-            unique_full_days = pd.DataFrame(full_deployment_days).drop_duplicates(subset=['발생 일자'])
-            st.warning(f"⚠️ 백테스트 기간 중 자금이 100% 소진(최대 {max_active_slots}명 풀 출격)되었던 날이 **총 {len(unique_full_days)}일** 감지되었습니다.")
-            st.dataframe(unique_full_days, use_container_width=True, hide_index=True)
+        # 🌟 🌟 [보완] 자금 소진 피크(최대 출격 인원) 추적 현황 🌟 🌟
+        st.write("### 🚨 역대 자금 소진 피크(최대 동원 요원 수) 분석")
+        
+        peak_rate = (max_deployed_count / max_active_slots) * 100
+        st.info(f"📊 {years_input}년 백테스트 기간 중 **역대 한날 최고 자금 소진 기록:** 총 {max_active_slots}명 슬롯 중 **최대 {max_deployed_count}명 출격 ({peak_rate:.1f}% 소진)**")
+
+        if peak_deployment_records:
+            peak_df = pd.DataFrame(peak_deployment_records)
+            # 가장 인원수가 많이 동원되었던 상위 날짜 순으로 정렬
+            top_peak_days = peak_df[peak_df['동원 요원 수'] == max_deployed_count].drop_duplicates(subset=['발생 일자'])
+            
+            st.warning(f"⚠️ **최대 피크({max_deployed_count}명 출격)를 기록했던 대표 일자 목록:**")
+            st.dataframe(top_peak_days, use_container_width=True, hide_index=True)
         else:
-            st.success(f"🎉 백테스트 기간 중 자금이 100% 한날에 소진된 적이 없습니다! 항상 여유 슬롯이 안전하게 유지되었습니다.")
+            st.success("🎉 백테스트 기간 중 출격한 요원이 전혀 없었습니다.")
 
         st.markdown("---")
 
