@@ -51,6 +51,23 @@ run_btn = st.sidebar.button("🚀 작전 검증 개시!", type="primary")
 def format_money(num):
     return f"{int(round(num)):,}"
 
+# 🌟 🌟 [신규 추가] 상단 실시간 감시 작전 구역 목록표 🌟 🌟
+st.write("### 🛡️ 현재 실시간 감시 중인 작전 구역 (10선)")
+universe_list = []
+for name, code in PORTFOLIO_UNIVERSE.items():
+    market_type = "코스닥" if ".KQ" in code else "코스피"
+    clean_code = code.split('.')[0]
+    universe_list.append({
+        "구역명(종목)": name,
+        "식별 코드": clean_code,
+        "소속 시장": market_type,
+        "전략적 특성": "주도 테마 / 고회전 알짜 구역"
+    })
+
+# 2줄 카드로 깔끔하게 표출
+st.dataframe(pd.DataFrame(universe_list), use_container_width=True, hide_index=True)
+st.markdown("---")
+
 # --- 4. 멀티 포트폴리오 시뮬레이션 엔진 ---
 if run_btn:
     st.info("📡 구글 슈퍼컴퓨터가 10개 핵심 작전 구역의 통합 데이터를 분석 중입니다...")
@@ -217,7 +234,7 @@ if run_btn:
         st.subheader("🏆 작전 프로젝트 최종 검증 결과")
         st.caption(f"⚙️ 검증 조건: 주요 10개 작전 구역 | {years_input}년 백테스트 | 당일 **-{buy_cond_input}% 이하** 진입 | **+{sell_target_input}%** 복귀 | **-{stop_loss_input}%** 철수")
 
-        # 상단 핵심 성과 지표 (선택된 years_input 연동 완료!)
+        # 상단 핵심 성과 지표
         col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric("🏁 초기 투입 자금", f"{format_money(total_capital_input)}원")
         col2.metric(f"✨ {years_input}년 후 최종 총자산", f"{format_money(final_total_asset)}원")
