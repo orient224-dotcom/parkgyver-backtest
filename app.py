@@ -40,7 +40,7 @@ buy_cond_input = st.sidebar.slider("🛒 진입(출격) 기준 (-% 하락 시)",
 sell_target_input = st.sidebar.slider("🎯 익절(복귀) 목표 (+%)", min_value=1, max_value=30, value=5, step=1)
 stop_loss_input = st.sidebar.slider("🚨 강제 청산(손절) 기준 (-%)", min_value=0, max_value=50, value=15, step=5)
 
-# 🌟 전리품 수령 방식 스위치 재장착!
+# 전리품 수령 방식 스위치
 reward_type = st.sidebar.selectbox(
     "🎁 전리품 수령 방식",
     ["전액 현금으로 챙기기", "주식으로 모으기 (공짜 주식)"]
@@ -83,7 +83,7 @@ if run_btn:
 
         total_success = 0
         total_stop_loss = 0
-        total_stop_loss_amount = 0
+        total_cash_profit = 0  # 누적 현금 수익 정산 변수
 
         for date, row in close_df.iterrows():
             date_str = date.strftime('%Y-%m-%d')
@@ -119,11 +119,12 @@ if run_btn:
                                 leftover = profit
                         else:
                             total_stop_loss += 1
-                            total_stop_loss_amount += profit
                             buyable = 0
                             leftover = profit
 
                         free_shares_dict[pos['stock_name']] += buyable
+                        total_cash_profit += leftover  # 현금 수익/잔돈 누적
+                        
                         returned_cash = pos['invest_amount'] + leftover
                         current_cash += returned_cash
 
@@ -199,43 +200,48 @@ if run_btn:
                     total_free_shares_value += count * float(last_row[t_code])
 
         final_total_asset = current_cash + active_eval_value + total_free_shares_value
-        total_return_pct = ((final_total_asset - total_capital_input) / total_capital_input) * 100
+        total_net_profit = final_total_asset - total_capital_input
+        total_return_pct = (total_net_profit / total_capital_input) * 100
         total_trades = total_success + total_stop_loss
 
         # --- 5. 화면 출력 대시보드 ---
         st.subheader("🏆 3,000만 원 은퇴 프로젝트 최종 검증 결과")
         st.caption(f"⚙️ 검증 조건: 알짜 주도주 10선 | 당일 **-{buy_cond_input}% 이하** 하락 시 출격 | **+{sell_target_input}%** 익절 | **-{stop_loss_input}%** 손절")
 
-        # 상단 핵심 성과 지표 (5개 카드)
+        # 상단 핵심 성과 지표 (5개 카드 명확화)
         col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric("🏁 초기 투입 자금", f"{format_money(total_capital_input)}원")
-        col2.metric("✨ 5년 후 최종 자산", f"{format_money(final_total_asset)}원", delta=f"순수익: {format_money(final_total_asset - total_capital_input)}원")
-        col3.metric("📈 총 누적 수익률", f"{total_return_pct:.2f}%")
+        col2.metric("✨ 5년 후 최종 총자산", f"{format_money(final_total_asset)}원")
+        col3.metric("📈 총 순수익 (수익률)", f"{format_money(total_net_profit)}원", delta=f"{total_return_pct:.2f}%")
         
+        # 💵 현금 잔고 및 수익 정산카드
         if reward_type == '주식으로 모으기 (공짜 주식)':
-            col4.metric("📦 획득 공짜 주식", f"{format_money(total_free_shares_count)}주", delta=f"가치 {format_money(total_free_shares_value)}원")
+            col4.metric("💵 현금 잔고 (원금+잔돈)", f"{format_money(current_cash)}원", delta=f"누적 잔돈: +{format_money(total_cash_profit)}원")
+            col5.metric("📦 획득 공짜 주식", f"{format_money(total_free_shares_count)}주", delta=f"가치: {format_money(total_free_shares_value)}원")
         else:
-            col4.metric("📦 획득 공짜 주식", "0주 (전액 현금화)")
-            
-        col5.metric("🔄 작전 승률", f"{total_trades}회 중 {total_success}회", delta=f"승률 {(total_success/total_trades*100 if total_trades>0 else 0):.1f}%")
+            col4.metric("💵 최종 현금 잔고", f"{format_money(current_cash)}원", delta=f"누적 현금수익: +{format_money(total_cash_profit)}원")
+            col5.metric("🔄 작전 승률", f"{total_trades}회 중 {total_success}회", delta=f"승률 {(total_success/total_trades*100 if total_trades>0 else 0):.1f}%")
 
         st.markdown("---")
 
         # 공짜 주식 보유 현황표 (주식으로 모으기 선택 시)
-        if reward_type == '주식으로 모으기 (공짜 주식)' and total_free_shares_count > 0:
-            st.write("### 📦 종목별 획득 공짜 주식 현황")
-            free_shares_table = []
-            for s_name, count in free_shares_dict.items():
-                if count > 0:
-                    t_code = PORTFOLIO_UNIVERSE[s_name]
-                    c_price = float(last_row[t_code])
-                    free_shares_table.append({
-                        "종목명": s_name,
-                        "획득 공짜 주식": f"{count:,}주",
-                        "현재 종가": f"{format_money(c_price)}원",
-                        "현재 평가 가치": f"{format_money(count * c_price)}원"
-                    })
-            st.table(pd.DataFrame(free_shares_table))
+        if reward_type == '주식으로 모으기 (공짜 주식)':
+            st.write("### 📦 종목별 획득 공짜 주식 & 잔돈 정산 현황")
+            st.info(f"💡 익절 시 챙긴 **총 잔돈 현금 수익:** **{format_money(total_cash_profit)}원** (위 현금 잔고에 자동 합산되었습니다.)")
+            
+            if total_free_shares_count > 0:
+                free_shares_table = []
+                for s_name, count in free_shares_dict.items():
+                    if count > 0:
+                        t_code = PORTFOLIO_UNIVERSE[s_name]
+                        c_price = float(last_row[t_code])
+                        free_shares_table.append({
+                            "종목명": s_name,
+                            "획득 공짜 주식": f"{count:,}주",
+                            "현재 종가": f"{format_money(c_price)}원",
+                            "현재 평가 가치": f"{format_money(count * c_price)}원"
+                        })
+                st.table(pd.DataFrame(free_shares_table))
 
         # 대기 중인 요원 (고립 자산)
         st.write("### ⚔️ 현재 현장에서 대기 중인 요원 (고립 포지션)")
