@@ -40,6 +40,12 @@ buy_cond_input = st.sidebar.slider("🛒 진입(출격) 기준 (-% 하락 시)",
 sell_target_input = st.sidebar.slider("🎯 익절(복귀) 목표 (+%)", min_value=1, max_value=30, value=5, step=1)
 stop_loss_input = st.sidebar.slider("🚨 강제 청산(손절) 기준 (-%)", min_value=0, max_value=50, value=15, step=5)
 
+# 🌟 전리품 수령 방식 스위치 재장착!
+reward_type = st.sidebar.selectbox(
+    "🎁 전리품 수령 방식",
+    ["전액 현금으로 챙기기", "주식으로 모으기 (공짜 주식)"]
+)
+
 run_btn = st.sidebar.button("🚀 3,000만 원 은퇴 프로젝트 검증 개시!", type="primary")
 
 def format_money(num):
@@ -53,7 +59,6 @@ if run_btn:
         end_date = datetime.datetime.today()
         start_date = end_date - relativedelta(years=years)
         
-        # 10개 종목 데이터 통합 다운로드
         tickers = list(PORTFOLIO_UNIVERSE.values())
         raw_df = yf.download(tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), progress=False)
 
@@ -62,28 +67,28 @@ if run_btn:
         else:
             close_df = raw_df
 
-        # 일별 등락률 계산
         return_df = close_df.pct_change() * 100
 
-        # 시뮬레이션 변수 초기화
         buy_cond = -float(buy_cond_input)
         sell_target = float(sell_target_input)
         stop_loss_limit = -float(stop_loss_input) if stop_loss_input > 0 else None
 
         current_cash = float(total_capital_input)
-        active_positions = [] # 현재 출격 중인 포지션 목록
+        active_positions = []
         trade_logs = []
         agent_counter = 0
+
+        # 종목별 누적 공짜 주식 수량 저장 사전
+        free_shares_dict = {s_name: 0 for s_name in PORTFOLIO_UNIVERSE.keys()}
 
         total_success = 0
         total_stop_loss = 0
         total_stop_loss_amount = 0
 
-        # 날짜별 백테스트 진행
         for date, row in close_df.iterrows():
             date_str = date.strftime('%Y-%m-%d')
             
-            # A. 기존 출격 포지션 익절/손절 체크 (청산)
+            # A. 기존 출격 포지션 익절/손절 체크
             survived_positions = []
             for pos in active_positions:
                 t_code = pos['ticker']
@@ -103,14 +108,26 @@ if run_btn:
 
                     if is_exit:
                         profit = pos['invest_amount'] * (ret / 100)
-                        returned_cash = pos['invest_amount'] + profit
-                        current_cash += returned_cash
-
+                        
                         if ret >= sell_target:
                             total_success += 1
+                            if reward_type == '주식으로 모으기 (공짜 주식)':
+                                buyable = int(profit // curr_price)
+                                leftover = profit - (buyable * curr_price)
+                            else:
+                                buyable = 0
+                                leftover = profit
                         else:
                             total_stop_loss += 1
                             total_stop_loss_amount += profit
+                            buyable = 0
+                            leftover = profit
+
+                        free_shares_dict[pos['stock_name']] += buyable
+                        returned_cash = pos['invest_amount'] + leftover
+                        current_cash += returned_cash
+
+                        log_reward = f"{buyable}주 + 잔돈 {format_money(leftover)}원" if buyable > 0 else f"{format_money(leftover)}원"
 
                         trade_logs.append({
                             '요원': pos['name'],
@@ -120,7 +137,7 @@ if run_btn:
                             '복귀일': date_str,
                             '청산단가': f"{format_money(curr_price)}원",
                             '수익률': f"{ret:.2f}%",
-                            '정산금액': f"{format_money(profit)}원",
+                            '정산내역': log_reward,
                             '구분': exit_reason
                         })
                     else:
@@ -130,7 +147,7 @@ if run_btn:
             
             active_positions = survived_positions
 
-            # B. 신규 출격 종목 탐색 (당일 가장 많이 떨어진 종목 순으로)
+            # B. 신규 출격 종목 탐색
             if current_cash >= invest_amount_input and len(active_positions) < max_active_slots:
                 day_returns = return_df.loc[date] if date in return_df.index else None
                 
@@ -143,7 +160,6 @@ if run_btn:
                             if ret_val <= buy_cond:
                                 candidates.append((s_name, t_code, ret_val, float(row[t_code])))
 
-                    # 하락폭이 가장 큰 순서대로 정렬
                     candidates.sort(key=lambda x: x[2])
 
                     for cand in candidates:
@@ -173,7 +189,16 @@ if run_btn:
                 c_price = float(last_row[t_code])
                 active_eval_value += pos['invest_amount'] * (c_price / pos['entry_price'])
 
-        final_total_asset = current_cash + active_eval_value
+        # 모아둔 공짜 주식의 현재 가치 평가
+        total_free_shares_count = sum(free_shares_dict.values())
+        total_free_shares_value = 0
+        for s_name, count in free_shares_dict.items():
+            if count > 0:
+                t_code = PORTFOLIO_UNIVERSE[s_name]
+                if t_code in last_row and not pd.isna(last_row[t_code]):
+                    total_free_shares_value += count * float(last_row[t_code])
+
+        final_total_asset = current_cash + active_eval_value + total_free_shares_value
         total_return_pct = ((final_total_asset - total_capital_input) / total_capital_input) * 100
         total_trades = total_success + total_stop_loss
 
@@ -181,14 +206,36 @@ if run_btn:
         st.subheader("🏆 3,000만 원 은퇴 프로젝트 최종 검증 결과")
         st.caption(f"⚙️ 검증 조건: 알짜 주도주 10선 | 당일 **-{buy_cond_input}% 이하** 하락 시 출격 | **+{sell_target_input}%** 익절 | **-{stop_loss_input}%** 손절")
 
-        # 상단 핵심 성과 지표
-        col1, col2, col3, col4 = st.columns(4)
+        # 상단 핵심 성과 지표 (5개 카드)
+        col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric("🏁 초기 투입 자금", f"{format_money(total_capital_input)}원")
         col2.metric("✨ 5년 후 최종 자산", f"{format_money(final_total_asset)}원", delta=f"순수익: {format_money(final_total_asset - total_capital_input)}원")
         col3.metric("📈 총 누적 수익률", f"{total_return_pct:.2f}%")
-        col4.metric("🔄 총 작전 회전 횟수", f"{total_trades}회", delta=f"익절 성공률: {(total_success/total_trades*100 if total_trades>0 else 0):.1f}%")
+        
+        if reward_type == '주식으로 모으기 (공짜 주식)':
+            col4.metric("📦 획득 공짜 주식", f"{format_money(total_free_shares_count)}주", delta=f"가치 {format_money(total_free_shares_value)}원")
+        else:
+            col4.metric("📦 획득 공짜 주식", "0주 (전액 현금화)")
+            
+        col5.metric("🔄 작전 승률", f"{total_trades}회 중 {total_success}회", delta=f"승률 {(total_success/total_trades*100 if total_trades>0 else 0):.1f}%")
 
         st.markdown("---")
+
+        # 공짜 주식 보유 현황표 (주식으로 모으기 선택 시)
+        if reward_type == '주식으로 모으기 (공짜 주식)' and total_free_shares_count > 0:
+            st.write("### 📦 종목별 획득 공짜 주식 현황")
+            free_shares_table = []
+            for s_name, count in free_shares_dict.items():
+                if count > 0:
+                    t_code = PORTFOLIO_UNIVERSE[s_name]
+                    c_price = float(last_row[t_code])
+                    free_shares_table.append({
+                        "종목명": s_name,
+                        "획득 공짜 주식": f"{count:,}주",
+                        "현재 종가": f"{format_money(c_price)}원",
+                        "현재 평가 가치": f"{format_money(count * c_price)}원"
+                    })
+            st.table(pd.DataFrame(free_shares_table))
 
         # 대기 중인 요원 (고립 자산)
         st.write("### ⚔️ 현재 현장에서 대기 중인 요원 (고립 포지션)")
@@ -215,7 +262,7 @@ if run_btn:
                 })
             st.table(pd.DataFrame(active_table))
         else:
-            st.success("🎉 현재 물려있는 요원이 전혀 없습니다! 3,000만 원 전체가 현금으로 100% 회수된 상태입니다!")
+            st.success("🎉 현재 물려있는 요원이 전혀 없습니다! 현금으로 100% 회수된 상태입니다!")
 
         # 매매 장부 및 엑셀 다운로드
         st.write("### 📜 10개 종목 통합 출격-복귀 매칭 장부 (최근 순)")
