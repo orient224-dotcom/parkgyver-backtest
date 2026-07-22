@@ -7,8 +7,8 @@ from dateutil.relativedelta import relativedelta
 # --- 1. 페이지 웹 디자인 세팅 ---
 st.set_page_config(page_title="박가이버 작전 통제실", page_icon="🛡️", layout="wide")
 
-st.title("🛡️ 박가이버표 작전 통제실 (실전 백테스터)")
-st.caption("위험은 원하는 손절선으로 딱 막고, 진입 타점과 회전율을 극대화하는 자동 매매 시뮬레이터입니다.")
+st.title("🛡️ 박가이버표 작전 통제실 (실전 백테스터 V3)")
+st.caption("위험은 확실히 막고, 진입·익절 타점을 자유롭게 조율하는 최고급 자동 매매 시뮬레이터입니다.")
 st.markdown("---")
 
 # --- 2. 왼쪽 사이드바 (조종간 세팅) ---
@@ -20,7 +20,7 @@ invest_amount = st.sidebar.number_input("💰 회당 진입금액(원)", value=5
 max_agents = st.sidebar.slider("⚔️ 최대 요원 수(명)", min_value=1, max_value=10, value=5)
 years = st.sidebar.slider("🗓️ 조회 기간(년)", min_value=1, max_value=10, value=5)
 
-# 🌟 1%~20% 진입(출격) 조건 조종간 추가!
+# 🛒 진입 조건 조종간
 buy_cond_input = st.sidebar.slider(
     "🛒 진입(출격) 기준 (-% 하락 시)", 
     min_value=1, 
@@ -30,7 +30,17 @@ buy_cond_input = st.sidebar.slider(
     help="당일 주가가 설정한 % 이상 하락했을 때 신규 요원이 출격합니다."
 )
 
-# 0%~50% 손절 조종간
+# 🎯 익절 목표 조종간 (추가)
+sell_target_input = st.sidebar.slider(
+    "🎯 익절(복귀) 목표 (+%)", 
+    min_value=1, 
+    max_value=30, 
+    value=5, 
+    step=1,
+    help="요원의 수익률이 설정한 % 이상 도달 시 익절하고 복귀합니다."
+)
+
+# 🚨 손절 조종간
 stop_loss_input = st.sidebar.slider(
     "🚨 강제 청산(손절) 기준 (-%)", 
     min_value=0, 
@@ -48,7 +58,6 @@ reward_type = st.sidebar.selectbox(
 run_btn = st.sidebar.button("▶️ 특수 요원 작전 개시!", type="primary")
 
 def format_money(num):
-    # 소수점 이하 버림 및 천단위 콤마 포맷팅
     return f"{int(round(num)):,}"
 
 # --- 3. 작전 시뮬레이션 알고리즘 ---
@@ -69,10 +78,13 @@ if run_btn:
 
             df['Daily_Return'] = df['Close'].pct_change() * 100
 
-            # 매매 조건 세팅 (사용자 설정값 반영)
+            # 매매 조건 세팅
             buy_cond = -float(buy_cond_input)
-            sell_target = 5.0
+            sell_target = float(sell_target_input)
             stop_loss_limit = -float(stop_loss_input) if stop_loss_input > 0 else None
+
+            total_capital = max_agents * invest_amount  # 기준 총 예산
+            initial_price = float(df['Close'].iloc[0])   # 시작 주가
 
             positions = []
             free_shares = 0
@@ -84,6 +96,9 @@ if run_btn:
             yearly_stats = {}
             matched_trades = []
             agent_counter = 0
+
+            # 그래프용 일별 자산 기록
+            daily_history = []
 
             for date, row in df.iterrows():
                 close = float(row['Close'])
@@ -103,7 +118,7 @@ if run_btn:
 
                     if ret >= sell_target:
                         is_exit = True
-                        exit_reason = "🎯 정상 타격 (익절)"
+                        exit_reason = f"🎯 정상 타격 (+{sell_target_input}% 익절)"
                     elif stop_loss_limit is not None and ret <= stop_loss_limit:
                         is_exit = True
                         exit_reason = f"🚨 -{stop_loss_input}% 강제 청산 (손절)"
@@ -151,7 +166,7 @@ if run_btn:
 
                 positions = survived_positions
 
-                # 🛒 설정된 하락률 이하일 때 출격
+                # 🛒 신규 요원 진입
                 if daily_return <= buy_cond and len(positions) < max_agents:
                     agent_counter += 1
                     positions.append({
@@ -161,19 +176,40 @@ if run_btn:
                         'entry_return': daily_return
                     })
 
+                # 일별 자산 가치 계산
+                active_invested = len(positions) * invest_amount
+                cash_balance = total_capital - active_invested + cash_profit
+                active_val = sum([invest_amount * (close / p['entry_price']) for p in positions])
+                free_val = free_shares * close
+                strategy_asset = cash_balance + active_val + free_val
+                
+                # 단순 보유(Buy & Hold) 자산
+                buy_hold_asset = total_capital * (close / initial_price)
+
+                daily_history.append({
+                    'Date': date,
+                    '박가이버 전략 자산': strategy_asset,
+                    '단순 보유(Buy&Hold)': buy_hold_asset
+                })
+
             final_price = float(df['Close'].iloc[-1])
             free_shares_value = free_shares * final_price
             total_invested = len(positions) * invest_amount
             total_current_value = sum([invest_amount * (final_price / p['entry_price']) for p in positions])
 
+            # 총 자산 가치 및 수익률 비교
+            final_strategy_asset = total_capital - total_invested + cash_profit + total_current_value + free_shares_value
+            strategy_return_pct = ((final_strategy_asset - total_capital) / total_capital) * 100
+            buy_hold_return_pct = ((final_price - initial_price) / initial_price) * 100
+
             # --- 4. 화면 출력 (대시보드) ---
             st.subheader(f"🏆 [{ticker}] {stock_name} 작전 성과표")
-            st.caption(f"⚙️ 작전 기준: 당일 **-{buy_cond_input}% 이하** 하락 시 출격 | **+5%** 익절 | **-{stop_loss_input}%** 손절")
+            st.caption(f"⚙️ 작전 기준: 당일 **-{buy_cond_input}% 이하** 하락 시 출격 | **+{sell_target_input}%** 익절 | **-{stop_loss_input}%** 손절")
             
-            # 상단 성과 지표
+            # 상단 성과 지표 (5개 카드)
             col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("총 작전 종료", f"{total_trades}회")
-            col2.metric("익절 성공", f"{success_trades}회")
+            col2.metric(f"익절 성공(+{sell_target_input}%)", f"{success_trades}회")
             
             stop_loss_label = f"손절(-{stop_loss_input}%)" if stop_loss_input > 0 else "손절(미사용)"
             col3.metric(stop_loss_label, f"{stop_loss_trades}회", delta=f"{format_money(stop_loss_amount)}원", delta_color="inverse")
@@ -184,6 +220,37 @@ if run_btn:
             else:
                 col4.metric("📦 획득 공짜 주식", "0주 (전액 현금화)")
                 col5.metric("💵 최종 누적 현금", f"{format_money(cash_profit)}원")
+
+            st.markdown("---")
+
+            # ⚔️ [신규 기능 1] 단순 보유 vs 박가이버 전략 한판 승부!
+            st.write("### ⚔️ 단순 보유(Buy & Hold) vs 박가이버 전략 한판 승부")
+            comp_col1, comp_col2, comp_col3 = st.columns(3)
+            
+            comp_col1.metric(
+                "📌 단순 보유(Buy & Hold) 수익률", 
+                f"{buy_hold_return_pct:.2f}%", 
+                delta=f"최종 자산: {format_money(total_capital * (final_price / initial_price))}원"
+            )
+            
+            diff_pct = strategy_return_pct - buy_hold_return_pct
+            comp_col2.metric(
+                "🛡️ 박가이버 전략 총 수익률", 
+                f"{strategy_return_pct:.2f}%", 
+                delta=f"최종 자산: {format_money(final_strategy_asset)}원"
+            )
+            
+            comp_col3.metric(
+                "🔥 전략 우위 (초과 수익)", 
+                f"{diff_pct:+.2f}%p", 
+                delta="전략의 승리!" if diff_pct >= 0 else "보유의 승리",
+                delta_color="normal" if diff_pct >= 0 else "inverse"
+            )
+
+            # 📈 [신규 기능 2] 누적 자산 성장 곡선 그래프
+            st.write("### 📈 누적 자산 성장 추이 그래프")
+            chart_df = pd.DataFrame(daily_history).set_index('Date')
+            st.line_chart(chart_df, height=350)
 
             st.markdown("---")
 
@@ -235,7 +302,7 @@ if run_btn:
             else:
                 st.success("🎉 현재 물려있는 요원이 없습니다! 전원 무사 귀환 완료!")
 
-            # 1대1 완결 장부
+            # 1대1 완결 장부 및 📥 [신규 기능 3] 엑셀 다운로드
             st.write("### 📜 1대1 출격-복귀 매칭 장부 (최근 작전순)")
             if matched_trades:
                 logs = []
@@ -255,7 +322,18 @@ if run_btn:
                         "최종수익률": f"{t['ret']:.1f}%",
                         "정산 내역": reward_detail
                     })
-                st.dataframe(pd.DataFrame(logs), use_container_width=True)
+                
+                logs_df = pd.DataFrame(logs)
+                st.dataframe(logs_df, use_container_width=True)
+
+                # CSV 엑셀 다운로드 버튼 (한글 깨짐 방지 utf-8-sig)
+                csv_data = logs_df.to_csv(index=False).encode('utf-8-sig')
+                st.download_button(
+                    label=f"📥 [{stock_name}] 백테스트 매매 장부 엑셀(CSV) 다운로드",
+                    data=csv_data,
+                    file_name=f"parkgyver_{stock_name}_backtest.csv",
+                    mime="text/csv"
+                )
 
     except Exception as e:
         st.error(f"❌ 에러가 발생했습니다: {e}")
