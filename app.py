@@ -36,15 +36,26 @@ MASTER_STOCK_DICT = {
     "LG에너지솔루션": "373220.KS"
 }
 
+# 🌟 탐색기에서 넘어온 종목 정보가 있다면 사전에 자동 반영
+if "custom_stock_dict" in st.session_state:
+    MASTER_STOCK_DICT.update(st.session_state["custom_stock_dict"])
+
 # --- 3. 왼쪽 사이드바 (조종간 세팅) ---
 st.sidebar.header("🎛️ 작전 조종간")
 
 st.sidebar.subheader("🎯 작전 구역(종목) 설정")
+
+# 🌟 탐색기에서 전송된 종목이 있다면 기본값으로 우선 지정
+default_target_stocks = st.session_state.get(
+    "custom_stock_names", 
+    ["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"]
+)
+
 selected_stock_names = st.sidebar.multiselect(
     "감시할 작전 구역 선택 (기본 5개)",
     options=list(MASTER_STOCK_DICT.keys()),
-    default=["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"],
-    help="기본 5개 핵심 구역이 세팅되어 있습니다."
+    default=default_target_stocks,
+    help="[탐색기] 메뉴에서 종목을 골라 오시면 자동으로 반영됩니다."
 )
 
 use_custom = st.sidebar.checkbox("✍️ 목록에 없는 종목 직접 입력 추가")
@@ -339,7 +350,7 @@ if run_btn:
             st.subheader("🏆 1,000만 원 은퇴 프로젝트 최종 검증 결과")
             st.caption(f"⚙️ 조건: {len(PORTFOLIO_UNIVERSE)}개 구역 | {period_label} 백테스트 | {'🚀 복리 스케일업' if use_compounding else '🔒 고정 진입금'}")
 
-            # 🌟 [보완] 상단 성과 지표 (총 순수익금으로 라벨 명확화)
+            # 상단 성과 지표
             col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("🏁 초기 자본금", f"{format_money(total_capital_input)}원")
             col2.metric(f"✨ {period_label} 후 총자산", f"{format_money(final_total_asset)}원")
