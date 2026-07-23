@@ -339,11 +339,11 @@ if run_btn:
             st.subheader("🏆 1,000만 원 은퇴 프로젝트 최종 검증 결과")
             st.caption(f"⚙️ 조건: {len(PORTFOLIO_UNIVERSE)}개 구역 | {period_label} 백테스트 | {'🚀 복리 스케일업' if use_compounding else '🔒 고정 진입금'}")
 
-            # 상단 성과 지표
+            # 🌟 [보완] 상단 성과 지표 (총 순수익금으로 라벨 명확화)
             col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("🏁 초기 자본금", f"{format_money(total_capital_input)}원")
             col2.metric(f"✨ {period_label} 후 총자산", f"{format_money(final_total_asset)}원")
-            col3.metric("📈 총 순수익률", f"{format_money(total_net_profit)}원", delta=f"{total_return_pct:.2f}%")
+            col3.metric("📈 총 순수익금", f"{format_money(total_net_profit)}원", delta=f"{total_return_pct:.2f}%")
             
             if reward_type == '열매로 결실 모으기':
                 col4.metric("💵 현금 잔고", f"{format_money(current_cash)}원", delta=f"누적 잔돈: +{format_money(total_cash_profit)}원")
@@ -413,7 +413,7 @@ if run_btn:
 
             st.markdown("---")
 
-            # 🌟 🌟 [완벽 복구!] 연도별 성적표 (연말 정산) 🌟 🌟
+            # 연도별 성적표 (연말 정산)
             st.write("### 🗓️ 연도별 성적표 (연말 정산)")
             yearly_df = pd.DataFrame.from_dict(yearly_stats, orient='index')
             yearly_df.index.name = "연도"
