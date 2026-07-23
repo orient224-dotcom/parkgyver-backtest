@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="작전 구역 탐색기", page_icon="🔎", layout="wide")
+# 🌟 보조 페이지에서는 st.set_page_config를 삭제해야 화면 전환 에러가 나지 않습니다!
 
 st.title("🔎 작전 구역(섹터/종목) 탐색기")
 st.caption("관심 있는 테마 및 섹터별 종목을 검색·선택하여 [박가이버 작전 통제실]로 한 번에 보낼 수 있습니다.")
@@ -9,7 +9,7 @@ st.markdown("---")
 
 # --- 1. 테마/섹터별 종목 데이터베이스 ---
 SECTOR_DATABASE = {
-    "⚡ 반도체 & HBM / 칩렛": {
+    "반도체 & HBM / 칩렛": {
         "테크윙": "089030.KQ",
         "한미반도체": "042700.KS",
         "HPSP": "403870.KQ",
@@ -21,7 +21,7 @@ SECTOR_DATABASE = {
         "삼성전자": "005930.KS",
         "SK하이닉스": "000660.KS"
     },
-    "🧬 바이오 & 제약": {
+    "바이오 & 제약": {
         "알테오젠": "196170.KQ",
         "셀트리온": "068270.KS",
         "삼성바이오로직스": "207940.KS",
@@ -29,19 +29,19 @@ SECTOR_DATABASE = {
         "유한양행": "000100.KS",
         "리가켐바이오": "141080.KQ"
     },
-    "🔋 2차전지 & 에코": {
+    "2차전지 & 에코": {
         "에코프로비엠": "247540.KQ",
         "에코프로": "086520.KQ",
         "LG에너지솔루션": "373220.KS",
         "POSCO홀딩스": "005490.KS",
         "엘앤에프": "066970.KQ"
     },
-    "🚗 자동차 & 대표 제조": {
+    "자동차 & 대표 제조": {
         "현대차": "005380.KS",
         "기아": "000270.KS",
         "현대모비스": "012330.KS"
     },
-    "💻 IT & 플랫폼": {
+    "IT & 플랫폼": {
         "NAVER": "035420.KS",
         "카카오": "035720.KS"
     }
@@ -98,6 +98,6 @@ if selected_basket:
         st.session_state["custom_stock_dict"] = {name: ALL_STOCKS[name]["code"] for name in selected_basket}
         
         st.success(f"🎉 총 {len(selected_basket)}개 종목이 사령부로 전송되었습니다!")
-        st.info("👈 왼쪽 사이드바 메뉴에서 [app] (메인 통제실)을 누르시면 바로 검증할 수 있습니다!")
+        st.info("👈 왼쪽 사이드바 메뉴에서 [app]을 누르시면 전송된 종목으로 검증이 시작됩니다!")
 else:
     st.warning("⚠️ 최소 1개 이상의 종목을 선택해 주세요.")
