@@ -69,9 +69,14 @@ if "sector_db" not in st.session_state:
             "이오테크닉스": "039030.KQ", "리노공업": "058470.KQ", "ISC": "095340.KQ",
             "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "삼성전자": "005930.KS", "SK하이닉스": "000660.KS"
         },
-        "🧬 바이오 & 제약": {
-            "알테오젠": "196170.KQ", "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS",
-            "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ"
+        "🧬 바이오 & 제약 / 화장품": {
+            "한국콜마": "161890.KS", "코스맥스": "192820.KS", "알테오젠": "196170.KQ", 
+            "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS", "HLB": "028300.KQ", 
+            "유한양행": "000100.KS", "리가켐바이오": "141080.KQ"
+        },
+        "📡 통신 & 방산 & 조선": {
+            "RFHIC": "218410.KQ", "한화시스템": "272210.KS", "현대로템": "064350.KS",
+            "LIG넥스원": "079550.KS", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS"
         },
         "🔋 2차전지 & 에코": {
             "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
@@ -85,13 +90,22 @@ if "sector_db" not in st.session_state:
         }
     }
 
+# 🌟 [영구 신규 종목 저장소 초기화]
+if "custom_stocks" not in st.session_state:
+    st.session_state["custom_stocks"] = {}
+
+# 🌟 [대폭 확장된 광범위 종목 마스터 사전 (한국콜마, RFHIC 완벽 탑재)]
 KOREAN_STOCK_MASTER = {
+    "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
     "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
     "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
     "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
     "이수화학": "005950.KS", "이수스페셜티케미컬": "457190.KS", "마녀공장": "439090.KQ",
-    "뉴파워프라즈마": "144960.KQ", "두산에너빌리티": "034020.KS", "하나마이크론": "084370.KQ"
+    "뉴파워프라즈마": "144960.KQ", "두산에너빌리티": "034020.KS", "하나마이크론": "084370.KQ",
+    "동진쎄미켐": "033640.KQ", "솔브레인": "357780.KQ", "가온칩스": "399500.KQ",
+    "두산로보틱스": "454910.KS", "한화에어로스페이스": "012450.KS", "LIG넥스원": "079550.KS",
+    "HD현대일렉트릭": "267260.KS", "LS일렉트릭": "010120.KS", "포스코퓨처엠": "003670.KS"
 }
 
 MASTER_STOCK_DICT = {}
@@ -102,10 +116,14 @@ for name, code in KOREAN_STOCK_MASTER.items():
     if name not in MASTER_STOCK_DICT:
         MASTER_STOCK_DICT[name] = code
 
-if "selected_stocks" not in st.session_state:
-    st.session_state["selected_stocks"] = ["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"]
+# 커스텀 등록 종목 병합
+for name, code in st.session_state["custom_stocks"].items():
+    MASTER_STOCK_DICT[name] = code
 
-# 🌟 [한눈에 직관적으로 들어오는 만 원/백만 원 단위 포맷팅 함수]
+if "selected_stocks" not in st.session_state:
+    st.session_state["selected_stocks"] = ["한국콜마", "RFHIC", "테크윙", "한미반도체", "HPSP"]
+
+# 🌟 [만 원/백만 원 단위 직관적 표기 함수]
 def format_money(num):
     if num is None or pd.isna(num):
         return "-"
@@ -119,13 +137,13 @@ def format_money(num):
         if man > 0:
             return f"{sign}{eok:,}억 {man:,}만 원"
         return f"{sign}{eok:,}억 원"
-    elif abs_num >= 10000: # 1만 원 이상 (만 원/백만 원 단위 표기)
+    elif abs_num >= 10000: # 1만 원 이상
         man = abs_num / 10000
-        if man >= 100: # 100만 원 이상은 소수점 1자리 표기 (예: 147.1만 원)
+        if man >= 100:
             if man == int(man):
                 return f"{sign}{int(man):,}만 원"
             return f"{sign}{man:,.1f}만 원"
-        else: # 1만~99만 원
+        else:
             if man == int(man):
                 return f"{sign}{int(man):,}만 원"
             return f"{sign}{man:,.1f}만 원"
@@ -198,7 +216,7 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
     return pd.DataFrame(results)
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V8")
+st.sidebar.title("🎛️ 박가이버 사령부 V8 Pro")
 menu_choice = st.sidebar.radio(
     "모드 선택",
     ["🔎 1. 작전 구역(섹터) 탐색기", "🛡️ 2. 실전 작전 통제실 (백테스트)"],
@@ -212,37 +230,58 @@ st.sidebar.markdown("---")
 if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🔎 작전 구역 및 무적 종목 탐색기</div>
-        <div class="hero-subtitle">외부 서버 통신 차단 걱정 없이, 6자리 종목코드만 입력하면 100% 무조건 바구니에 담아주는 철벽 탐색 모드입니다.</div>
+        <div class="hero-title">🔎 작전 구역 및 영구 종목 탐색기</div>
+        <div class="hero-subtitle">종목 이름(예: 한국콜마, RFHIC) 또는 6자리 종목코드를 입력하시면 바구니에 100% 영구 등록됩니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 🔍 1. 대한민국 전종목 [6자리 숫자 코드] 무적 등록")
-    st.warning("🚨 HTS/네이버에서 찾으신 **'6자리 숫자 종목코드(예: 144960, 439090, 058610)'**만 입력하시면 100% 무조건 등록됩니다!")
+    st.markdown("### 🔍 1. 대한민국 전종목 스마트 등록 (이름 & 코드 겸용)")
+    st.info("💡 종목명(예: **한국콜마**, **RFHIC**, **뉴파워프라즈마**)을 입력하시거나 6자리 숫자 코드를 입력해 바구니에 담으세요!")
 
-    search_tab1, search_tab2 = st.tabs(["⚡ 6자리 종목코드 직접 입력 (100% 성공)", "🔎 내장 장부에서 이름 고르기"])
+    search_tab1, search_tab2 = st.tabs(["⚡ 스마트 종목/코드 직접 등록 (영구 저장)", "🔎 내장 장부에서 바로 고르기"])
 
     with search_tab1:
-        s_col1, s_col2, s_col3 = st.columns([2.5, 1, 1])
-        search_input = s_col1.text_input("종목코드 6자리 숫자만 입력", placeholder="예: 뉴파워프라즈마(144960) -> 144960 입력", key="smart_live_search_input_code")
-        market_choice = s_col2.selectbox("소속 시장 선택", ["코스닥 (.KQ)", "코스피 (.KS)"], key="smart_market_choice_code")
+        c_col1, c_col2, c_col3, c_col4 = st.columns([2, 1.5, 1, 1])
+        input_name = c_col1.text_input("종목명 입력", placeholder="예: 한국콜마, RFHIC", key="custom_name_input")
+        input_code = c_col2.text_input("6자리 코드 (선택)", placeholder="예: 161890, 218410", key="custom_code_input")
+        input_market = c_col3.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="custom_market_select")
         
-        if s_col3.button("➕ 코드 등록해서 담기", type="primary", key="btn_live_search_code"):
-            query = search_input.strip()
-            if not query or len(query) != 6 or not query.isdigit():
-                st.error("⚠️ 검색창에 정확히 **숫자로 된 6자리 종목코드**만 입력해 주세요! (예: 144960)")
-            else:
-                suffix = ".KS" if "코스피" in market_choice else ".KQ"
-                resolved_code = f"{query}{suffix}"
-                resolved_name = f"신규작전주({query})"
-                
+        if c_col4.button("➕ 바구니에 담기", type="primary", key="btn_add_custom_stock"):
+            name_q = input_name.strip()
+            code_q = input_code.strip()
+            
+            resolved_name = None
+            resolved_code = None
+
+            # 1. 이름이 사전(KOREAN_STOCK_MASTER / MASTER_STOCK_DICT)에 존재하는 경우
+            if name_q in MASTER_STOCK_DICT:
+                resolved_name = name_q
+                resolved_code = MASTER_STOCK_DICT[name_q]
+            elif name_q in KOREAN_STOCK_MASTER:
+                resolved_name = name_q
+                resolved_code = KOREAN_STOCK_MASTER[name_q]
+            # 2. 코드 6자리가 정확히 입력된 경우
+            elif len(code_q) == 6 and code_q.isdigit():
+                suffix = ".KS" if "코스피" in input_market else ".KQ"
+                resolved_code = f"{code_q}{suffix}"
+                resolved_name = name_q if name_q else f"신규작전주({code_q})"
+            # 3. 이름 입력란에 6자리 코드가 잘못 들어간 경우
+            elif len(name_q) == 6 and name_q.isdigit():
+                suffix = ".KS" if "코스피" in input_market else ".KQ"
+                resolved_code = f"{name_q}{suffix}"
+                resolved_name = f"신규작전주({name_q})"
+
+            if resolved_name and resolved_code:
+                # 영구 세션에 담기!
+                st.session_state["custom_stocks"][resolved_name] = resolved_code
                 MASTER_STOCK_DICT[resolved_name] = resolved_code
+                
                 if resolved_name not in st.session_state["selected_stocks"]:
                     st.session_state["selected_stocks"].append(resolved_name)
-                    st.success(f"🎉 [무적 등록 성공] '{resolved_name}' ({resolved_code}) 종목이 바구니에 완벽하게 추가되었습니다!")
-                    st.rerun()
-                else:
-                    st.info(f"💡 해당 코드는 이미 바구니에 담겨 있습니다.")
+                st.success(f"🎉 [{resolved_name} ({resolved_code})] 종목이 바구니에 완벽하게 추가되었습니다!")
+                st.rerun()
+            else:
+                st.error("⚠️ 사전에서 종목명을 찾지 못했습니다. 종목명과 함께 **'6자리 숫자 코드(예: 161890)'**를 정확히 작성해 주세요!")
 
     with search_tab2:
         all_stock_names = sorted(list(MASTER_STOCK_DICT.keys()))
