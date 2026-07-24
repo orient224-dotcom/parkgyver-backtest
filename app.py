@@ -184,7 +184,7 @@ else:
 
     st.sidebar.subheader("⚙️ 빠른 전략 프리셋")
     preset_col1, preset_col2 = st.sidebar.columns(2)
-    buy_preset, sell_preset = 5, 5  # 🌟 기본 매수 진입 조절기 값을 5로 설정
+    buy_preset, sell_preset = 5, 5
     if preset_col1.button("⚡ 적극 공격형"):
         buy_preset, sell_preset = 3, 7
         st.sidebar.toast("적극 공격형 (-3% 진입 / +7% 익절) 설정 완료!")
@@ -590,6 +590,7 @@ else:
                                     '요원': p['name'], 
                                     '구역명': p['stock_name'], 
                                     '출격일': p['entry_date'],
+                                    '출격 당시 주가': f"{format_money(p['entry_price'])}원",  # 🌟 [신규 추가] 출격 당시 종가(주가)
                                     '진입금액': f"{format_money(p['invest_amount'])}원",
                                     '현재 평가금액': f"{format_money(eval_val)}원",
                                     '평가 손익': f"{format_money(eval_profit)}원",
