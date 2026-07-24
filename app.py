@@ -227,7 +227,6 @@ else:
     broker_fee_pct = (st.sidebar.number_input("위탁수수료 (%)", value=0.015, format="%.3f") / 100) if use_fee else 0.0
     tax_pct = (st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100) if use_fee else 0.0
 
-    # 🌟 [신규 추가] 수익 분배 하이브리드 모드 추가
     reward_type = st.sidebar.selectbox(
         "🎁 전리품 수령 방식", 
         ["전액 현금으로 챙기기", "열매로 결실 모으기", "🌟 현금 50% + 열매 50% (하이브리드)"]
@@ -287,7 +286,6 @@ else:
                         if year not in yearly_stats:
                             yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0}
                         
-                        # 배당금 자동 수금
                         daily_dividend_sum = 0
                         if date in div_df.index:
                             for s_name, count in free_shares_dict.items():
@@ -347,18 +345,16 @@ else:
                                         stock_win_stats[s_name]['success'] += 1
                                         stock_win_stats[s_name]['profit_gain'] += net_profit
                                         
-                                        # 🌟 [수익 분배 하이브리드 로직 추가]
                                         if reward_type == '열매로 결실 모으기':
                                             buyable = int(max(0, net_profit) // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
                                         elif reward_type == '🌟 현금 50% + 열매 50% (하이브리드)':
                                             share_budget = max(0, net_profit) / 2
                                             buyable = int(share_budget // curr_price)
-                                            leftover = net_profit - (buyable * curr_price) # 현금 절반 + 주식 사고 남은 잔돈
+                                            leftover = net_profit - (buyable * curr_price)
                                         else:
                                             buyable = 0
                                             leftover = net_profit
-                                            
                                     else:
                                         total_stop_loss += 1
                                         yearly_stats[year]['stop'] += 1
@@ -447,6 +443,18 @@ else:
 
                     st.subheader("🏆 백테스트 최종 성과 지표")
                     
+                    # 🌟 [신규 추가] 최종 성과 지표 가이드(설명서) 접힘 상자
+                    with st.expander("📖 [클릭] 최종 성과 지표가 무슨 뜻인가요? (초보자용 알기 쉬운 해설서)"):
+                        st.markdown("""
+                        * **🏁 원금 예산:** 작전을 시작하기 위해 사령부 금고에 처음으로 밀어 넣은 **종잣돈(씨앗 돈)**입니다. (마법의 씨앗 주머니)
+                        * **✨ 총자산:** 백테스트 기간이 끝난 후, 내 통장(현금)과 현장(주식)에 남아 있는 모든 재산을 싹싹 끌어모은 **지갑 속 최종 재산 총액**입니다.
+                        * **📈 총 순수익금:** 내 원금을 제외하고, 순수하게 내 주머니로 불어나서 들어온 **진짜 알짜배기 순이익**입니다.
+                        * **💵 최종 현금:** 다음 작전 때 더 큰 덩치로 출격할 수 있도록 내 통장에 현금으로 차곡차곡 챙겨둔 **비상금이자 실탄 곳간**입니다.
+                        * **🎯 작전 승률:** 요원들이 출격했다가 목표가(익절)를 찍고 웃으며 돌아온 **작전 성공 확률**입니다. (야구 경기 승률처럼 70% 안팎이면 매우 훌륭합니다!)
+                        * **🍯 누적 배당금:** 주식을 보유하는 동안 기업들이 고맙다고 통장에 꽂아준 **나무에서 툭툭 떨어진 달콤한 보너스 꿀(배당금)**입니다.
+                        * **🐣 연금통장 변환기:** 불어난 총자산을 연 4% 배당 ETF에 넣어두었을 때, 원금 손실 없이 평생 매월 따박따박 받을 수 있는 **제2의 월급(연금) 환산 금액**입니다!
+                        """)
+
                     m1, m2, m3 = st.columns(3)
                     m1.metric("🏁 원금 예산", f"{format_money(total_capital_input)}원")
                     m2.metric(f"✨ {period_label} 후 총자산", f"{format_money(final_total_asset)}원")
@@ -455,8 +463,6 @@ else:
                     st.write("") 
                     
                     m4, m5, m6 = st.columns(3)
-                    
-                    # 🌟 하이브리드 모드와 열매 모드 시 전광판 통합 처리
                     if reward_type in ['열매로 결실 모으기', '🌟 현금 50% + 열매 50% (하이브리드)']:
                         m4.metric("💵 가용 현금", f"{format_money(current_cash)}원", delta=f"매매 잔돈/수익: +{format_money(total_cash_profit)}원")
                         m5.metric("📦 공짜 열매", f"{total_free_shares_count:,}주", delta=f"가치: {format_money(total_free_shares_value)}원")
@@ -480,7 +486,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 🌟 하이브리드 모드에서도 보물상자 열리도록 수정
                     if reward_type in ['열매로 결실 모으기', '🌟 현금 50% + 열매 50% (하이브리드)'] and total_free_shares_count > 0:
                         with st.expander("🍎 내 보물상자 (수집한 공짜 열매 상세 내역) 열어보기"):
                             fruit_details = []
