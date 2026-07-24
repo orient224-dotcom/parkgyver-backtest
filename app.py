@@ -227,7 +227,12 @@ else:
     broker_fee_pct = (st.sidebar.number_input("위탁수수료 (%)", value=0.015, format="%.3f") / 100) if use_fee else 0.0
     tax_pct = (st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100) if use_fee else 0.0
 
-    reward_type = st.sidebar.selectbox("🎁 전리품 수령 방식", ["전액 현금으로 챙기기", "열매로 결실 모으기"])
+    # 🌟 [신규 추가] 수익 분배 하이브리드 모드 추가
+    reward_type = st.sidebar.selectbox(
+        "🎁 전리품 수령 방식", 
+        ["전액 현금으로 챙기기", "열매로 결실 모으기", "🌟 현금 50% + 열매 50% (하이브리드)"]
+    )
+    
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
 
     st.write(f"### 🛡️ 감시 구역 요약 ({len(PORTFOLIO_UNIVERSE)}개 종목)")
@@ -341,8 +346,19 @@ else:
                                         yearly_stats[year]['success'] += 1
                                         stock_win_stats[s_name]['success'] += 1
                                         stock_win_stats[s_name]['profit_gain'] += net_profit
-                                        buyable = int(max(0, net_profit) // curr_price) if reward_type == '열매로 결실 모으기' else 0
-                                        leftover = net_profit - (buyable * curr_price) if reward_type == '열매로 결실 모으기' else net_profit
+                                        
+                                        # 🌟 [수익 분배 하이브리드 로직 추가]
+                                        if reward_type == '열매로 결실 모으기':
+                                            buyable = int(max(0, net_profit) // curr_price)
+                                            leftover = net_profit - (buyable * curr_price)
+                                        elif reward_type == '🌟 현금 50% + 열매 50% (하이브리드)':
+                                            share_budget = max(0, net_profit) / 2
+                                            buyable = int(share_budget // curr_price)
+                                            leftover = net_profit - (buyable * curr_price) # 현금 절반 + 주식 사고 남은 잔돈
+                                        else:
+                                            buyable = 0
+                                            leftover = net_profit
+                                            
                                     else:
                                         total_stop_loss += 1
                                         yearly_stats[year]['stop'] += 1
@@ -358,7 +374,7 @@ else:
                                     yearly_stats[year]['cash'] += leftover
                                     daily_returns_history.append(net_ret)
 
-                                    log_reward = f"열매 {buyable}개 + 잔돈 {format_money(leftover)}원" if buyable > 0 else f"{format_money(leftover)}원"
+                                    log_reward = f"열매 {buyable}개 + 잔돈/수익 {format_money(leftover)}원" if buyable > 0 else f"{format_money(leftover)}원"
                                     trade_logs.append({
                                         '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
                                         '진입단가': f"{format_money(pos['entry_price'])}원", '복귀일': date_str,
@@ -439,8 +455,10 @@ else:
                     st.write("") 
                     
                     m4, m5, m6 = st.columns(3)
-                    if reward_type == '열매로 결실 모으기':
-                        m4.metric("💵 가용 현금", f"{format_money(current_cash)}원", delta=f"매매 잔돈: +{format_money(total_cash_profit)}원")
+                    
+                    # 🌟 하이브리드 모드와 열매 모드 시 전광판 통합 처리
+                    if reward_type in ['열매로 결실 모으기', '🌟 현금 50% + 열매 50% (하이브리드)']:
+                        m4.metric("💵 가용 현금", f"{format_money(current_cash)}원", delta=f"매매 잔돈/수익: +{format_money(total_cash_profit)}원")
                         m5.metric("📦 공짜 열매", f"{total_free_shares_count:,}주", delta=f"가치: {format_money(total_free_shares_value)}원")
                     else:
                         m4.metric("💵 최종 현금", f"{format_money(current_cash)}원", delta=f"매매 수익금: +{format_money(total_cash_profit)}원")
@@ -451,7 +469,6 @@ else:
                     if use_fee:
                         st.caption(f"💸 **실전 거래비용 정산 완료:** 누적 수수료 및 거래세 -{format_money(total_fee_tax_paid)}원 이미 차감됨")
 
-                    # 🌟 [신규 탑재] 은퇴자를 위한 제2의 연금통장 변환기 (황금알 전광판)
                     monthly_pension = (final_total_asset * 0.04) / 12
                     st.markdown(f"""
                     <div style="background: linear-gradient(to right, #fffbeb, #fef3c7); padding: 20px; border-radius: 12px; border-left: 6px solid #f59e0b; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
@@ -463,7 +480,8 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    if reward_type == '열매로 결실 모으기' and total_free_shares_count > 0:
+                    # 🌟 하이브리드 모드에서도 보물상자 열리도록 수정
+                    if reward_type in ['열매로 결실 모으기', '🌟 현금 50% + 열매 50% (하이브리드)'] and total_free_shares_count > 0:
                         with st.expander("🍎 내 보물상자 (수집한 공짜 열매 상세 내역) 열어보기"):
                             fruit_details = []
                             for s_name, count in free_shares_dict.items():
