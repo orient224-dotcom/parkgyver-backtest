@@ -58,6 +58,14 @@ st.markdown("""
         color: #94a3b8;
         margin-top: 6px;
     }
+    .ai-advice-card {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        color: #ffffff;
+        padding: 22px 26px;
+        border-radius: 16px;
+        box-shadow: 0 8px 20px rgba(2, 132, 199, 0.25);
+        margin-bottom: 25px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -90,11 +98,9 @@ if "sector_db" not in st.session_state:
         }
     }
 
-# 🌟 [영구 신규 종목 저장소 초기화]
 if "custom_stocks" not in st.session_state:
     st.session_state["custom_stocks"] = {}
 
-# 🌟 [대폭 확장된 광범위 종목 마스터 사전 (한국콜마, RFHIC 완벽 탑재)]
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
     "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
@@ -115,15 +121,12 @@ for sector, stocks in st.session_state["sector_db"].items():
 for name, code in KOREAN_STOCK_MASTER.items():
     if name not in MASTER_STOCK_DICT:
         MASTER_STOCK_DICT[name] = code
-
-# 커스텀 등록 종목 병합
 for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
 
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["한국콜마", "RFHIC", "테크윙", "한미반도체", "HPSP"]
 
-# 🌟 [만 원/백만 원 단위 직관적 표기 함수]
 def format_money(num):
     if num is None or pd.isna(num):
         return "-"
@@ -131,13 +134,13 @@ def format_money(num):
     abs_num = abs(num)
     sign = "-" if num < 0 else ""
     
-    if abs_num >= 100000000: # 1억 이상
+    if abs_num >= 100000000:
         eok = abs_num // 100000000
         man = (abs_num % 100000000) // 10000
         if man > 0:
             return f"{sign}{eok:,}억 {man:,}만 원"
         return f"{sign}{eok:,}억 원"
-    elif abs_num >= 10000: # 1만 원 이상
+    elif abs_num >= 10000:
         man = abs_num / 10000
         if man >= 100:
             if man == int(man):
@@ -150,7 +153,6 @@ def format_money(num):
     else:
         return f"{sign}{abs_num:,}원"
 
-# 🌟 [적합도 진단 함수]
 @st.cache_data(ttl=3600)
 def analyze_stock_suitability(stock_dict, invest_amount=2000000):
     results = []
@@ -253,26 +255,22 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
             resolved_name = None
             resolved_code = None
 
-            # 1. 이름이 사전(KOREAN_STOCK_MASTER / MASTER_STOCK_DICT)에 존재하는 경우
             if name_q in MASTER_STOCK_DICT:
                 resolved_name = name_q
                 resolved_code = MASTER_STOCK_DICT[name_q]
             elif name_q in KOREAN_STOCK_MASTER:
                 resolved_name = name_q
                 resolved_code = KOREAN_STOCK_MASTER[name_q]
-            # 2. 코드 6자리가 정확히 입력된 경우
             elif len(code_q) == 6 and code_q.isdigit():
                 suffix = ".KS" if "코스피" in input_market else ".KQ"
                 resolved_code = f"{code_q}{suffix}"
                 resolved_name = name_q if name_q else f"신규작전주({code_q})"
-            # 3. 이름 입력란에 6자리 코드가 잘못 들어간 경우
             elif len(name_q) == 6 and name_q.isdigit():
                 suffix = ".KS" if "코스피" in input_market else ".KQ"
                 resolved_code = f"{name_q}{suffix}"
                 resolved_name = f"신규작전주({name_q})"
 
             if resolved_name and resolved_code:
-                # 영구 세션에 담기!
                 st.session_state["custom_stocks"][resolved_name] = resolved_code
                 MASTER_STOCK_DICT[resolved_name] = resolved_code
                 
@@ -380,7 +378,7 @@ else:
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🛡️ 박가이버표 실전 작전 통제실 V8 Ultra</div>
-        <div class="hero-subtitle">월가 퀀트 스타일의 2단 연동 차트, 폭락장 우산 알고리즘, MDD 멘탈 분석 및 실시간 매수/매도 레이더 터미널입니다.</div>
+        <div class="hero-subtitle">월가 퀀트 스타일의 2단 연동 차트, 폭락장 우산 알고리즘, MDD 멘탈 분석 및 AI 실시간 장세 자금 조언 가이드입니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -708,6 +706,35 @@ else:
                     total_trades = total_success + total_stop_loss
                     win_rate = (total_success / total_trades * 100) if total_trades > 0 else 0
 
+                    # 🌟 [신규] 최근 20일 실시간 시장 변동성 및 추세 계산
+                    recent_20d_df = close_df.iloc[-20:] if len(close_df) >= 20 else close_df
+                    recent_volatility = recent_20d_df.pct_change().abs().mean().mean() * 100
+                    
+                    # 과거 백테스트 전체 변동성
+                    hist_volatility = return_df.abs().mean().mean()
+
+                    # 🤖 [제미니 AI 분석 엔진] 진입금 조언 메시지 생성
+                    if recent_volatility > hist_volatility * 1.3:
+                        ai_market_status = "🚨 최근 시장 변동성이 과거 평균 대비 급격히 확대된 '초고변동성/불안정 구간'입니다."
+                        ai_action_advice = f"**[진입금 30% 축소 권고]** 기존 회당 진입금 **{format_money(invest_amount_input)}**에서 **{format_money(invest_amount_input * 0.7)}** 수준으로 낮추어 방어 현금을 대폭 확보하세요!"
+                        ai_bg_color = "#dc2626" # Red
+                    elif recent_volatility < hist_volatility * 0.8:
+                        ai_market_status = "☀️ 최근 시장 변동성이 수평을 이루는 '잔잔한 박스권/안정 국면'입니다."
+                        ai_action_advice = f"**[표준 진입금 유지]** 현재 진입금 **{format_money(invest_amount_input)}** (전체 자금의 {int(invest_amount_input/total_capital_input*100)}%) 수준으로 정상적인 복리 스노우볼 작전을 펼치기 최적입니다."
+                        ai_bg_color = "#0284c7" # Blue
+                    else:
+                        ai_market_status = "🌤️ 최근 변동성이 과거 데이터 패턴과 평형을 유지하고 있습니다."
+                        ai_action_advice = f"**[정상 전략 유지]** 지정하신 회당 진입금 **{format_money(invest_amount_input)}**을 유지하되, 하락장 우산 스위치를 켜두어 우발적 폭락을 방지하세요."
+                        ai_bg_color = "#16a34a" # Green
+
+                    st.markdown(f"""
+                    <div style="background-color: {ai_bg_color}; color: #ffffff; padding: 22px 26px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 8px 20px rgba(0,0,0,0.15);">
+                        <h3 style="margin-top:0; font-size: 1.35rem; color: #ffffff; display: flex; align-items: center; gap: 8px;">🤖 제미니 AI 참모의 실시간 장세 진단 & 실전 진입금 처방전</h3>
+                        <p style="font-size: 1.05rem; margin-bottom: 8px; opacity: 0.95;"><b>1. 현재 장세 진단:</b> {ai_market_status}</p>
+                        <p style="font-size: 1.1rem; margin-bottom: 0; background: rgba(0,0,0,0.2); padding: 12px 16px; border-radius: 10px;"><b>2. 실전 자금 조치 지침:</b> {ai_action_advice}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
                     st.subheader("🏆 백테스트 최종 성과 대시보드")
 
                     m1, m2, m3 = st.columns(3)
@@ -959,14 +986,13 @@ else:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             st.dataframe(logs_df, use_container_width=True)
 
-                    # 🌟 자동 채점 및 종합 진단 리포트
                     perf_score = min(100, max(50, int(70 + (total_return_pct / 15) + (win_rate - 50))))
                     grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
                     
                     missed_cnt = len(missed_opportunities)
                     pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률 **{win_rate:.1f}%**, 최대 낙폭(MDD) **{max_drawdown_pct:.1f}%**로 매우 우수합니다."
                     cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족 또는 단가 초과)이 발생했습니다." if missed_cnt > 0 else "현금 관리와 슬롯 회전율이 100% 완벽했습니다."
-                    advice_text = "복리 스케일업 모드와 폭락장 우산 스위치를 함께 활용하여 시장 파동 속에서도 안전한 노후 월세 연금을 만드세요."
+                    advice_text = "복리 스케일업 모드와 폭락장 우산 스위치, 그리고 제미니 AI 참모의 실시간 진입금 처방전을 함께 활용해 리스크를 철저히 방어하세요."
 
                     st.markdown("---")
                     st.markdown("### 🎖️ 박가이버 사령관의 종합 진단 및 실전 리포트")
@@ -980,7 +1006,7 @@ else:
                         st.warning(f"**⚠️ 2. 아쉬운 점 (한계):** {cons_text}")
                     else:
                         st.info(f"**⚠️ 2. 아쉬운 점 (한계):** {cons_text}")
-                    st.info(f"**🛠️ 3. 향후 개선할 점:** 1회 진입 금액 비율과 최대 슬롯 개수를 본인의 투자 성향에 맞게 미세조정하세요.")
+                    st.info(f"**🛠️ 3. 향후 개선할 점:** AI 참모의 지침에 따라 초고변동성 장세에서는 진입금액 비율을 적절히 축소하여 현금을 높게 유지하세요.")
                     st.error(f"**💡 종합 실전 어드바이스:** {advice_text}")
 
                 except Exception as e:
