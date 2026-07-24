@@ -184,7 +184,7 @@ else:
 
     st.sidebar.subheader("⚙️ 빠른 전략 프리셋")
     preset_col1, preset_col2 = st.sidebar.columns(2)
-    buy_preset, sell_preset = 4, 5
+    buy_preset, sell_preset = 5, 5  # 🌟 기본 매수 진입 조절기 값을 5로 설정
     if preset_col1.button("⚡ 적극 공격형"):
         buy_preset, sell_preset = 3, 7
         st.sidebar.toast("적극 공격형 (-3% 진입 / +7% 익절) 설정 완료!")
@@ -567,7 +567,6 @@ else:
                                 })
                             st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
 
-                    # 🌟 [업데이트] TAB 4: 현장 대기요원 합계 평가액 요약 카드 추가
                     with tab4:
                         st.write("### ⚔️ 현재 현장 대기 요원 (평가 현황)")
                         if len(active_positions) > 0:
@@ -597,7 +596,6 @@ else:
                                     '현재수익률': f"{ret:.2f}%"
                                 })
 
-                            # 합계 요약 팻말(Metric) 3개 출력
                             tot_ret_pct = (tot_prof / tot_inv * 100) if tot_inv > 0 else 0
                             ac1, ac2, ac3 = st.columns(3)
                             ac1.metric("💰 현장 투입 원금 합계", f"{format_money(tot_inv)}원")
