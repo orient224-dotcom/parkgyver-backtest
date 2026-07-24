@@ -57,7 +57,7 @@ if "sector_db" not in st.session_state:
         }
     }
 
-# 🌟 스마트 검색을 위한 확장된 한국 주요 종목 마스터 사전
+# 🌟 대폭 확장된 한국 주요 종목 마스터 사전 (이수화학 등 추가)
 KOREAN_STOCK_MASTER = {
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "LG에너지솔루션": "373220.KS",
     "삼성바이오로직스": "207940.KS", "현대차": "005380.KS", "기아": "000270.KS",
@@ -69,7 +69,8 @@ KOREAN_STOCK_MASTER = {
     "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "알테오젠": "196170.KQ",
     "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "엘앤에프": "066970.KQ",
     "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ",
-    "레인보우로보틱스": "277810.KQ", "두산에너빌리티": "034020.KS"
+    "레인보우로보틱스": "277810.KQ", "두산에너빌리티": "034020.KS", "이수화학": "005950.KS",
+    "POSCO엠텍": "009520.KS", "한화오션": "042660.KS", "삼성중공업": "010140.KS"
 }
 
 MASTER_STOCK_DICT = {}
@@ -82,6 +83,9 @@ for name, code in KOREAN_STOCK_MASTER.items():
 
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"]
+
+# 🌟 선택된 종목이 마스터에 확실히 존재하도록 필터링 (에러 원천 방어)
+st.session_state["selected_stocks"] = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
 
 def format_money(num):
     return f"{int(round(num)):,}"
@@ -104,11 +108,11 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     # 🌟 [최상단 배치] 스마트 종목 이름 검색 및 자동 등록 구역
     st.markdown("### 🔍 1. 스마트 종목 이름 검색 & 자동 등록")
-    st.info("💡 종목 이름(예: 삼성전자, LG에너지솔루션, 셀트리온 등)을 입력하시면 코드가 자동으로 검색되어 아래 바구니에 쏙 담깁니다!")
+    st.info("💡 종목 이름(예: 삼성전자, 이수화학, 셀트리온 등)을 입력하시면 코드가 자동으로 검색되어 아래 바구니에 쏙 담깁니다!")
     
     s_col1, s_col2, s_col3 = st.columns([2, 1, 1])
-    search_input = s_col1.text_input("종목명 입력", placeholder="예: 삼성전자, 셀트리온", key="smart_search_input_v3")
-    market_choice = s_col2.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="smart_market_choice_v3")
+    search_input = s_col1.text_input("종목명 입력", placeholder="예: 삼성전자, 이수화학", key="smart_search_input_v4")
+    market_choice = s_col2.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="smart_market_choice_v4")
     
     if s_col3.button("➕ 검색해서 바구니 담기", type="primary"):
         query = search_input.strip()
@@ -141,7 +145,9 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                 else:
                     st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 들어있습니다.")
             else:
-                st.error(f"❌ '{query}'에 해당하는 종목을 찾지 못했습니다. 6자리 종목코드(예: 005930)를 직접 입력해 주세요.")
+                # 직접 신규 등록할 수 있도록 유도
+                suffix = ".KS" if "코스피" in market_choice else ".KQ"
+                st.error(f"❌ '{query}'에 해당하는 종목을 찾지 못했습니다. 아래 [탐색기 커스텀] 메뉴에서 종목코드를 직접 등록해 주세요!")
 
     st.markdown("---")
 
@@ -184,7 +190,9 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                 if new_s_name and new_s_code:
                     st.session_state["sector_db"][target_sec][new_s_name] = new_s_code
                     MASTER_STOCK_DICT[new_s_name] = new_s_code
-                    st.success(f"✨ [{target_sec}] 섹터에 '{new_s_name}' 추가 완료!")
+                    if new_s_name not in st.session_state["selected_stocks"]:
+                        st.session_state["selected_stocks"].append(new_s_name)
+                    st.success(f"✨ [{target_sec}] 섹터에 '{new_s_name}' 추가 및 바구니 담기 완료!")
                     st.rerun()
 
         with tab_cust2:
@@ -197,7 +205,9 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                 if new_sec_name and first_s_name and first_s_code:
                     st.session_state["sector_db"][new_sec_name] = {first_s_name: first_s_code}
                     MASTER_STOCK_DICT[first_s_name] = first_s_code
-                    st.success(f"🎉 신규 섹터 [{new_sec_name}]가 생성되었습니다!")
+                    if first_s_name not in st.session_state["selected_stocks"]:
+                        st.session_state["selected_stocks"].append(first_s_name)
+                    st.success(f"🎉 신규 섹터 [{new_sec_name}] 생성 및 종목 추가 완료!")
                     st.rerun()
 
     st.markdown("---")
