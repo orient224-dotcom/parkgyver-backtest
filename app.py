@@ -9,10 +9,8 @@ import plotly.express as px
 # --- 1. 페이지 웹 디자인 세팅 (모바일 다크모드 완벽 대응 CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V6 Pro", page_icon="🛡️", layout="wide")
 
-# 스마트폰 및 다크모드 글자 잘림/눈뽕 방지 CSS
 st.markdown("""
 <style>
-    /* 메트릭 카드 배경 및 글자 색상 강제 지정 (다크모드에서도 흰 배경+검은 글씨 유지) */
     div[data-testid="stMetric"] {
         background-color: #ffffff !important;
         padding: 12px 14px !important;
@@ -20,22 +18,16 @@ st.markdown("""
         border: 1px solid #cbd5e1 !important;
         box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
     }
-    
-    /* 메트릭 항목 제목 글자색 강제 고정 */
     div[data-testid="stMetricLabel"] > label, div[data-testid="stMetricLabel"] {
         color: #475569 !important;
         font-size: 0.85rem !important;
         font-weight: 700 !important;
     }
-    
-    /* 메트릭 수치(돈/수익률) 글자색 강제 고정 */
     div[data-testid="stMetricValue"] {
         color: #0f172a !important;
         font-size: 1.25rem !important;
         font-weight: 800 !important;
     }
-    
-    /* 타이틀 및 서브타이틀 스마트폰 대응 모바일 폰트 */
     .main-header { font-size: 1.6rem !important; font-weight: 800; margin-bottom: 0.2rem; }
     .sub-header { font-size: 0.88rem !important; color: #64748b; margin-bottom: 1.0rem; }
 </style>
@@ -65,7 +57,6 @@ if "sector_db" not in st.session_state:
         }
     }
 
-# MASTER_STOCK_DICT 갱신
 MASTER_STOCK_DICT = {}
 for sector, stocks in st.session_state["sector_db"].items():
     for name, code in stocks.items():
@@ -94,7 +85,6 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.markdown('<div class="sub-header">섹터별 종목을 둘러보고 바구니에 담아 통제실로 보낼 수 있습니다.</div>', unsafe_allow_html=True)
 
     st.subheader("🎯 1. 테마/섹터별 둘러보기")
-    
     col_sec1, col_sec2 = st.columns([1, 2])
     with col_sec1:
         selected_sector = st.selectbox("📂 탐색할 섹터 선택", list(st.session_state["sector_db"].keys()))
@@ -279,6 +269,9 @@ else:
                     total_success, total_stop_loss, total_cash_profit, total_fee_tax_paid = 0, 0, 0, 0
                     global_max_deployed = 0
                     daily_deployment_snapshots = []
+                    
+                    # 🌟 [신규] 현금/슬롯 부족으로 놓친 기회 추적용 리스트
+                    missed_opportunities = []
 
                     for date, row in close_df.iterrows():
                         date_str = date.strftime('%Y-%m-%d')
@@ -350,27 +343,43 @@ else:
                         remaining_slots = max_active_slots - len(active_positions)
                         dynamic_invest_amount = max(float(invest_amount_input), current_cash / remaining_slots) if (use_compounding and remaining_slots > 0) else float(invest_amount_input)
 
-                        if current_cash > 0 and len(active_positions) < max_active_slots:
-                            day_returns = return_df.loc[date] if date in return_df.index else None
-                            if day_returns is not None:
-                                candidates = []
-                                for s_name, t_code in PORTFOLIO_UNIVERSE.items():
-                                    if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
-                                        ret_val = float(day_returns[t_code])
-                                        if ret_val <= buy_cond:
-                                            candidates.append((s_name, t_code, ret_val, float(row[t_code])))
-                                candidates.sort(key=lambda x: x[2])
+                        # 신규 진입 및 놓친 기회 검사
+                        day_returns = return_df.loc[date] if date in return_df.index else None
+                        if day_returns is not None:
+                            candidates = []
+                            for s_name, t_code in PORTFOLIO_UNIVERSE.items():
+                                if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
+                                    ret_val = float(day_returns[t_code])
+                                    if ret_val <= buy_cond:
+                                        candidates.append((s_name, t_code, ret_val, float(row[t_code])))
+                            candidates.sort(key=lambda x: x[2])
 
-                                for cand in candidates:
-                                    actual_invest = min(dynamic_invest_amount, current_cash)
-                                    if actual_invest >= 500000 and len(active_positions) < max_active_slots:
-                                        agent_counter += 1
-                                        s_name, t_code, ret_val, c_price = cand
-                                        current_cash -= actual_invest
-                                        active_positions.append({
-                                            'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
-                                            'entry_price': c_price, 'entry_date': date_str, 'invest_amount': actual_invest
-                                        })
+                            for cand in candidates:
+                                actual_invest = min(dynamic_invest_amount, current_cash)
+                                
+                                # 🌟 진입 조건은 맞았으나 출격 불가한 사유 기록
+                                if len(active_positions) >= max_active_slots:
+                                    missed_opportunities.append({
+                                        "발생 일자": date_str,
+                                        "미출격 종목": cand[0],
+                                        "당일 하락률": f"{cand[2]:.2f}%",
+                                        "불가 사유": f"요원 슬롯 풀가동 ({max_active_slots}/{max_active_slots}개)"
+                                    })
+                                elif actual_invest < 500000 or current_cash < 500000:
+                                    missed_opportunities.append({
+                                        "발생 일자": date_str,
+                                        "미출격 종목": cand[0],
+                                        "당일 하락률": f"{cand[2]:.2f}%",
+                                        "불가 사유": f"가용 현금 부족 ({format_money(current_cash)}원)"
+                                    })
+                                else:
+                                    agent_counter += 1
+                                    s_name, t_code, ret_val, c_price = cand
+                                    current_cash -= actual_invest
+                                    active_positions.append({
+                                        'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
+                                        'entry_price': c_price, 'entry_date': date_str, 'invest_amount': actual_invest
+                                    })
 
                         curr_count = len(active_positions)
                         if curr_count > global_max_deployed: global_max_deployed = curr_count
@@ -414,7 +423,7 @@ else:
 
                     tab1, tab2, tab3, tab4 = st.tabs([
                         "📊 1. 누적 자산 성장 곡선", 
-                        "🔍 2. 자금 회전율 & 피크 진단", 
+                        "🔍 2. 자금 회전율 & 미출격 진단", 
                         "📈 3. 종목/연도별 손익분석", 
                         "📜 4. 현장 대기요원 & 매매장부"
                     ])
@@ -427,13 +436,27 @@ else:
                         fig_asset.update_traces(line_color="#2563eb", line_width=2.5)
                         st.plotly_chart(fig_asset, use_container_width=True)
 
+                    # 🌟 [보완] TAB 2: 놓친 출격 타점 정밀 분석 리포트
                     with tab2:
-                        st.write("### 🔍 회전율 극대화 리포트")
+                        st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
                         st.warning(f"📊 {period_label} 기간 중 역사적 절대 최고 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개)")
+                        
                         if daily_deployment_snapshots:
                             snap_df = pd.DataFrame(daily_deployment_snapshots)
                             peak_df = snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자'])
+                            st.write("▼ **역대 최고 자금 몰림(피크) 발생 일자 및 출격 목록:**")
                             st.dataframe(peak_df, use_container_width=True, hide_index=True)
+
+                        st.markdown("---")
+                        
+                        # 놓친 타점 리포트 출력
+                        st.write("### 🚫 현금/슬롯 부족으로 놓쳐버린 출격 타점 추적기")
+                        if missed_opportunities:
+                            st.error(f"🚨 지난 {period_label} 동안 하락 타점(-{buy_cond_input}%)이 맞았으나, **현금 부족/슬롯 제한으로 놓친 기회가 총 {len(missed_opportunities)}회** 발생했습니다!")
+                            st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
+                            st.info("💡 **전략 가이드:** 만약 놓친 횟수가 많다면, 전체 슬롯 수를 올리거나 1회 진입금 비율을 조금 낮추면 이 타점들까지 알뜰하게 다 잡아채서 수익을 극대화할 수 있습니다!")
+                        else:
+                            st.success("🎉 단 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다! 자금 관리가 100% 완벽했습니다!")
 
                     with tab3:
                         st.write("### 📊 종목 및 연도별 정밀 성적표")
