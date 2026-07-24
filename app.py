@@ -309,7 +309,7 @@ else:
                             total_dividend_profit += daily_dividend_sum
                             trade_logs.append({
                                 '요원': '시스템', '작전 구역': '배당금(꿀) 수금', '출격일': date_str,
-                                '진입단가': '-', '복귀일': date_str,
+                                '진입금액': '-', '진입단가': '-', '복귀일': date_str,
                                 '청산단가': '-', '순수익률': '-',
                                 '정산내역': f"🍯 꿀 수입: +{format_money(daily_dividend_sum)}원", '구분': '🌟 특별 보너스'
                             })
@@ -373,6 +373,7 @@ else:
                                     log_reward = f"열매 {buyable}개 + 잔돈/수익 {format_money(leftover)}원" if buyable > 0 else f"{format_money(leftover)}원"
                                     trade_logs.append({
                                         '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
+                                        '진입금액': f"{format_money(pos['invest_amount'])}원",
                                         '진입단가': f"{format_money(pos['entry_price'])}원", '복귀일': date_str,
                                         '청산단가': f"{format_money(curr_price)}원", '순수익률': f"{net_ret:.2f}%",
                                         '정산내역': log_reward, '구분': exit_reason
