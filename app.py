@@ -6,28 +6,34 @@ import datetime
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
 
-# --- 1. 페이지 웹 디자인 세팅 (모바일 다크모드 완벽 대응 CSS) ---
+# --- 1. 페이지 웹 디자인 세팅 (모바일 다크모드 카드 가독성 극대화 CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V6 Pro", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
+    /* 메트릭 카드 디자인 및 선명한 음영/테두리 강화 */
     div[data-testid="stMetric"] {
         background-color: #ffffff !important;
-        padding: 12px 14px !important;
+        padding: 14px 16px !important;
         border-radius: 12px !important;
-        border: 1px solid #cbd5e1 !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
+        border: 1px solid #94a3b8 !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08) !important;
     }
-    div[data-testid="stMetricLabel"] > label, div[data-testid="stMetricLabel"] {
-        color: #475569 !important;
-        font-size: 0.85rem !important;
-        font-weight: 700 !important;
-    }
-    div[data-testid="stMetricValue"] {
+    
+    /* 지표 이름(라벨) 글자색을 아주 진하고 선명하게 강제 고정 */
+    div[data-testid="stMetricLabel"], div[data-testid="stMetricLabel"] * {
         color: #0f172a !important;
-        font-size: 1.25rem !important;
+        font-size: 0.9rem !important;
         font-weight: 800 !important;
     }
+    
+    /* 지표 수치(돈/숫자) 글자색 강제 고정 */
+    div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] * {
+        color: #1e293b !important;
+        font-size: 1.3rem !important;
+        font-weight: 900 !important;
+    }
+    
     .main-header { font-size: 1.6rem !important; font-weight: 800; margin-bottom: 0.2rem; }
     .sub-header { font-size: 0.88rem !important; color: #64748b; margin-bottom: 1.0rem; }
 </style>
@@ -443,7 +449,6 @@ else:
 
                     st.subheader("🏆 백테스트 최종 성과 지표")
                     
-                    # 🌟 [신규 추가] 최종 성과 지표 가이드(설명서) 접힘 상자
                     with st.expander("📖 [클릭] 최종 성과 지표가 무슨 뜻인가요? (초보자용 알기 쉬운 해설서)"):
                         st.markdown("""
                         * **🏁 원금 예산:** 작전을 시작하기 위해 사령부 금고에 처음으로 밀어 넣은 **종잣돈(씨앗 돈)**입니다. (마법의 씨앗 주머니)
