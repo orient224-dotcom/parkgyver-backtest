@@ -58,14 +58,6 @@ st.markdown("""
         color: #94a3b8;
         margin-top: 6px;
     }
-    .ai-advice-card {
-        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-        color: #ffffff;
-        padding: 22px 26px;
-        border-radius: 16px;
-        box-shadow: 0 8px 20px rgba(2, 132, 199, 0.25);
-        margin-bottom: 25px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -103,7 +95,7 @@ if "custom_stocks" not in st.session_state:
 
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
-    "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
+    "현대힘с": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
     "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
     "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
@@ -127,6 +119,7 @@ for name, code in st.session_state["custom_stocks"].items():
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["한국콜마", "RFHIC", "테크윙", "한미반도체", "HPSP"]
 
+# 🌟 [요약용 만 원/백만 원 단위 포맷팅]
 def format_money(num):
     if num is None or pd.isna(num):
         return "-"
@@ -152,6 +145,12 @@ def format_money(num):
             return f"{sign}{man:,.1f}만 원"
     else:
         return f"{sign}{abs_num:,}원"
+
+# 🌟 [매매장부용 정확한 원 단위 포맷팅]
+def format_exact_price(num):
+    if num is None or pd.isna(num):
+        return "-"
+    return f"{int(round(num)):,}\원"
 
 @st.cache_data(ttl=3600)
 def analyze_stock_suitability(stock_dict, invest_amount=2000000):
@@ -342,9 +341,9 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         
         total_budget_input = st.number_input("🏦 내 총 작전 예산(원)을 입력하세요", value=10000000, step=1000000, key="rec_total_budget")
         
-        rec_std = total_budget_input // 5      # 표준 (5슬롯)
-        rec_aggr = total_budget_input // 3     # 공격 (3슬롯)
-        rec_def = total_budget_input // 8      # 방어 (8슬롯)
+        rec_std = total_budget_input // 5
+        rec_aggr = total_budget_input // 3
+        rec_def = total_budget_input // 8
 
         r_col1, r_col2, r_col3 = st.columns(3)
         r_col1.metric("🎯 표준 권장 (5슬롯 균형)", format_money(rec_std), delta="총 예산의 20%")
@@ -520,7 +519,9 @@ else:
                     peak_asset_value = float(total_capital_input)
                     max_drawdown_pct = 0.0
 
-                    for date, row in close_df.iterrows():
+                    # 날짜 인덱스를 이용해 소요 기간(일수) 계산을 위해 주가 DataFrame의 index 활용
+                    # close_df.index는 날짜 객체 또는 Timestamp
+                    for idx, (date, row) in enumerate(close_df.iterrows()):
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
                         if year not in yearly_stats:
@@ -550,7 +551,7 @@ else:
                             trade_logs.append({
                                 '요원': '시스템', '작전 구역': '배당금(꿀) 수금', '출격일': date_str,
                                 '진입금액': '-', '매도금액': '-', '진입단가': '-', '복귀일': date_str,
-                                '청산단가': '-', '순수익률': '-',
+                                '청산단가': '-', '등락폭': '-', '소요기간': '-', '순수익률': '-',
                                 '정산내역': f"🍯 꿀 수입: +{format_money(daily_dividend_sum)}", '구분': '🌟 특별 보너스'
                             })
                         
@@ -579,6 +580,17 @@ else:
                                     net_ret = (net_profit / pos['invest_amount']) * 100
                                     s_name = pos['stock_name']
                                     
+                                    # 🌟 [신규 추가] 등락폭 및 소요 기간 계산
+                                    price_diff = curr_price - pos['entry_price']
+                                    diff_sign = "+" if price_diff >= 0 else ""
+                                    price_change_str = f"{diff_sign}{format_exact_price(price_diff)} ({gross_ret:+.2f}%)"
+                                    
+                                    # 일수 계산
+                                    entry_dt = pd.to_datetime(pos['entry_date'])
+                                    exit_dt = pd.to_datetime(date_str)
+                                    days_taken = (exit_dt - entry_dt).days
+                                    duration_str = f"{days_taken}일 소요"
+
                                     if gross_ret >= sell_target:
                                         total_success += 1
                                         yearly_stats[year]['success'] += 1
@@ -616,8 +628,12 @@ else:
                                         '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
                                         '진입금액': format_money(pos['invest_amount']),
                                         '매도금액': format_money(sell_gross_val),
-                                        '진입단가': format_money(pos['entry_price']), '복귀일': date_str,
-                                        '청산단가': format_money(curr_price), '순수익률': f"{net_ret:.2f}%",
+                                        '진입단가': format_exact_price(pos['entry_price']), 
+                                        '복귀일': date_str,
+                                        '청산단가': format_exact_price(curr_price),
+                                        '등락폭': price_change_str,
+                                        '소요기간': duration_str,
+                                        '순수익률': f"{net_ret:.2f}%",
                                         '정산내역': log_reward, '구분': exit_reason
                                     })
                                 else:
@@ -706,26 +722,23 @@ else:
                     total_trades = total_success + total_stop_loss
                     win_rate = (total_success / total_trades * 100) if total_trades > 0 else 0
 
-                    # 🌟 [신규] 최근 20일 실시간 시장 변동성 및 추세 계산
+                    # 🌟 [제미니 AI 참모의 장세 진단]
                     recent_20d_df = close_df.iloc[-20:] if len(close_df) >= 20 else close_df
                     recent_volatility = recent_20d_df.pct_change().abs().mean().mean() * 100
-                    
-                    # 과거 백테스트 전체 변동성
                     hist_volatility = return_df.abs().mean().mean()
 
-                    # 🤖 [제미니 AI 분석 엔진] 진입금 조언 메시지 생성
                     if recent_volatility > hist_volatility * 1.3:
                         ai_market_status = "🚨 최근 시장 변동성이 과거 평균 대비 급격히 확대된 '초고변동성/불안정 구간'입니다."
                         ai_action_advice = f"**[진입금 30% 축소 권고]** 기존 회당 진입금 **{format_money(invest_amount_input)}**에서 **{format_money(invest_amount_input * 0.7)}** 수준으로 낮추어 방어 현금을 대폭 확보하세요!"
-                        ai_bg_color = "#dc2626" # Red
+                        ai_bg_color = "#dc2626"
                     elif recent_volatility < hist_volatility * 0.8:
                         ai_market_status = "☀️ 최근 시장 변동성이 수평을 이루는 '잔잔한 박스권/안정 국면'입니다."
-                        ai_action_advice = f"**[표준 진입금 유지]** 현재 진입금 **{format_money(invest_amount_input)}** (전체 자금의 {int(invest_amount_input/total_capital_input*100)}%) 수준으로 정상적인 복리 스노우볼 작전을 펼치기 최적입니다."
-                        ai_bg_color = "#0284c7" # Blue
+                        ai_action_advice = f"**[표준 진입금 유지]** 현재 진입금 **{format_money(invest_amount_input)}** 수준으로 정상적인 복리 스노우볼 작전을 펼치기 최적입니다."
+                        ai_bg_color = "#0284c7"
                     else:
                         ai_market_status = "🌤️ 최근 변동성이 과거 데이터 패턴과 평형을 유지하고 있습니다."
                         ai_action_advice = f"**[정상 전략 유지]** 지정하신 회당 진입금 **{format_money(invest_amount_input)}**을 유지하되, 하락장 우산 스위치를 켜두어 우발적 폭락을 방지하세요."
-                        ai_bg_color = "#16a34a" # Green
+                        ai_bg_color = "#16a34a"
 
                     st.markdown(f"""
                     <div style="background-color: {ai_bg_color}; color: #ffffff; padding: 22px 26px; border-radius: 16px; margin-bottom: 25px; box-shadow: 0 8px 20px rgba(0,0,0,0.15);">
@@ -962,7 +975,7 @@ else:
                                     '요원': p['name'], 
                                     '구역명': p['stock_name'], 
                                     '출격일': p['entry_date'],
-                                    '출격 당시 주가': format_money(p['entry_price']),
+                                    '출격 당시 주가': format_exact_price(p['entry_price']),
                                     '진입금액': format_money(p['invest_amount']),
                                     '현재 평가금액': format_money(eval_val),
                                     '평가 손익': format_money(eval_profit),
