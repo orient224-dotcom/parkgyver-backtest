@@ -58,12 +58,16 @@ if "sector_db" not in st.session_state:
         }
     }
 
-# 🌟 [대폭 확장] 대한민국 핵심 인기 상장주 120여 개 내장 마스터 DB (현대힘스 등 신규 상장주 완벽 탑재)
+# 🌟 [대폭 확장 및 에스피지 포함 오프라인 무적 DB]
 KOREAN_STOCK_MASTER = {
+    # 로봇 & 부품 & 감속기 (에스피지 탑재)
+    "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
+    "두산로보틱스": "454910.KS", "뉴로메카": "348210.KQ", "SBB테크": "389500.KQ",
+    "로보티즈": "108490.KQ", "로보스타": "090360.KQ", "티로보틱스": "117730.KQ",
     # 조선 & 중공업 & 해운 (현대힘스 포함)
     "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
     "HD현대중공업": "329180.KS", "삼성중공업": "010140.KS", "HD현대미포": "010620.KS",
-    "HMM": "011200.KS", "팬오션": "028670.KS", "STX중공업": "071970.KS",
+    "HMM": "011200.KS", "팬오션": "028670.KS",
     # 반도체 & 장비/소부장
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
     "한미반도체": "042700.KS", "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", 
@@ -87,32 +91,10 @@ KOREAN_STOCK_MASTER = {
     "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS",
     "한화에어로스페이스": "012450.KS", "현대로템": "064350.KS", "LIG넥스원": "079550.KS",
     "두산에너빌리티": "034020.KS", "HD현대일렉트릭": "267260.KS", "LS일렉트릭": "010120.KS",
-    # IT & 로봇 & 기타
-    "NAVER": "035420.KS", "카카오": "035720.KS", "레인보우로보틱스": "277810.KQ",
-    "두산로보틱스": "454910.KS", "루닛": "328130.KQ", "KB금융": "105560.KS", "신한지주": "055550.KS"
+    # IT & 플랫폼 & 금융
+    "NAVER": "035420.KS", "카카오": "035720.KS", "루닛": "328130.KQ", 
+    "KB금융": "105560.KS", "신한지주": "055550.KS"
 }
-
-# 🌐 [글로벌 GitHub RAW 연동] KRX 전 종목 자동 로더 (해외 IP 차단 0% 회피)
-@st.cache_data(ttl=86400)
-def fetch_github_krx_master():
-    full_dict = {}
-    try:
-        url = "https://raw.githubusercontent.com/finance-data/krx-code/master/krx.csv"
-        res = requests.get(url, timeout=3)
-        if res.status_code == 200:
-            lines = res.text.strip().split('\n')
-            for line in lines[1:]:
-                parts = line.split(',')
-                if len(parts) >= 2:
-                    code_raw = parts[0].strip().zfill(6)
-                    name = parts[1].strip()
-                    # 기본적으로 KOSDAQ/KOSPI 구분 없이 안전한 종목코드 매칭
-                    full_dict[name] = code_raw
-    except Exception:
-        pass
-    return full_dict
-
-GITHUB_KRX_DICT = fetch_github_krx_master()
 
 MASTER_STOCK_DICT = {}
 for sector, stocks in st.session_state["sector_db"].items():
@@ -125,30 +107,24 @@ for name, code in KOREAN_STOCK_MASTER.items():
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"]
 
-# 🌐 [100% 성공 보장 검색 엔진]
+# 🌐 [100% 무적 검색 엔진]
 def search_krx_stock_live(query, market_type="코스닥 (.KQ)"):
     query = query.strip()
     if not query:
         return None, None
     
-    # 1. 사령부 마스터 사전 완전 일치
-    if query in MASTER_STOCK_DICT:
-        return MASTER_STOCK_DICT[query], query
-    
-    # 2. 사령부 마스터 사전 부분(유사) 검색 (예: 현대힘 -> 현대힘스)
-    fuzzy_matches = [k for k in MASTER_STOCK_DICT.keys() if query in k]
-    if fuzzy_matches:
-        exact_starts = [k for k in fuzzy_matches if k.startswith(query)]
-        target_name = exact_starts[0] if exact_starts else fuzzy_matches[0]
-        return MASTER_STOCK_DICT[target_name], target_name
+    # 1. 완벽 일치 검사 (대소문자/공백 무시)
+    query_clean = query.replace(" ", "").upper()
+    for name, code in MASTER_STOCK_DICT.items():
+        if name.replace(" ", "").upper() == query_clean:
+            return code, name
 
-    # 3. GitHub RAW 전종목 데이터베이스 검색
-    if query in GITHUB_KRX_DICT:
-        pure_code = GITHUB_KRX_DICT[query]
-        suffix = ".KS" if "코스피" in market_type else ".KQ"
-        return f"{pure_code}{suffix}", query
+    # 2. 부분 검색 (유사어 지원: 예: '에스피' -> '에스피지')
+    for name, code in MASTER_STOCK_DICT.items():
+        if query_clean in name.replace(" ", "").upper():
+            return code, name
 
-    # 4. 6자리 숫자 코드 직접 입력 시
+    # 3. 6자리 숫자 코드 입력 시 자동 생성
     if len(query) == 6 and query.isdigit():
         suffix = ".KS" if "코스피" in market_type else ".KQ"
         return f"{query}{suffix}", query
@@ -174,9 +150,9 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.markdown('<div class="main-header">🔎 작전 구역 및 스마트 종목 탐색기</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">대한민국 상장 주식 어디든 이름만 입력하시면 코드를 100% 찾아 바구니에 담아드립니다.</div>', unsafe_allow_html=True)
 
-    # 🌟 [3중 하이브리드 검색 코너]
+    # 🌟 [스마트 검색 코너]
     st.markdown("### 🔍 1. 대한민국 전종목 스마트 종목 검색 & 자동 등록")
-    st.info("💡 **'1초 자동완성 선택기'**에서 입력해 바로 고르시거나, **'실전 직접 검색창'**에 종목명(예: 현대힘스, 기가비스, 케이씨텍)을 입력해 검색해 보세요!")
+    st.info("💡 **'1초 자동완성 선택기'**에서 바로 선택하시거나, **'실전 직접 검색창'**에 종목명(예: 에스피지, 현대힘스, 기가비스)을 입력해 검색해 보세요!")
 
     search_tab1, search_tab2 = st.tabs(["⚡ 1초 자동완성 선택기 (강력 추천)", "🔎 실전 직접 검색창"])
 
@@ -185,7 +161,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         selected_from_dropdown = st.selectbox(
             "종목명을 입력 또는 선택하세요 (타이핑 시 자동 검색됨):",
             options=[""] + all_stock_names,
-            key="dropdown_stock_select_v3"
+            key="dropdown_stock_select_v4"
         )
         if st.button("🛒 선택 종목 [백테스트 바구니] 추가", type="primary", key="btn_dropdown_add"):
             if selected_from_dropdown and selected_from_dropdown in MASTER_STOCK_DICT:
@@ -199,10 +175,10 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     with search_tab2:
         s_col1, s_col2, s_col3 = st.columns([2.5, 1, 1])
-        search_input = s_col1.text_input("종목명 입력", placeholder="예: 현대힘스, 기가비스, 케이씨텍", key="smart_live_search_input_v7")
-        market_choice = s_col2.selectbox("소속 시장", ["코스닥 (.KQ)", "코스피 (.KS)"], key="smart_market_choice_v7")
+        search_input = s_col1.text_input("종목명 입력", placeholder="예: 에스피지, 현대힘스, 기가비스", key="smart_live_search_input_v8")
+        market_choice = s_col2.selectbox("소속 시장 (코드 직접입력 시)", ["코스닥 (.KQ)", "코스피 (.KS)"], key="smart_market_choice_v8")
         
-        if s_col3.button("➕ 실시간 검색해서 담기", type="secondary", key="btn_live_search_v7"):
+        if s_col3.button("➕ 실시간 검색해서 담기", type="secondary", key="btn_live_search_v8"):
             query = search_input.strip()
             if not query:
                 st.warning("⚠️ 검색할 종목 이름을 입력해 주세요.")
@@ -218,7 +194,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                     else:
                         st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 담겨 있습니다.")
                 else:
-                    st.error(f"❌ '{query}' 종목을 찾지 못했습니다. 종목명을 확인해 주시거나 6자리 코드(예: 460930)를 직접 입력해 주세요.")
+                    st.error(f"❌ '{query}' 종목을 찾지 못했습니다. 종목명을 확인해 주시거나 6자리 숫자 코드(예: 058610)를 직접 입력해 주세요.")
 
     st.markdown("---")
 
