@@ -47,7 +47,7 @@ if "sector_db" not in st.session_state:
         },
         "🔋 2차전지 & 에코": {
             "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
-            "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ"
+            "POSCO홀딩с": "005490.KS", "엘앤에프": "066970.KQ"
         },
         "🚗 자동차 & 대표 제조": {
             "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS"
@@ -535,10 +535,13 @@ else:
                         else:
                             st.success("🎉 단 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다! 자금 관리가 100% 완벽했습니다!")
 
+                    # 🌟 [업데이트] TAB 3: 연도별 손익분석 그래프 + 숫자 표 동시 제공
                     with tab3:
                         st.write("### 📊 종목 및 연도별 정밀 성적표")
-                        c_col1, c_col2 = st.columns([1, 1.2])
+                        c_col1, c_col2 = st.columns([1.2, 1])
+                        
                         with c_col1:
+                            st.write("#### 🗓️ 연도별 익절 vs 손절 건수 그래프")
                             yearly_chart_data = []
                             for y, val in yearly_stats.items():
                                 yearly_chart_data.append({"연도": str(y), "구분": "🎯 익절", "건수": val['success']})
@@ -547,25 +550,39 @@ else:
                             st.plotly_chart(fig_bar, use_container_width=True)
 
                         with c_col2:
-                            stock_summary = []
-                            for s_name, stats in stock_win_stats.items():
-                                s_total = stats['success'] + stats['stop']
-                                s_win_rate = (stats['success'] / s_total * 100) if s_total > 0 else 0
-                                
-                                gained_shares = free_shares_dict.get(s_name, 0)
-                                share_val = 0
-                                if gained_shares > 0 and PORTFOLIO_UNIVERSE[s_name] in last_row and not pd.isna(last_row[PORTFOLIO_UNIVERSE[s_name]]):
-                                    share_val = gained_shares * float(last_row[PORTFOLIO_UNIVERSE[s_name]])
-
-                                stock_summary.append({
-                                    "작전 구역": s_name, "총작전": f"{s_total}회", "승률": f"{s_win_rate:.1f}%",
-                                    "🎯 익절금": f"+{format_money(stats['profit_gain'])}원",
-                                    "🚨 손절금": f"{format_money(stats['loss_cost'])}원",
-                                    "✨ 순손익": f"{format_money(stats['profit_gain'] + stats['loss_cost'])}원",
-                                    "📦 획득 열매": f"{gained_shares}주",
-                                    "💎 열매 가치": f"{format_money(share_val)}원"
+                            st.write("#### 🗓️ 연도별 정산 종합표")
+                            yearly_summary_list = []
+                            for y, val in sorted(yearly_stats.items()):
+                                yearly_summary_list.append({
+                                    "연도": str(y),
+                                    "🎯 익절": f"{val['success']}회",
+                                    "🚨 손절": f"{val['stop']}회",
+                                    "📦 열매": f"{int(val['shares'])}주",
+                                    "💵 현금수익": f"{format_money(val['cash'])}원"
                                 })
-                            st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
+                            st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
+
+                        st.markdown("---")
+                        st.write("#### 🎯 종목별 손익 합계 표")
+                        stock_summary = []
+                        for s_name, stats in stock_win_stats.items():
+                            s_total = stats['success'] + stats['stop']
+                            s_win_rate = (stats['success'] / s_total * 100) if s_total > 0 else 0
+                            
+                            gained_shares = free_shares_dict.get(s_name, 0)
+                            share_val = 0
+                            if gained_shares > 0 and PORTFOLIO_UNIVERSE[s_name] in last_row and not pd.isna(last_row[PORTFOLIO_UNIVERSE[s_name]]):
+                                share_val = gained_shares * float(last_row[PORTFOLIO_UNIVERSE[s_name]])
+
+                            stock_summary.append({
+                                "작전 구역": s_name, "총작전": f"{s_total}회", "승률": f"{s_win_rate:.1f}%",
+                                "🎯 익절금": f"+{format_money(stats['profit_gain'])}원",
+                                "🚨 손절금": f"{format_money(stats['loss_cost'])}원",
+                                "✨ 순손익": f"{format_money(stats['profit_gain'] + stats['loss_cost'])}원",
+                                "📦 획득 열매": f"{gained_shares}주",
+                                "💎 열매 가치": f"{format_money(share_val)}원"
+                            })
+                        st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
 
                     with tab4:
                         st.write("### ⚔️ 현재 현장 대기 요원 (평가 현황)")
@@ -590,7 +607,7 @@ else:
                                     '요원': p['name'], 
                                     '구역명': p['stock_name'], 
                                     '출격일': p['entry_date'],
-                                    '출격 당시 주가': f"{format_money(p['entry_price'])}원",  # 🌟 [신규 추가] 출격 당시 종가(주가)
+                                    '출격 당시 주가': f"{format_money(p['entry_price'])}원",
                                     '진입금액': f"{format_money(p['invest_amount'])}원",
                                     '현재 평가금액': f"{format_money(eval_val)}원",
                                     '평가 손익': f"{format_money(eval_profit)}원",
