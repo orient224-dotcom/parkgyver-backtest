@@ -95,7 +95,7 @@ if "custom_stocks" not in st.session_state:
 
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
-    "현대힘с": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
+    "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
     "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
     "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
@@ -119,7 +119,6 @@ for name, code in st.session_state["custom_stocks"].items():
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["한국콜마", "RFHIC", "테크윙", "한미반도체", "HPSP"]
 
-# 🌟 [요약용 만 원/백만 원 단위 포맷팅]
 def format_money(num):
     if num is None or pd.isna(num):
         return "-"
@@ -146,7 +145,6 @@ def format_money(num):
     else:
         return f"{sign}{abs_num:,}원"
 
-# 🌟 [매매장부용 정확한 원 단위 포맷팅]
 def format_exact_price(num):
     if num is None or pd.isna(num):
         return "-"
@@ -519,9 +517,7 @@ else:
                     peak_asset_value = float(total_capital_input)
                     max_drawdown_pct = 0.0
 
-                    # 날짜 인덱스를 이용해 소요 기간(일수) 계산을 위해 주가 DataFrame의 index 활용
-                    # close_df.index는 날짜 객체 또는 Timestamp
-                    for idx, (date, row) in enumerate(close_df.iterrows()):
+                    for date, row in close_df.iterrows():
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
                         if year not in yearly_stats:
@@ -580,12 +576,10 @@ else:
                                     net_ret = (net_profit / pos['invest_amount']) * 100
                                     s_name = pos['stock_name']
                                     
-                                    # 🌟 [신규 추가] 등락폭 및 소요 기간 계산
                                     price_diff = curr_price - pos['entry_price']
                                     diff_sign = "+" if price_diff >= 0 else ""
                                     price_change_str = f"{diff_sign}{format_exact_price(price_diff)} ({gross_ret:+.2f}%)"
                                     
-                                    # 일수 계산
                                     entry_dt = pd.to_datetime(pos['entry_date'])
                                     exit_dt = pd.to_datetime(date_str)
                                     days_taken = (exit_dt - entry_dt).days
@@ -722,7 +716,6 @@ else:
                     total_trades = total_success + total_stop_loss
                     win_rate = (total_success / total_trades * 100) if total_trades > 0 else 0
 
-                    # 🌟 [제미니 AI 참모의 장세 진단]
                     recent_20d_df = close_df.iloc[-20:] if len(close_df) >= 20 else close_df
                     recent_volatility = recent_20d_df.pct_change().abs().mean().mean() * 100
                     hist_volatility = return_df.abs().mean().mean()
@@ -1003,8 +996,10 @@ else:
                     grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
                     
                     missed_cnt = len(missed_opportunities)
+                    # 🌟 [수정 완료] 놓친 기회가 0회일 때의 '아쉬운 점' 텍스트를 논리적으로 맞춤
+                    cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족 또는 단가 초과)이 발생했습니다." if missed_cnt > 0 else "놓친 기회는 없었으나, 100% 풀가동되는 과정에서 예비 현금 곳간이 다소 타이트하게 운용되어 돌발 하락장 대응 여유가 부족할 수 있었습니다."
+                    
                     pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률 **{win_rate:.1f}%**, 최대 낙폭(MDD) **{max_drawdown_pct:.1f}%**로 매우 우수합니다."
-                    cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족 또는 단가 초과)이 발생했습니다." if missed_cnt > 0 else "현금 관리와 슬롯 회전율이 100% 완벽했습니다."
                     advice_text = "복리 스케일업 모드와 폭락장 우산 스위치, 그리고 제미니 AI 참모의 실시간 진입금 처방전을 함께 활용해 리스크를 철저히 방어하세요."
 
                     st.markdown("---")
