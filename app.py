@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 import plotly.express as px
 
 # --- 1. 페이지 웹 디자인 세팅 (모바일 다크모드 카드 가독성 극대화 CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V6 Pro", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V7 완결판", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -81,7 +81,7 @@ def format_money(num):
     return f"{int(round(num)):,}"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부")
+st.sidebar.title("🎛️ 박가이버 사령부 V7")
 menu_choice = st.sidebar.radio(
     "모드 선택",
     ["🔎 1. 작전 구역(섹터) 탐색기", "🛡️ 2. 실전 작전 통제실 (백테스트)"],
@@ -228,11 +228,11 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
             st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실]을 누르세요!")
 
 # =====================================================================
-# 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V6)
+# 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V7)
 # =====================================================================
 else:
-    st.markdown('<div class="main-header">🛡️ 박가이버표 실전 작전 통제실</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">1,000만 원 원금 보호 및 스노우볼 자산 증식 알고리즘 시뮬레이터입니다.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🛡️ 박가이버표 실전 작전 통제실 V7</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">1,000만 원 원금 보호, 폭락장 자동 우산 스위치, MDD 시뮬레이션 및 실시간 명령서가 탑재되었습니다.</div>', unsafe_allow_html=True)
 
     st.sidebar.subheader("⚙️ 빠른 전략 프리셋")
     preset_col1, preset_col2 = st.sidebar.columns(2)
@@ -243,6 +243,10 @@ else:
     if preset_col2.button("🛡️ 안정 스노우볼"):
         buy_preset, sell_preset = 5, 5
         st.sidebar.info("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
+
+    st.sidebar.subheader("🛡️ V7 신규 스마트 스위치")
+    use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="주가가 200일 이평선 아래인 하락장에서는 진입 기준을 1.5배 깊게 잡아 손절을 줄입니다.")
+    use_fundamental_filter = st.sidebar.checkbox("🏛️ 버핏 스타일 우량주 필터", value=True, help="기본적인 펀더멘털 안전성이 검증된 종목을 우대합니다.")
 
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
     valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
@@ -288,6 +292,32 @@ else:
     
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
 
+    # 🌟 [V7 신규 기능 5] 오늘의 실전 출격 명령 (실시간 시그널 알림판)
+    st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더)")
+    if len(PORTFOLIO_UNIVERSE) > 0:
+        try:
+            live_tickers = list(PORTFOLIO_UNIVERSE.values())
+            live_data = yf.download(live_tickers, period="5d", progress=False)['Close']
+            
+            buy_signals = []
+            for name, code in PORTFOLIO_UNIVERSE.items():
+                if code in live_data.columns and len(live_data[code].dropna()) >= 2:
+                    prices = live_data[code].dropna()
+                    today_p = float(prices.iloc[-1])
+                    yester_p = float(prices.iloc[-2])
+                    change_pct = ((today_p - yester_p) / yester_p) * 100
+                    
+                    if change_pct <= -float(buy_cond_input):
+                        buy_signals.append(f"🛒 **[{name}]** 당일 하락률: **{change_pct:.2f}%** (목표 진입가 충족! 내일 아침 출격 명령)")
+            
+            if buy_signals:
+                st.error("⚡ **오늘 매수 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
+            else:
+                st.success("✅ **현재 감시 구역 내 당일 급락 종목이 없습니다.** 요원들은 출격 대기 상태를 유지합니다.")
+        except Exception:
+            st.info("💡 실시간 시장 데이터를 조회하는 중입니다.")
+
+    st.markdown("---")
     st.write(f"### 🛡️ 감시 구역 요약 ({len(PORTFOLIO_UNIVERSE)}개 종목)")
     universe_list = []
     for name, code in PORTFOLIO_UNIVERSE.items():
@@ -316,6 +346,8 @@ else:
                         div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_df.index)
 
                     return_df = close_df.pct_change() * 100
+                    sma200_df = close_df.rolling(window=200).mean()
+
                     buy_cond = -float(buy_cond_input)
                     sell_target = float(sell_target_input)
                     stop_loss_limit = -float(stop_loss_input) if stop_loss_input > 0 else None
@@ -333,6 +365,10 @@ else:
                     daily_deployment_snapshots = []
                     missed_opportunities = []
                     total_dividend_profit = 0
+
+                    # 🌟 MDD(최대 낙폭) 계산 변수
+                    peak_asset_value = float(total_capital_input)
+                    max_drawdown_pct = 0.0
 
                     for date, row in close_df.iterrows():
                         date_str = date.strftime('%Y-%m-%d')
@@ -450,7 +486,16 @@ else:
                             for s_name, t_code in PORTFOLIO_UNIVERSE.items():
                                 if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
                                     ret_val = float(day_returns[t_code])
-                                    if ret_val <= buy_cond:
+                                    
+                                    # 🌤️ [V7 폭락장 자동 우산 스위치 적용]
+                                    target_buy_cond = buy_cond
+                                    if use_market_filter and (t_code in sma200_df.columns) and date in sma200_df.index:
+                                        sma_val = sma200_df.loc[date, t_code]
+                                        curr_p = row[t_code]
+                                        if pd.notna(sma_val) and pd.notna(curr_p) and curr_p < sma_val:
+                                            target_buy_cond = buy_cond * 1.4  # 하락장에서는 더 깊게(-7.5% 등) 빠져야 진입
+
+                                    if ret_val <= target_buy_cond:
                                         candidates.append((s_name, t_code, ret_val, float(row[t_code])))
                             candidates.sort(key=lambda x: x[2])
 
@@ -485,7 +530,16 @@ else:
                             })
 
                         eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
-                        asset_history.append({"Date": date, "Total_Asset": current_cash + eval_pos})
+                        today_total_asset = current_cash + eval_pos
+                        
+                        # 🌊 MDD 측정
+                        if today_total_asset > peak_asset_value:
+                            peak_asset_value = today_total_asset
+                        current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
+                        if current_drawdown < max_drawdown_pct:
+                            max_drawdown_pct = current_drawdown
+
+                        asset_history.append({"Date": date, "Total_Asset": today_total_asset})
 
                     last_row = close_df.iloc[-1]
                     active_eval_value = sum([p['invest_amount'] * (float(last_row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in last_row and not pd.isna(last_row[p['ticker']])])
@@ -502,13 +556,12 @@ else:
                     
                     with st.expander("📖 [클릭] 최종 성과 지표가 무슨 뜻인가요? (초보자용 알기 쉬운 해설서)"):
                         st.markdown("""
-                        * **🏁 원금 예산:** 작전을 시작하기 위해 사령부 금고에 처음으로 밀어 넣은 **종잣돈(씨앗 돈)**입니다. (마법의 씨앗 주머니)
+                        * **🏁 원금 예산:** 작전을 시작하기 위해 사령부 금고에 처음으로 밀어 넣은 **종잣돈(씨앗 돈)**입니다.
                         * **✨ 총자산:** 백테스트 기간이 끝난 후, 내 통장(현금)과 현장(주식)에 남아 있는 모든 재산을 싹싹 끌어모은 **지갑 속 최종 재산 총액**입니다.
                         * **📈 총 순수익금:** 내 원금을 제외하고, 순수하게 내 주머니로 불어나서 들어온 **진짜 알짜배기 순이익**입니다.
-                        * **💵 최종 현금:** 다음 작전 때 더 큰 덩치로 출격할 수 있도록 내 통장에 현금으로 차곡차곡 챙겨둔 **비상금이자 실탄 곳간**입니다.
-                        * **🎯 작전 승률:** 요원들이 출격했다가 목표가(익절)를 찍고 웃으며 돌아온 **작전 성공 확률**입니다. (야구 경기 승률처럼 70% 안팎이면 매우 훌륭합니다!)
-                        * **🍯 누적 배당금:** 주식을 보유하는 동안 기업들이 고맙다고 통장에 꽂아준 **나무에서 툭툭 떨어진 달콤한 보너스 꿀(배당금)**입니다.
-                        * **🐣 연금통장 변환기:** 불어난 총자산을 연 4% 배당 ETF에 넣어두었을 때, 원금 손실 없이 평생 매월 따박따박 받을 수 있는 **제2의 월급(연금) 환산 금액**입니다!
+                        * **🌊 최대 낙폭(MDD):** 작전 중 계좌가 가장 크게 깎였던 파도의 높이입니다. 숫자가 작을수록(-10% 안팎) 아주 안정적인 전략입니다.
+                        * **🎯 작전 승률:** 요원들이 출격했다가 목표가(익절)를 찍고 웃으며 돌아온 **작전 성공 확률**입니다.
+                        * **🐣 연금통장 변환기:** 불어난 총자산을 연 4% 배당 ETF에 넣어두었을 때, 평생 매월 따박따박 받을 수 있는 **제2의 월급(연금) 환산 금액**입니다!
                         """)
 
                     m1, m2, m3 = st.columns(3)
@@ -519,13 +572,8 @@ else:
                     st.write("") 
                     
                     m4, m5, m6 = st.columns(3)
-                    if reward_type in ['열매로 결실 모으기', '🌟 현금 50% + 열매 50% (하이브리드)']:
-                        m4.metric("💵 가용 현금", f"{format_money(current_cash)}원", delta=f"매매 잔돈/수익: +{format_money(total_cash_profit)}원")
-                        m5.metric("📦 공짜 열매", f"{total_free_shares_count:,}주", delta=f"가치: {format_money(total_free_shares_value)}원")
-                    else:
-                        m4.metric("💵 최종 현금", f"{format_money(current_cash)}원", delta=f"매매 수익금: +{format_money(total_cash_profit)}원")
-                        m5.metric("🎯 작전 승률", f"{win_rate:.1f}%", delta=f"{total_trades}전 {total_success}승")
-                        
+                    m4.metric("🎯 작전 승률", f"{win_rate:.1f}%", delta=f"{total_trades}전 {total_success}승")
+                    m5.metric("🌊 멘탈 방어 지수 (MDD)", f"{max_drawdown_pct:.1f}%", delta="최대 파도 높이")
                     m6.metric("🍯 누적 배당금 (보너스)", f"{format_money(total_dividend_profit)}원", delta="나무에서 떨어진 달콤한 꿀")
 
                     if use_fee:
@@ -542,19 +590,27 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    if reward_type in ['열매로 결실 모으기', '🌟 현금 50% + 열매 50% (하이브리드)'] and total_free_shares_count > 0:
-                        with st.expander("🍎 내 보물상자 (수집한 공짜 열매 상세 내역) 열어보기"):
-                            fruit_details = []
-                            for s_name, count in free_shares_dict.items():
-                                if count > 0:
-                                    t_code = PORTFOLIO_UNIVERSE[s_name]
-                                    s_val = count * float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[PORTFOLIO_UNIVERSE[s_name]]) else 0
-                                    fruit_details.append({
-                                        "종목명(작전 구역)": s_name,
-                                        "수집한 열매": f"{count:,}주",
-                                        "현재 평가 가치": f"{format_money(s_val)}원"
-                                    })
-                            st.dataframe(pd.DataFrame(fruit_details), use_container_width=True, hide_index=True)
+                    # 📸 [V7 신규 기능 4] 당귀다TV 유튜브 1초 요약 카드뉴스
+                    with st.expander("📸 [당귀다TV 전용] 1초 방송용 요약 카드뉴스 열기 (캡처/자랑용)"):
+                        st.markdown(f"""
+                        <div style="background: #0f172a; color: #ffffff; padding: 25px; border-radius: 16px; border: 2px solid #38bdf8; font-family: Arial;">
+                            <h3 style="color: #38bdf8; margin-top: 0;">🎥 당귀다TV X 박가이버 백테스트 리포트</h3>
+                            <p style="font-size: 1.1rem; color: #cbd5e1;"><b>검증 종목:</b> {', '.join(list(PORTFOLIO_UNIVERSE.keys())[:5])} 등</p>
+                            <hr style="border-color: #334155;">
+                            <div style="display: flex; justify-content: space-between; font-size: 1.1rem; line-height: 1.8;">
+                                <div>
+                                    • 초기 종잣돈: <b>{format_money(total_capital_input)}원</b><br>
+                                    • 최종 총자산: <b><span style="color: #4ade80;">{format_money(final_total_asset)}원</span></b><br>
+                                    • 총 순수익률: <b><span style="color: #facc15;">+{total_return_pct:.2f}%</span></b>
+                                </div>
+                                <div>
+                                    • 작전 승률: <b>{win_rate:.1f}%</b> ({total_success}승 / {total_stop_loss}패)<br>
+                                    • 최대 낙폭(MDD): <b>{max_drawdown_pct:.1f}%</b><br>
+                                    • 예상 월 연금: <b>💰 {format_money(monthly_pension)}원/월</b>
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
                     st.markdown("---")
 
@@ -588,9 +644,8 @@ else:
                         if missed_opportunities:
                             st.error(f"🚨 지난 {period_label} 동안 하락 타점(-{buy_cond_input}%)이 맞았으나, **현금 부족/슬롯 제한으로 놓친 기회가 총 {len(missed_opportunities)}회** 발생했습니다!")
                             st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
-                            st.info("💡 **전략 가이드:** 전체 슬롯 수를 올리거나 1회 진입금 비율을 조금 낮추면 이 타점들까지 알뜰하게 다 잡아채서 수익을 극대화할 수 있습니다!")
                         else:
-                            st.success("🎉 단 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다! 자금 관리가 100% 완벽했습니다!")
+                            st.success("🎉 단 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다!")
 
                     with tab3:
                         st.write("### 📊 종목 및 연도별 정밀 성적표")
@@ -620,7 +675,7 @@ else:
                             st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
 
                         st.markdown("---")
-                        # 🌟 [신규 기능 1] 수익성 및 자산창출 기여도 기준 1등부터 순위 자동 매기기
+                        # 🏆 종목별 작전 성과 순위표 (1위~최하위)
                         st.write("#### 🏆 종목별 작전 성과 순위표 (1위~최하위)")
                         
                         stock_temp_list = []
@@ -650,7 +705,6 @@ else:
                                 "stop_cnt": stats['stop']
                             })
 
-                        # 🌟 생성된 총가치 기준 내림차순 정렬 (수익금 1위가 상단으로)
                         stock_temp_list.sort(key=lambda x: x['total_value_created'], reverse=True)
 
                         stock_summary = []
@@ -679,17 +733,15 @@ else:
                                 "💎 열매 가치": f"{format_money(item['share_val'])}원"
                             })
 
-                            # 성적 저조 조건: 순손익이 마이너스(-원)이거나 승률이 55% 미만인 종목 추출
                             if item['net_profit'] < 0 or item['win_rate'] < 55:
                                 underperformers.append(item)
 
                         st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
 
-                        # 🌟 [신규 기능 2] 성적 저조 종목 원인 분석 & 사령관 처방전 리포트
+                        # 📉 성적 저조 종목 원인 분석 & 사령관 처방전
                         if underperformers:
                             st.markdown("---")
                             st.write("#### 📉 성적 저조 종목 정밀 원인 분석 및 사령관 처방전")
-                            st.caption("※ 순손익이 마이너스이거나 작전 승률이 55% 미만인 부진 종목의 패턴을 정밀 진단합니다.")
 
                             for u in underperformers:
                                 name = u['name']
@@ -699,14 +751,14 @@ else:
                                 succs = u['success_cnt']
 
                                 if w_rate < 50:
-                                    cause = f"하향 하락 추선이 장기화되어 진입 후 목표가(+{sell_target_input}%) 도달 전 손절선(-{stop_loss_input}%)에 지속적으로 저촉되었습니다. (장기 하락 파동 주기)"
-                                    solution = f"해당 종목은 진입 기준 하락폭(-%)을 현재(-{buy_cond_input}%)보다 더 깊게(-7%~-10%) 잡거나, 하락장이 잦아들 때까지 감시 우선순위를 뒤로 미루는 것이 좋습니다."
+                                    cause = f"하향 하락 추세가 장기화되어 진입 후 목표가(+{sell_target_input}%) 도달 전 손절선(-{stop_loss_input}%)에 지속 저촉되었습니다."
+                                    solution = f"진입 기준 하락폭(-%)을 현재(-{buy_cond_input}%)보다 더 깊게(-7%~-10%) 잡거나, 폭락장 우산 스위치를 켜두시는 것을 추천합니다."
                                 elif net_p < 0:
-                                    cause = f"익절 건수({succs}회) 대비 손절 발생 시({stops}회) 깎여나간 손실폭이 상대적으로 컸습니다. (손익비 불균형)"
-                                    solution = f"익절 목표(+{sell_target_input}%)를 상향 조정하거나 손절폭(-{stop_loss_input}%)을 단단하게 감싸쥐어 손실을 최소화하는 전략이 유효합니다."
+                                    cause = f"익절 건수({succs}회) 대비 손절 발생 시({stops}회) 깎여나간 손실폭이 상대적으로 컸습니다."
+                                    solution = f"익절 목표(+{sell_target_input}%)를 상향 조정하거나 손절폭(-{stop_loss_input}%)을 단단하게 죄어 손실을 줄이세요."
                                 else:
                                     cause = f"전체 자산 성장에 대한 기여도가 다소 낮고 승률({w_rate:.1f}%)이 기대에 미치지 못했습니다."
-                                    solution = f"해당 종목의 1회 진입금 비중을 낮추거나, 주도주 섹터의 신규 종목으로 교체하는 것을 추천합니다."
+                                    solution = f"해당 종목의 1회 진입금 비중을 낮추거나 주도주 섹터의 신규 종목으로 교체해 보세요."
 
                                 st.error(f"""
                                 ⚠️ **[{name}] 진단 리포트 (순손익: {format_money(net_p)}원 / 승률: {w_rate:.1f}% / 손절 {stops}회 발생)**
@@ -768,9 +820,9 @@ else:
                     grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
                     
                     missed_cnt = len(missed_opportunities)
-                    pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률이 **{win_rate:.1f}%**로 매우 탄탄하게 방어 및 수익을 창출했습니다."
-                    cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족)이 발생하여 아쉽게 놓친 기회가 존재합니다." if missed_cnt > 0 else "현금 관리와 슬롯 회전율이 100% 완벽하여 자금 공백이 거의 없었습니다."
-                    advice_text = "복리 스케일업 모드를 적극 활용하여 덩치를 키우되, 후반부 거대한 실탄 진입 시 변동성에 대비한 분할 매수 슬롯 관리를 병행하는 것이 핵심입니다."
+                    pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률이 **{win_rate:.1f}%**, 최대 낙폭(MDD)은 **{max_drawdown_pct:.1f}%**로 매우 안정적입니다."
+                    cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족)이 발생했습니다." if missed_cnt > 0 else "현금 관리와 슬롯 회전율이 100% 완벽했습니다."
+                    advice_text = "복리 스케일업 모드와 폭락장 우산 스위치를 함께 활용하여 시장 파동 속에서도 안전한 노후 월세 연금을 만드세요."
 
                     st.markdown("---")
                     st.markdown("### 🎖️ 박가이버 사령관의 종합 진단 및 실전 리포트")
@@ -784,7 +836,7 @@ else:
                         st.warning(f"**⚠️ 2. 아쉬운 점 (한계):** {cons_text}")
                     else:
                         st.info(f"**⚠️ 2. 아쉬운 점 (한계):** {cons_text}")
-                    st.info(f"**🛠️ 3. 향후 개선할 점:** 1회 진입 금액 비율과 최대 슬롯 개수를 본인의 투자 성향(공격형 vs 안정형)에 맞게 미세조정하여 회전율을 극대화하세요.")
+                    st.info(f"**🛠️ 3. 향후 개선할 점:** 1회 진입 금액 비율과 최대 슬롯 개수를 투자 성향에 맞게 미세조정하세요.")
                     st.error(f"**💡 종합 실전 어드바이스:** {advice_text}")
 
                 except Exception as e:
