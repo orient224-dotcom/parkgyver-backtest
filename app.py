@@ -5,6 +5,7 @@ import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
+import requests
 
 # --- 1. 페이지 웹 디자인 세팅 (모바일 다크모드 카드 가독성 극대화 CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V6 Pro", page_icon="🛡️", layout="wide")
@@ -33,7 +34,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 동적 데이터베이스 및 스마트 종목 마스터 세션 초기화 ---
+# --- 2. 동적 데이터베이스 세션 초기화 ---
 if "sector_db" not in st.session_state:
     st.session_state["sector_db"] = {
         "⚡ 반도체 & HBM / 칩렛": {
@@ -57,35 +58,48 @@ if "sector_db" not in st.session_state:
         }
     }
 
-# 🌟 대폭 확장된 한국 주요 종목 마스터 사전 (이수화학 등 추가)
-KOREAN_STOCK_MASTER = {
-    "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "LG에너지솔루션": "373220.KS",
-    "삼성바이오로직스": "207940.KS", "현대차": "005380.KS", "기아": "000270.KS",
-    "POSCO홀딩스": "005490.KS", "NAVER": "035420.KS", "카카오": "035720.KS",
-    "셀트리온": "068270.KS", "한화에어로스페이스": "012450.KS", "LG전자": "066570.KS",
-    "현대모비스": "012330.KS", "KB금융": "105560.KS", "신한지주": "055550.KS",
-    "테크윙": "089030.KQ", "한미반도체": "042700.KS", "HPSP": "403870.KQ",
-    "이오테크닉스": "039030.KQ", "리노공업": "058470.KQ", "ISC": "095340.KQ",
-    "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "알테오젠": "196170.KQ",
-    "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "엘앤에프": "066970.KQ",
-    "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ",
-    "레인보우로보틱스": "277810.KQ", "두산에너빌리티": "034020.KS", "이수화학": "005950.KS",
-    "POSCO엠텍": "009520.KS", "한화오션": "042660.KS", "삼성중공업": "010140.KS"
-}
-
 MASTER_STOCK_DICT = {}
 for sector, stocks in st.session_state["sector_db"].items():
     for name, code in stocks.items():
-        MASTER_STOCK_DICT[name] = code
-for name, code in KOREAN_STOCK_MASTER.items():
-    if name not in MASTER_STOCK_DICT:
         MASTER_STOCK_DICT[name] = code
 
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"]
 
-# 🌟 선택된 종목이 마스터에 확실히 존재하도록 필터링 (에러 원천 방어)
-st.session_state["selected_stocks"] = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
+# 🌐 [핵심 신규 기능] 대한민국 전체 2,500개+ 상장 주식 실시간 검색 연동 함수
+def search_krx_stock_live(query):
+    query = query.strip()
+    if not query:
+        return None, None
+    
+    # 1. 사령부 기본 장부에서 먼저 확인
+    if query in MASTER_STOCK_DICT:
+        return MASTER_STOCK_DICT[query], query
+    
+    # 2. 6자리 숫자 코드 직접 입력 시 처리
+    if len(query) == 6 and query.isdigit():
+        return f"{query}.KS", query
+
+    # 3. 네이버 증권 실시간 데이터베이스 자동 검색 API 호출
+    try:
+        url = f"https://ac.finance.naver.com/ac?q={requests.utils.quote(query)}&q_enc=utf-8&st=111&r_lt=111"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        res = requests.get(url, headers=headers, timeout=3)
+        if res.status_code == 200:
+            data = res.json()
+            items = data.get('items', [])
+            if items and len(items) > 0 and len(items[0]) > 0:
+                top_item = items[0][0]  # 예: ['케이씨텍', '281820', 'KOSPI', ...]
+                s_name = top_item[0][0]
+                s_code = top_item[1][0]
+                market = top_item[2][0] if len(top_item) > 2 else ""
+                
+                suffix = ".KS" if "KOSPI" in market.upper() or "코스피" in market else ".KQ"
+                return f"{s_code}{suffix}", s_name
+    except Exception as e:
+        pass
+        
+    return None, None
 
 def format_money(num):
     return f"{int(round(num)):,}"
@@ -104,48 +118,32 @@ st.sidebar.markdown("---")
 # =====================================================================
 if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.markdown('<div class="main-header">🔎 작전 구역 및 스마트 종목 탐색기</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">원하는 종목 이름을 검색하거나 섹터별로 둘러봐 바구니에 담을 수 있습니다.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">대한민국 상장 주식 어디든 이름만 검색하면 실시간으로 코드를 찾아 바구니에 담아드립니다.</div>', unsafe_allow_html=True)
 
-    # 🌟 [최상단 배치] 스마트 종목 이름 검색 및 자동 등록 구역
-    st.markdown("### 🔍 1. 스마트 종목 이름 검색 & 자동 등록")
-    st.info("💡 종목 이름(예: 삼성전자, 이수화학, 셀트리온 등)을 입력하시면 코드가 자동으로 검색되어 아래 바구니에 쏙 담깁니다!")
+    # 🌐 실시간 전종목 검색 엔진 구역
+    st.markdown("### 🔍 1. 대한민국 전체 종목 실시간 검색 & 자동 등록")
+    st.info("💡 종목 이름(예: 케이씨텍, 삼성전자, 이수화학, 한미약품 등)을 입력하시면 2,500개 이상 대한민국 전체 상장주에서 실시간으로 코드를 검색해 드립니다!")
     
-    s_col1, s_col2, s_col3 = st.columns([2, 1, 1])
-    search_input = s_col1.text_input("종목명 입력", placeholder="예: 삼성전자, 이수화학", key="smart_search_input_final")
-    market_choice = s_col2.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="smart_market_choice_final")
+    s_col1, s_col2 = st.columns([3, 1])
+    search_input = s_col1.text_input("종목명 입력", placeholder="예: 케이씨텍, 이수스페셜티케미컬", key="smart_live_search_input")
     
-    if s_col3.button("➕ 검색해서 바구니 담기", type="primary"):
+    if s_col2.button("➕ 실시간 검색해서 담기", type="primary"):
         query = search_input.strip()
         if not query:
             st.warning("⚠️ 검색할 종목 이름을 입력해 주세요.")
         else:
-            resolved_code = None
-            resolved_name = query
+            resolved_code, resolved_name = search_krx_stock_live(query)
             
-            if query in KOREAN_STOCK_MASTER:
-                resolved_code = KOREAN_STOCK_MASTER[query]
-            elif query in MASTER_STOCK_DICT:
-                resolved_code = MASTER_STOCK_DICT[query]
-            else:
-                matched_key = next((k for k in MASTER_STOCK_DICT.keys() if query in k), None)
-                if matched_key:
-                    resolved_code = MASTER_STOCK_DICT[matched_key]
-                    resolved_name = matched_key
-                elif len(query) == 6 and query.isdigit():
-                    suffix = ".KS" if "코스피" in market_choice else ".KQ"
-                    resolved_code = query + suffix
-                    resolved_name = query
-            
-            if resolved_code:
+            if resolved_code and resolved_name:
                 MASTER_STOCK_DICT[resolved_name] = resolved_code
                 if resolved_name not in st.session_state["selected_stocks"]:
                     st.session_state["selected_stocks"].append(resolved_name)
-                    st.success(f"✨ [{resolved_name} ({resolved_code})] 종목이 바구니에 추가되었습니다!")
+                    st.success(f"🎉 [실시간 검색 성공] '{resolved_name}' ({resolved_code}) 종목이 바구니에 추가되었습니다!")
                     st.rerun()
                 else:
-                    st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 들어있습니다.")
+                    st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 담겨 있습니다.")
             else:
-                st.error(f"❌ '{query}'에 해당하는 종목을 찾지 못했습니다. 아래 [탐색기 커스텀] 메뉴에서 종목코드를 직접 등록해 주세요!")
+                st.error(f"❌ '{query}'에 해당하는 종목을 국내 증시에서 찾지 못했습니다. 종목명을 다시 확인해 주세요.")
 
     st.markdown("---")
 
@@ -157,7 +155,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     sector_stocks_dict = st.session_state["sector_db"][selected_sector]
     
     with col_sec2:
-        st.write(f"▼ **[{selected_sector}] 보유 종목 리스트**")
+        st.write(f"▼ **[{selected_sector}] 주요 감시 종목 목록**")
         sector_target_list = st.multiselect(
             "바구니로 전송할 종목 선택:",
             options=list(sector_stocks_dict.keys()),
@@ -175,44 +173,8 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     st.markdown("---")
 
-    with st.expander("🛠️ [탐색기 커스텀] 나만의 신규 섹터/종목 등록"):
-        tab_cust1, tab_cust2 = st.tabs(["➕ 기존 섹터 종목 추가", "📂 신규 섹터 생성"])
-        
-        with tab_cust1:
-            c_col1, c_col2, c_col3 = st.columns([1, 1, 1])
-            target_sec = c_col1.selectbox("추가할 섹터", list(st.session_state["sector_db"].keys()))
-            new_s_name = c_col2.text_input("종목명", value="삼성스파크", key="add_s_name")
-            new_s_code = c_col3.text_input("종목코드 (예: 005930.KS)", value="005930.KS", key="add_s_code")
-            
-            if st.button("➕ 해당 섹터에 종목 추가"):
-                if new_s_name and new_s_code:
-                    st.session_state["sector_db"][target_sec][new_s_name] = new_s_code
-                    MASTER_STOCK_DICT[new_s_name] = new_s_code
-                    if new_s_name not in st.session_state["selected_stocks"]:
-                        st.session_state["selected_stocks"].append(new_s_name)
-                    st.success(f"✨ [{target_sec}] 섹터에 '{new_s_name}' 추가 및 바구니 담기 완료!")
-                    st.rerun()
-
-        with tab_cust2:
-            s_col1, s_col2, s_col3 = st.columns([1, 1, 1])
-            new_sec_name = s_col1.text_input("신규 섹터명", value="🤖 로봇 & AI")
-            first_s_name = s_col2.text_input("첫 종목명", value="레인보우로보틱스")
-            first_s_code = s_col3.text_input("첫 종목코드", value="277810.KQ")
-            
-            if st.button("📂 신규 섹터 생성하기"):
-                if new_sec_name and first_s_name and first_s_code:
-                    st.session_state["sector_db"][new_sec_name] = {first_s_name: first_s_code}
-                    MASTER_STOCK_DICT[first_s_name] = first_s_code
-                    if first_s_name not in st.session_state["selected_stocks"]:
-                        st.session_state["selected_stocks"].append(first_s_name)
-                    st.success(f"🎉 신규 섹터 [{new_sec_name}] 생성 및 종목 추가 완료!")
-                    st.rerun()
-
-    st.markdown("---")
-
     st.markdown("### 🛒 3. 작전 통제실로 전송할 종목 바구니 담기")
 
-    # 🌟 에러 방어: 바구니에 있는 종목 중 MASTER_STOCK_DICT에 있는 것만 남기기
     valid_selected_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
     
     st.session_state["selected_stocks"] = st.multiselect(
@@ -226,7 +188,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         for name in st.session_state["selected_stocks"]:
             code = MASTER_STOCK_DICT.get(name, "")
             market_type = "코스닥" if ".KQ" in code else ("코스피" if ".KS" in code else "기타")
-            summary_data.append({"종목명": name, "티커 코드": code, "소속 테마/섹터": market_type})
+            summary_data.append({"종목명": name, "티커 코드": code, "소속 시장": market_type})
         
         st.dataframe(pd.DataFrame(summary_data), use_container_width=True, hide_index=True)
         st.markdown("---")
@@ -253,8 +215,6 @@ else:
         st.sidebar.info("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
 
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
-    
-    # 🌟 에러 방어: 감시 종목 리스트도 유효한 값만 기본값으로 세팅
     valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
     
     selected_stock_names = st.sidebar.multiselect(
