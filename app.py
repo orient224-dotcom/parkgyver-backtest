@@ -111,8 +111,8 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.info("💡 종목 이름(예: 삼성전자, 이수화학, 셀트리온 등)을 입력하시면 코드가 자동으로 검색되어 아래 바구니에 쏙 담깁니다!")
     
     s_col1, s_col2, s_col3 = st.columns([2, 1, 1])
-    search_input = s_col1.text_input("종목명 입력", placeholder="예: 삼성전자, 이수화학", key="smart_search_input_v4")
-    market_choice = s_col2.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="smart_market_choice_v4")
+    search_input = s_col1.text_input("종목명 입력", placeholder="예: 삼성전자, 이수화학", key="smart_search_input_final")
+    market_choice = s_col2.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="smart_market_choice_final")
     
     if s_col3.button("➕ 검색해서 바구니 담기", type="primary"):
         query = search_input.strip()
@@ -145,8 +145,6 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                 else:
                     st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 들어있습니다.")
             else:
-                # 직접 신규 등록할 수 있도록 유도
-                suffix = ".KS" if "코스피" in market_choice else ".KQ"
                 st.error(f"❌ '{query}'에 해당하는 종목을 찾지 못했습니다. 아래 [탐색기 커스텀] 메뉴에서 종목코드를 직접 등록해 주세요!")
 
     st.markdown("---")
@@ -214,10 +212,13 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     st.markdown("### 🛒 3. 작전 통제실로 전송할 종목 바구니 담기")
 
+    # 🌟 에러 방어: 바구니에 있는 종목 중 MASTER_STOCK_DICT에 있는 것만 남기기
+    valid_selected_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
+    
     st.session_state["selected_stocks"] = st.multiselect(
         "백테스트 검증을 진행할 종목들을 선택해 주세요 (1개~10개 권장):",
         options=list(MASTER_STOCK_DICT.keys()),
-        default=st.session_state["selected_stocks"]
+        default=valid_selected_stocks
     )
 
     if st.session_state["selected_stocks"]:
@@ -252,10 +253,14 @@ else:
         st.sidebar.info("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
 
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
+    
+    # 🌟 에러 방어: 감시 종목 리스트도 유효한 값만 기본값으로 세팅
+    valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
+    
     selected_stock_names = st.sidebar.multiselect(
         "감시 종목 리스트",
         options=list(MASTER_STOCK_DICT.keys()),
-        default=st.session_state["selected_stocks"]
+        default=valid_watch_stocks
     )
 
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in selected_stock_names if s_name in MASTER_STOCK_DICT}
