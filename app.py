@@ -47,7 +47,7 @@ if "sector_db" not in st.session_state:
         },
         "🔋 2차전지 & 에코": {
             "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
-            "POSCO홀딩с": "005490.KS", "엘앤에프": "066970.KQ"
+            "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ"
         },
         "🚗 자동차 & 대표 제조": {
             "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS"
@@ -187,10 +187,10 @@ else:
     buy_preset, sell_preset = 5, 5
     if preset_col1.button("⚡ 적극 공격형"):
         buy_preset, sell_preset = 3, 7
-        st.sidebar.toast("적극 공격형 (-3% 진입 / +7% 익절) 설정 완료!")
+        st.sidebar.info("적극 공격형 (-3% 진입 / +7% 익절) 설정 완료!")
     if preset_col2.button("🛡️ 안정 스노우볼"):
         buy_preset, sell_preset = 5, 5
-        st.sidebar.toast("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
+        st.sidebar.info("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
 
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
     selected_stock_names = st.sidebar.multiselect(
@@ -535,7 +535,6 @@ else:
                         else:
                             st.success("🎉 단 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다! 자금 관리가 100% 완벽했습니다!")
 
-                    # 🌟 [업데이트] TAB 3: 연도별 손익분석 그래프 + 숫자 표 동시 제공
                     with tab3:
                         st.write("### 📊 종목 및 연도별 정밀 성적표")
                         c_col1, c_col2 = st.columns([1.2, 1])
