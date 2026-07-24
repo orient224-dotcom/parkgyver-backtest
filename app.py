@@ -5,133 +5,174 @@ import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
-import plotly.graph_objects as go
 
-# --- 1. 페이지 웹 디자인 및 스타일링 (커스텀 CSS) ---
+# --- 1. 페이지 웹 디자인 세팅 ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V6 Pro", page_icon="🛡️", layout="wide")
 
-# 고급 스튜디엄 느낌의 CSS 스타일링
+# Custom CSS for UI
 st.markdown("""
 <style>
-    /* 메인 배경 및 폰트 레이아웃 */
-    .main { background-color: #f8f9fa; }
-    
-    /* 카드형 컨테이너 디자인 */
-    .stMetric {
-        background-color: #ffffff;
-        padding: 15px 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        border: 1px solid #e9ecef;
-    }
-    
-    /* 메인 타이틀 커스텀 */
-    .main-header {
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: #1e293b;
-        margin-bottom: 0.2rem;
-    }
-    .sub-header {
-        font-size: 1.0rem;
-        color: #64748b;
-        margin-bottom: 1.5rem;
-    }
-    
-    /* 강조 안내 상자 */
-    .highlight-card {
-        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-        border-left: 5px solid #3b82f6;
-        padding: 16px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
+    .main-header { font-size: 2.0rem; font-weight: 800; color: #1e293b; margin-bottom: 0.2rem; }
+    .sub-header { font-size: 0.95rem; color: #64748b; margin-bottom: 1.2rem; }
+    .stMetric { background-color: #ffffff; padding: 12px 16px; border-radius: 10px; border: 1px solid #e2e8f0; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 통합 종목 데이터베이스 ---
-SECTOR_DATABASE = {
-    "⚡ 반도체 & HBM / 칩렛": {
-        "테크윙": "089030.KQ", "한미반도체": "042700.KS", "HPSP": "403870.KQ",
-        "이오테크닉스": "039030.KQ", "리노공업": "058470.KQ", "ISC": "095340.KQ",
-        "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "삼성전자": "005930.KS", "SK하이닉스": "000660.KS"
-    },
-    "🧬 바이오 & 제약": {
-        "알테오젠": "196170.KQ", "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS",
-        "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ"
-    },
-    "🔋 2차전지 & 에코": {
-        "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
-        "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ"
-    },
-    "🚗 자동차 & 대표 제조": {
-        "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS"
-    },
-    "💻 IT & 플랫폼": {
-        "NAVER": "035420.KS", "카카오": "035720.KS"
+# --- 2. 동적 데이터베이스 세션 초기화 ---
+if "sector_db" not in st.session_state:
+    st.session_state["sector_db"] = {
+        "⚡ 반도체 & HBM / 칩렛": {
+            "테크윙": "089030.KQ", "한미반도체": "042700.KS", "HPSP": "403870.KQ",
+            "이오테크닉스": "039030.KQ", "리노공업": "058470.KQ", "ISC": "095340.KQ",
+            "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "삼성전자": "005930.KS", "SK하이닉스": "000660.KS"
+        },
+        "🧬 바이오 & 제약": {
+            "알테오젠": "196170.KQ", "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS",
+            "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ"
+        },
+        "🔋 2차전지 & 에코": {
+            "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
+            "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ"
+        },
+        "🚗 자동차 & 대표 제조": {
+            "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS"
+        },
+        "💻 IT & 플랫폼": {
+            "NAVER": "035420.KS", "카카오": "035720.KS"
+        }
     }
-}
 
+# master_stock_dict 동적 갱신
 MASTER_STOCK_DICT = {}
-for sector, stocks in SECTOR_DATABASE.items():
+for sector, stocks in st.session_state["sector_db"].items():
     for name, code in stocks.items():
         MASTER_STOCK_DICT[name] = code
 
-# 세션 상태 기본값 초기화
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"]
 
 def format_money(num):
     return f"{int(round(num)):,}"
 
-# --- 3. 사이드바 메인 조종간 ---
+# --- 3. 사이드바 조종간 ---
 st.sidebar.title("🎛️ 박가이버 사령부")
 menu_choice = st.sidebar.radio(
     "모드 선택",
     ["🔎 1. 작전 구역(섹터) 탐색기", "🛡️ 2. 실전 작전 통제실 (백테스트)"],
-    index=1
+    index=0
 )
-
 st.sidebar.markdown("---")
 
 # =====================================================================
-# 🔎 모드 1: 작전 구역(섹터) 탐색기
+# 🔎 모드 1: 작전 구역(섹터) 탐색기 (직통 연동 & 커스텀 강화)
 # =====================================================================
 if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.markdown('<div class="main-header">🔎 작전 구역(섹터/종목) 탐색기</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">관심 있는 테마별 알짜 종목을 자유롭게 둘러보고 담아서 [작전 통제실]로 한 번에 전송하세요.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">섹터별 종목을 둘러보고 바구니에담아 [작전 통제실]로 한 번에 보낼 수 있습니다.</div>', unsafe_allow_html=True)
 
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        selected_sector = st.selectbox("🎯 탐색할 섹터/테마 선택", list(SECTOR_DATABASE.keys()))
-    with col2:
-        sector_stocks = list(SECTOR_DATABASE[selected_sector].keys())
-        st.write(f"▼ **[{selected_sector}] 감시 종목군**")
-        st.info(", ".join(sector_stocks))
+    # -----------------------------------------------------------------
+    # A. 테마/섹터 둘러보기 & 바구니 즉시 담기
+    # -----------------------------------------------------------------
+    st.subheader("🎯 1. 테마/섹터별 종목 둘러보기 & 바구니 담기")
+    
+    col_sec1, col_sec2 = st.columns([1, 2])
+    with col_sec1:
+        selected_sector = st.selectbox("📂 탐색할 섹터/테마 선택", list(st.session_state["sector_db"].keys()))
+    
+    sector_stocks_dict = st.session_state["sector_db"][selected_sector]
+    
+    with col_sec2:
+        st.write(f"▼ **[{selected_sector}] 보유 종목 리스트**")
+        # 선택한 섹터의 종목들을 다중 선택 가능한 박스로 제공
+        sector_target_list = st.multiselect(
+            "바구니로 전송할 종목을 선택하세요:",
+            options=list(sector_stocks_dict.keys()),
+            default=list(sector_stocks_dict.keys()),
+            key=f"sec_select_{selected_sector}"
+        )
+        
+        if st.button(f"🛒 선택한 종목들을 [백테스트 바구니]에 추가하기", type="primary"):
+            added_count = 0
+            for s_name in sector_target_list:
+                if s_name not in st.session_state["selected_stocks"]:
+                    st.session_state["selected_stocks"].append(s_name)
+                    added_count += 1
+            st.toast(f"🎉 {added_count}개 종목이 바구니에 담겼습니다!")
 
     st.markdown("---")
-    st.subheader("🛒 백테스트 바구니 담기")
+
+    # -----------------------------------------------------------------
+    # B. 탐색기 자체 커스텀 (신규 섹터/종목 등록)
+    # -----------------------------------------------------------------
+    with st.expander("🛠️ [탐색기 커스텀] 나만의 신규 섹터 또는 종목 등록하기"):
+        tab_cust1, tab_cust2 = st.tabs(["➕ 기존 섹터에 종목 추가", "📂 신규 섹터 만들기"])
+        
+        with tab_cust1:
+            c_col1, c_col2, c_col3 = st.columns([1, 1, 1])
+            target_sec = c_col1.selectbox("종목을 추가할 섹터", list(st.session_state["sector_db"].keys()))
+            new_s_name = c_col2.text_input("추가할 종목명", value="삼성스파크", key="add_s_name")
+            new_s_code = c_col3.text_input("종목코드 (예: 005930.KS)", value="005930.KS", key="add_s_code")
+            
+            if st.button("➕ 해당 섹터에 종목 추가"):
+                if new_s_name and new_s_code:
+                    st.session_state["sector_db"][target_sec][new_s_name] = new_s_code
+                    MASTER_STOCK_DICT[new_s_name] = new_s_code
+                    st.success(f"✨ [{target_sec}] 섹터에 '{new_s_name}' 종목이 추가되었습니다!")
+                    st.rerun()
+
+        with tab_cust2:
+            s_col1, s_col2, s_col3 = st.columns([1, 1, 1])
+            new_sec_name = s_col1.text_input("신규 섹터명 (예: 🤖 로봇 & AI)", value="🤖 로봇 & AI")
+            first_s_name = s_col2.text_input("첫 종목명", value="레인보우로보틱스")
+            first_s_code = s_col3.text_input("첫 종목코드", value="277810.KQ")
+            
+            if st.button("📂 신규 섹터 생성하기"):
+                if new_sec_name and first_s_name and first_s_code:
+                    st.session_state["sector_db"][new_sec_name] = {first_s_name: first_s_code}
+                    MASTER_STOCK_DICT[first_s_name] = first_s_code
+                    st.success(f"🎉 신규 섹터 [{new_sec_name}]가 생성되었습니다!")
+                    st.rerun()
+
+    st.markdown("---")
+
+    # -----------------------------------------------------------------
+    # C. 최종 백테스트 바구니 담기 및 직접 추가
+    # -----------------------------------------------------------------
+    st.subheader("🛒 백테스트 최종 바구니")
     
-    basket = st.multiselect(
-        "검증을 진행할 종목들을 선택해 주세요 (1개~10개 권장):",
+    # 바구니 직접 추가 옵션
+    with st.expander("✍️ 목록에 없는 종목 바구니에 직접 추가하기"):
+        b_col1, b_col2 = st.columns(2)
+        direct_name = b_col1.text_input("추가할 종목명", value="한화에어로스페이스")
+        direct_code = b_col2.text_input("종목코드 (예: 012450.KS)", value="012450.KS")
+        if st.button("➕ 바구니에 즉시 담기"):
+            if direct_name and direct_code:
+                MASTER_STOCK_DICT[direct_name] = direct_code
+                if direct_name not in st.session_state["selected_stocks"]:
+                    st.session_state["selected_stocks"].append(direct_name)
+                st.success(f"🎉 '{direct_name}' 종목이 바구니에 담겼습니다!")
+                st.rerun()
+
+    # 바구니 목록 편집
+    st.session_state["selected_stocks"] = st.multiselect(
+        "최종 검증을 진행할 바구니 종목 리스트:",
         options=list(MASTER_STOCK_DICT.keys()),
         default=st.session_state["selected_stocks"]
     )
 
-    if basket:
+    if st.session_state["selected_stocks"]:
         summary_data = []
-        for name in basket:
-            code = MASTER_STOCK_DICT[name]
+        for name in st.session_state["selected_stocks"]:
+            code = MASTER_STOCK_DICT.get(name, "")
             market_type = "코스닥" if ".KQ" in code else ("코스피" if ".KS" in code else "기타")
-            summary_data.append({"종목명": name, "식별 코드": code.split('.')[0], "소속 시장": market_type})
+            summary_data.append({"종목명": name, "식별 코드": code.split('.')[0] if code else "", "소속 시장": market_type})
         
         st.dataframe(pd.DataFrame(summary_data), use_container_width=True, hide_index=True)
         st.markdown("---")
         
-        if st.button("🚀 선택한 종목들로 [작전 통제실 백테스트] 설정!", type="primary"):
-            st.session_state["selected_stocks"] = basket
-            st.success(f"🎉 총 {len(basket)}개 종목이 사령부로 성공적으로 설정되었습니다!")
-            st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실 (백테스트)]를 눌러 이동하세요!")
+        if st.button("🚀 선택한 바구니 종목들로 [작전 통제실 백테스트] 실행!", type="primary"):
+            st.success(f"🎉 총 {len(st.session_state['selected_stocks'])}개 종목 설정 완료!")
+            st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실 (백테스트)]를 클릭하세요!")
 
 # =====================================================================
 # 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V6)
@@ -140,20 +181,14 @@ else:
     st.markdown('<div class="main-header">🛡️ 박가이버표 실전 작전 통제실 (V6 Pro)</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">1,000만 원 원금 보호 및 스노우볼 자산 증식 알고리즘 시뮬레이터입니다.</div>', unsafe_allow_html=True)
 
-    # 🎛️ 사이드바 전략 조종간
     st.sidebar.subheader("⚙️ 빠른 전략 프리셋")
     preset_col1, preset_col2 = st.sidebar.columns(2)
-    
-    # 전략 원클릭 자동 세팅 기능
-    buy_preset = 4
-    sell_preset = 5
+    buy_preset, sell_preset = 4, 5
     if preset_col1.button("⚡ 적극 공격형"):
-        buy_preset = 3
-        sell_preset = 7
+        buy_preset, sell_preset = 3, 7
         st.sidebar.toast("적극 공격형 (-3% 진입 / +7% 익절) 설정 완료!")
     if preset_col2.button("🛡️ 안정 스노우볼"):
-        buy_preset = 5
-        sell_preset = 5
+        buy_preset, sell_preset = 5, 5
         st.sidebar.toast("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
 
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
@@ -163,15 +198,7 @@ else:
         default=st.session_state["selected_stocks"]
     )
 
-    use_custom = st.sidebar.checkbox("✍️ 종목 직접 추가")
-    custom_stock_name, custom_stock_ticker = "", ""
-    if use_custom:
-        custom_stock_name = st.sidebar.text_input("종목명", value="삼성전자")
-        custom_stock_ticker = st.sidebar.text_input("종목코드", value="005930.KS")
-
-    PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in selected_stock_names}
-    if use_custom and custom_stock_name and custom_stock_ticker:
-        PORTFOLIO_UNIVERSE[custom_stock_name] = custom_stock_ticker
+    PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in selected_stock_names if s_name in MASTER_STOCK_DICT}
 
     st.sidebar.markdown("---")
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000)
@@ -202,7 +229,6 @@ else:
     reward_type = st.sidebar.selectbox("🎁 전리품 수령 방식", ["전액 현금으로 챙기기", "열매로 결실 모으기"])
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
 
-    # 상단 요약 감시판
     st.write(f"### 🛡️ 감시 구역 요약 ({len(PORTFOLIO_UNIVERSE)}개 종목)")
     universe_list = []
     for name, code in PORTFOLIO_UNIVERSE.items():
@@ -211,7 +237,6 @@ else:
     st.dataframe(pd.DataFrame(universe_list), use_container_width=True, hide_index=True)
     st.markdown("---")
 
-    # 백테스트 엔진 실행
     if run_btn:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 선택된 종목이 없습니다. 1개 이상 선택해 주세요.")
@@ -233,10 +258,7 @@ else:
                     stop_loss_limit = -float(stop_loss_input) if stop_loss_input > 0 else None
 
                     current_cash = float(total_capital_input)
-                    active_positions = []
-                    trade_logs = []
-                    daily_returns_history = []
-                    asset_history = [] # 차트용 타임라인 기록
+                    active_positions, trade_logs, daily_returns_history, asset_history = [], [], [], []
                     agent_counter = 0
 
                     yearly_stats = {}
@@ -253,15 +275,13 @@ else:
                         if year not in yearly_stats:
                             yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0}
                         
-                        # 청산 검사
                         survived_positions = []
                         for pos in active_positions:
                             t_code = pos['ticker']
                             if t_code in row and not pd.isna(row[t_code]):
                                 curr_price = float(row[t_code])
                                 gross_ret = ((curr_price - pos['entry_price']) / pos['entry_price']) * 100
-                                is_exit = False
-                                exit_reason = ""
+                                is_exit, exit_reason = False, ""
 
                                 if gross_ret >= sell_target:
                                     is_exit, exit_reason = True, f"🎯 정상 복귀(+{sell_target_input}%)"
@@ -316,7 +336,6 @@ else:
                         
                         active_positions = survived_positions
 
-                        # 신규 진입 검사
                         remaining_slots = max_active_slots - len(active_positions)
                         dynamic_invest_amount = max(float(invest_amount_input), current_cash / remaining_slots) if (use_compounding and remaining_slots > 0) else float(invest_amount_input)
 
@@ -350,11 +369,9 @@ else:
                                 "출격 종목 리스트": ", ".join([p['stock_name'] for p in active_positions])
                             })
 
-                        # 차트용 일별 총 자산 평가액 추적
                         eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
                         asset_history.append({"Date": date, "Total_Asset": current_cash + eval_pos})
 
-                    # 최종 결과 정산
                     last_row = close_df.iloc[-1]
                     active_eval_value = sum([p['invest_amount'] * (float(last_row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in last_row and not pd.isna(last_row[p['ticker']])])
                     total_free_shares_count = sum(free_shares_dict.values())
@@ -366,12 +383,7 @@ else:
                     total_trades = total_success + total_stop_loss
                     win_rate = (total_success / total_trades * 100) if total_trades > 0 else 0
 
-                    # =========================================================
-                    # 🎨 고도화 대시보드 출력 구역 (탭 기반 레이아웃)
-                    # =========================================================
                     st.subheader("🏆 백테스트 최종 성과 지표")
-                    
-                    # 5대 핵심 지표 카드
                     m1, m2, m3, m4, m5 = st.columns(5)
                     m1.metric("🏁 원금 예산", f"{format_money(total_capital_input)}원")
                     m2.metric(f"✨ {period_label} 후 총자산", f"{format_money(final_total_asset)}원")
@@ -389,7 +401,6 @@ else:
 
                     st.markdown("---")
 
-                    # 🌟 4대 인터랙티브 탭 메뉴
                     tab1, tab2, tab3, tab4 = st.tabs([
                         "📊 1. 누적 자산 성장 곡선", 
                         "🔍 2. 자금 회전율 & 피크 진단", 
@@ -397,116 +408,61 @@ else:
                         "📜 4. 현장 대기요원 & 매매장부"
                     ])
 
-                    # --- TAB 1: 누적 자산 성장 곡선 (Plotly 차트) ---
                     with tab1:
-                        st.write("### 📈 백테스트 기간 자산 증식 추이 (Plotly 차트)")
+                        st.write("### 📈 백테스트 기간 자산 증식 추이")
                         asset_df = pd.DataFrame(asset_history)
-                        
-                        # Plotly 라인 차트 생성
-                        fig_asset = px.line(
-                            asset_df, x="Date", y="Total_Asset",
-                            title=f"1,000만 원 자본금의 {period_label} 성취 곡선",
-                            labels={"Total_Asset": "총 자산 가치 (원)", "Date": "날짜"}
-                        )
-                        fig_asset.add_hline(y=total_capital_input, line_dash="dash", line_color="red", annotation_text="원금 (1,000만 원)")
+                        fig_asset = px.line(asset_df, x="Date", y="Total_Asset", title=f"1,000만 원 자본금의 {period_label} 성취 곡선")
+                        fig_asset.add_hline(y=total_capital_input, line_dash="dash", line_color="red", annotation_text="원금")
                         fig_asset.update_traces(line_color="#2563eb", line_width=2.5)
-                        fig_asset.update_layout(hovermode="x unified", template="plotly_white")
                         st.plotly_chart(fig_asset, use_container_width=True)
 
-                        # 몬테카를로 시뮬레이터
-                        st.write("#### 🎲 몬테카를로 미래 5년 확률 시뮬레이터 (1,000회)")
-                        if len(daily_returns_history) > 5:
-                            mean_ret, std_ret = np.mean(daily_returns_history)/100, np.std(daily_returns_history)/100
-                            mc_results = [total_capital_input * np.prod(1 + np.random.normal(mean_ret, std_ret, 80)) for _ in range(1000)]
-                            mc_results = np.array(mc_results)
-                            
-                            mc1, mc2, mc3, mc4 = st.columns(4)
-                            mc1.metric("🌧️ 최악 (하위 10%)", f"{format_money(np.percentile(mc_results, 10))}원")
-                            mc2.metric("🌤️ 평균 (중위 50%)", f"{format_money(np.percentile(mc_results, 50))}원")
-                            mc3.metric("☀️ 최선 (상위 10%)", f"{format_money(np.percentile(mc_results, 90))}원")
-                            target_prob = (np.sum(mc_results >= (total_capital_input * 3)) / 1000) * 100
-                            mc4.metric("🔥 3배(3,000만 원) 달성 확률", f"{target_prob:.1f}%")
-
-                    # --- TAB 2: 자금 회전율 & 피크 진단 ---
                     with tab2:
                         st.write("### 🔍 회전율 극대화 리포트")
                         st.warning(f"📊 {period_label} 기간 중 역사적 절대 최고 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개)")
-                        
                         if daily_deployment_snapshots:
                             snap_df = pd.DataFrame(daily_deployment_snapshots)
                             peak_df = snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자'])
-                            st.write(f"▼ **역대 최고 자금 몰림({global_max_deployed}개 출격)이 발생했던 날짜와 종목:**")
                             st.dataframe(peak_df, use_container_width=True, hide_index=True)
 
-                            if global_max_deployed < max_active_slots:
-                                st.success(f"💡 **[자금 최적화 팁]:** 최대 {global_max_deployed}개까지만 동시 출격했으므로, 슬롯 수를 {global_max_deployed}개로 맞추고 회당 진입금을 늘리면 회전율이 대폭 상승합니다!")
-
-                    # --- TAB 3: 종목/연도별 손익 분석 ---
                     with tab3:
                         st.write("### 📊 종목 및 연도별 정밀 성적표")
                         c_col1, c_col2 = st.columns([1, 1.2])
-
                         with c_col1:
-                            st.write("#### 🗓️ 연도별 익절 vs 손절 건수")
                             yearly_chart_data = []
                             for y, val in yearly_stats.items():
                                 yearly_chart_data.append({"연도": str(y), "구분": "🎯 익절", "건수": val['success']})
                                 yearly_chart_data.append({"연도": str(y), "구분": "🚨 손절", "건수": val['stop']})
-                            y_df = pd.DataFrame(yearly_chart_data)
-                            
-                            # Plotly 바 차트
-                            fig_bar = px.bar(y_df, x="연도", y="건수", color="구분", barmode="group", color_discrete_map={"🎯 익절": "#22c55e", "🚨 손절": "#ef4444"})
+                            fig_bar = px.bar(pd.DataFrame(yearly_chart_data), x="연도", y="건수", color="구분", barmode="group", color_discrete_map={"🎯 익절": "#22c55e", "🚨 손절": "#ef4444"})
                             st.plotly_chart(fig_bar, use_container_width=True)
 
                         with c_col2:
-                            st.write("#### 🎯 종목별 손익 합계 표")
                             stock_summary = []
                             for s_name, stats in stock_win_stats.items():
                                 s_total = stats['success'] + stats['stop']
                                 s_win_rate = (stats['success'] / s_total * 100) if s_total > 0 else 0
-                                s_net_profit = stats['profit_gain'] + stats['loss_cost']
                                 stock_summary.append({
                                     "작전 구역": s_name, "총작전": f"{s_total}회", "승률": f"{s_win_rate:.1f}%",
                                     "🎯 총 익절금": f"+{format_money(stats['profit_gain'])}원",
                                     "🚨 총 손절금": f"{format_money(stats['loss_cost'])}원",
-                                    "✨ 순손익": f"{format_money(s_net_profit)}원"
+                                    "✨ 순손익": f"{format_money(stats['profit_gain'] + stats['loss_cost'])}원"
                                 })
                             st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
 
-                        st.markdown("---")
-                        st.write("#### 🗓️ 연도별 정산 종합표")
-                        yearly_df = pd.DataFrame.from_dict(yearly_stats, orient='index')
-                        yearly_df.index.name = "연도"
-                        yearly_df.columns = ["익절 성공(회)", "강제 손절(회)", "획득 열매(개)", "누적 현금 수익(원)"]
-                        yearly_df["획득 열매(개)"] = yearly_df["획득 열매(개)"].apply(lambda x: f"{int(x):,}개")
-                        yearly_df["누적 현금 수익(원)"] = yearly_df["누적 현금 수익(원)"].apply(lambda x: f"{format_money(x)}원")
-                        st.dataframe(yearly_df, use_container_width=True)
-
-                    # --- TAB 4: 현장 대기요원 & 매매장부 ---
                     with tab4:
-                        st.write("### ⚔️ 현재 현장 대기 요원 (고립 포지션)")
-                        active_count = len(active_positions)
-                        if active_count > 0:
-                            active_table = []
-                            for p in active_positions:
-                                c_price = float(last_row[p['ticker']])
-                                ret = ((c_price - p['entry_price']) / p['entry_price']) * 100
-                                active_table.append({
-                                    '요원': p['name'], '구역명': p['stock_name'], '출격일': p['entry_date'],
-                                    '진입단가': f"{format_money(p['entry_price'])}원", '현재수익률': f"{ret:.2f}%",
-                                    '평가금액': f"{format_money(p['invest_amount'] * (c_price / p['entry_price']))}원"
-                                })
+                        st.write("### ⚔️ 현재 현장 대기 요원")
+                        if len(active_positions) > 0:
+                            active_table = [{
+                                '요원': p['name'], '구역명': p['stock_name'], '출격일': p['entry_date'],
+                                '진입단가': f"{format_money(p['entry_price'])}원", 
+                                '현재수익률': f"{((float(last_row[p['ticker']]) - p['entry_price'])/p['entry_price'])*100:.2f}%"
+                            } for p in active_positions]
                             st.table(pd.DataFrame(active_table))
                         else:
-                            st.success("🎉 현재 현장에 대기 중인 요원이 없습니다! (100% 현금 회수 완료)")
+                            st.success("🎉 현재 현장에 대기 중인 요원이 없습니다!")
 
-                        st.markdown("---")
-                        st.write("### 📜 전체 매매 장부 (최근 순)")
                         if trade_logs:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             st.dataframe(logs_df, use_container_width=True)
-                            csv_data = logs_df.to_csv(index=False).encode('utf-8-sig')
-                            st.download_button("📥 전체 매매 장부 엑셀(CSV) 다운로드", data=csv_data, file_name="parkgyver_backtest.csv", mime="text/csv")
 
                 except Exception as e:
                     st.error(f"❌ 분석 중 에러가 발생했습니다: {e}")
