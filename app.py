@@ -58,42 +58,12 @@ if "sector_db" not in st.session_state:
         }
     }
 
-# 🌟 [대폭 확장 및 에스피지 포함 오프라인 무적 DB]
 KOREAN_STOCK_MASTER = {
-    # 로봇 & 부품 & 감속기 (에스피지 탑재)
-    "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
-    "두산로보틱스": "454910.KS", "뉴로메카": "348210.KQ", "SBB테크": "389500.KQ",
-    "로보티즈": "108490.KQ", "로보스타": "090360.KQ", "티로보틱스": "117730.KQ",
-    # 조선 & 중공업 & 해운 (현대힘스 포함)
     "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
-    "HD현대중공업": "329180.KS", "삼성중공업": "010140.KS", "HD현대미포": "010620.KS",
-    "HMM": "011200.KS", "팬오션": "028670.KS",
-    # 반도체 & 장비/소부장
+    "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
-    "한미반도체": "042700.KS", "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", 
-    "리노공업": "058470.KQ", "ISC": "095340.KQ", "주성엔지니어링": "036930.KQ", 
-    "원익IPS": "240810.KQ", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
-    "동진쎄미켐": "033640.KQ", "솔브레인": "357780.KQ", "하나마이크론": "084370.KQ",
-    "SFA반도체": "036540.KQ", "원익QnC": "074600.KQ", "가온칩스": "399500.KQ",
-    "에이직랜드": "448600.KS", "칩스앤미디어": "094360.KQ", "텔레칩스": "054450.KQ",
-    "오픈엣지테크놀로지": "394280.KQ", "제주반도체": "080220.KQ", "파두": "440110.KQ",
-    # 바이오 & 제약
-    "알테오젠": "196170.KQ", "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS",
-    "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ",
-    "한미약품": "128940.KS", "대웅제약": "069620.KS", "SK바이오팜": "326030.KS",
-    "보로노이": "310210.KQ", "휴젤": "145020.KQ", "파마리서치": "214450.KQ",
-    # 2차전지 & 화학/소재
-    "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
-    "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS",
-    "이수화학": "005950.KS", "이수스페셜티케미컬": "457190.KS", "금양": "001570.KS",
-    "코스모신소재": "005420.KS", "대주전자재료": "078600.KQ",
-    # 대표 제조 & 방산 & 전력
-    "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS",
-    "한화에어로스페이스": "012450.KS", "현대로템": "064350.KS", "LIG넥스원": "079550.KS",
-    "두산에너빌리티": "034020.KS", "HD현대일렉트릭": "267260.KS", "LS일렉트릭": "010120.KS",
-    # IT & 플랫폼 & 금융
-    "NAVER": "035420.KS", "카카오": "035720.KS", "루닛": "328130.KQ", 
-    "KB금융": "105560.KS", "신한지주": "055550.KS"
+    "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
+    "이수화학": "005950.KS", "이수스페셜티케미컬": "457190.KS", "마녀공장": "439090.KQ"
 }
 
 MASTER_STOCK_DICT = {}
@@ -107,24 +77,37 @@ for name, code in KOREAN_STOCK_MASTER.items():
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"]
 
-# 🌐 [100% 무적 검색 엔진]
+# 🌐 [진짜 완벽한 무적 검색 엔진: 야후 파이낸스 글로벌 API 탑재]
 def search_krx_stock_live(query, market_type="코스닥 (.KQ)"):
     query = query.strip()
     if not query:
         return None, None
     
-    # 1. 완벽 일치 검사 (대소문자/공백 무시)
+    # 1. 사령부 기본 장부에서 초고속 매칭
     query_clean = query.replace(" ", "").upper()
     for name, code in MASTER_STOCK_DICT.items():
         if name.replace(" ", "").upper() == query_clean:
             return code, name
-
-    # 2. 부분 검색 (유사어 지원: 예: '에스피' -> '에스피지')
     for name, code in MASTER_STOCK_DICT.items():
         if query_clean in name.replace(" ", "").upper():
             return code, name
 
-    # 3. 6자리 숫자 코드 입력 시 자동 생성
+    # 2. 🛡️ 야후 글로벌 레이더 (해외 클라우드 차단 절대 불가)
+    try:
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={requests.utils.quote(query)}"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        res = requests.get(url, headers=headers, timeout=5)
+        if res.status_code == 200:
+            quotes = res.json().get('quotes', [])
+            for q in quotes:
+                sym = q.get('symbol', '')
+                # 한국 주식 코드(.KS 또는 .KQ)를 발견하면 즉시 반환!
+                if sym.endswith('.KS') or sym.endswith('.KQ'):
+                    return sym, query
+    except Exception:
+        pass
+
+    # 3. 만약의 경우를 대비한 6자리 숫자 코드 자동 인식
     if len(query) == 6 and query.isdigit():
         suffix = ".KS" if "코스피" in market_type else ".KQ"
         return f"{query}{suffix}", query
@@ -152,18 +135,18 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     # 🌟 [스마트 검색 코너]
     st.markdown("### 🔍 1. 대한민국 전종목 스마트 종목 검색 & 자동 등록")
-    st.info("💡 **'1초 자동완성 선택기'**에서 바로 선택하시거나, **'실전 직접 검색창'**에 종목명(예: 에스피지, 현대힘스, 기가비스)을 입력해 검색해 보세요!")
+    st.info("💡 **'1초 자동완성 선택기'**에서 고르시거나, **'실전 직접 검색창'**에 어떤 종목이든(예: 마녀공장, 에스피지) 자유롭게 입력해 보세요!")
 
-    search_tab1, search_tab2 = st.tabs(["⚡ 1초 자동완성 선택기 (강력 추천)", "🔎 실전 직접 검색창"])
+    search_tab1, search_tab2 = st.tabs(["⚡ 1초 자동완성 선택기", "🔎 실전 직접 검색창 (강력 추천)"])
 
     with search_tab1:
         all_stock_names = sorted(list(MASTER_STOCK_DICT.keys()))
         selected_from_dropdown = st.selectbox(
             "종목명을 입력 또는 선택하세요 (타이핑 시 자동 검색됨):",
             options=[""] + all_stock_names,
-            key="dropdown_stock_select_v4"
+            key="dropdown_stock_select_final"
         )
-        if st.button("🛒 선택 종목 [백테스트 바구니] 추가", type="primary", key="btn_dropdown_add"):
+        if st.button("🛒 선택 종목 [백테스트 바구니] 추가", type="primary", key="btn_dropdown_add_final"):
             if selected_from_dropdown and selected_from_dropdown in MASTER_STOCK_DICT:
                 code = MASTER_STOCK_DICT[selected_from_dropdown]
                 if selected_from_dropdown not in st.session_state["selected_stocks"]:
@@ -175,26 +158,27 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     with search_tab2:
         s_col1, s_col2, s_col3 = st.columns([2.5, 1, 1])
-        search_input = s_col1.text_input("종목명 입력", placeholder="예: 에스피지, 현대힘스, 기가비스", key="smart_live_search_input_v8")
-        market_choice = s_col2.selectbox("소속 시장 (코드 직접입력 시)", ["코스닥 (.KQ)", "코스피 (.KS)"], key="smart_market_choice_v8")
+        search_input = s_col1.text_input("종목명 입력", placeholder="예: 마녀공장, 현대힘스, 에스피지", key="smart_live_search_input_final")
+        market_choice = s_col2.selectbox("소속 시장 (숫자 입력용)", ["코스닥 (.KQ)", "코스피 (.KS)"], key="smart_market_choice_final")
         
-        if s_col3.button("➕ 실시간 검색해서 담기", type="secondary", key="btn_live_search_v8"):
+        if s_col3.button("➕ 실시간 검색해서 담기", type="secondary", key="btn_live_search_final"):
             query = search_input.strip()
             if not query:
                 st.warning("⚠️ 검색할 종목 이름을 입력해 주세요.")
             else:
-                resolved_code, resolved_name = search_krx_stock_live(query, market_choice)
+                with st.spinner("📡 야후 글로벌 레이더망 가동 중..."):
+                    resolved_code, resolved_name = search_krx_stock_live(query, market_choice)
                 
                 if resolved_code and resolved_name:
                     MASTER_STOCK_DICT[resolved_name] = resolved_code
                     if resolved_name not in st.session_state["selected_stocks"]:
                         st.session_state["selected_stocks"].append(resolved_name)
-                        st.success(f"🎉 [검색 성공] '{resolved_name}' ({resolved_code}) 종목이 바구니에 추가되었습니다!")
+                        st.success(f"🎉 [검색 성공] '{resolved_name}' ({resolved_code}) 종목이 바구니에 완벽하게 추가되었습니다!")
                         st.rerun()
                     else:
                         st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 담겨 있습니다.")
                 else:
-                    st.error(f"❌ '{query}' 종목을 찾지 못했습니다. 종목명을 확인해 주시거나 6자리 숫자 코드(예: 058610)를 직접 입력해 주세요.")
+                    st.error(f"❌ '{query}' 종목을 찾지 못했습니다. 종목명을 다시 한 번 확인해 주세요.")
 
     st.markdown("---")
 
