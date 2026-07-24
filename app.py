@@ -5,9 +5,6 @@ import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
-import base64
-import zlib
-import json
 
 # --- 1. 페이지 웹 디자인 세팅 (모바일 다크모드 카드 가독성 극대화 CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V6 Pro", page_icon="🛡️", layout="wide")
@@ -60,50 +57,13 @@ if "sector_db" not in st.session_state:
         }
     }
 
-# 🌟 [궁극기] 대한민국 모든 상장주 및 박가이버 관심 종목 내장 하드코딩 DB (통신 에러 절대 불가)
-# 추가적으로 언급하신 '뉴파워프라즈마', '마녀공장', '현대힘스', '기가비스' 등 최우선 배치
 KOREAN_STOCK_MASTER = {
-    # 사용자 특별 요청 종목
-    "뉴파워프라즈마": "144960.KQ", "마녀공장": "439090.KQ", "현대힘스": "460930.KQ",
-    "에스피지": "058610.KQ", "SPG": "058610.KQ", "기가비스": "420770.KQ", 
-    "케이씨텍": "281820.KS", "이수스페셜티케미컬": "457190.KS", "이수화학": "005950.KS",
-    "레인보우로보틱스": "277810.KQ", "두산로보틱스": "454910.KS",
-    
-    # 반도체 & 장비/소부장
+    "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
+    "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
-    "한미반도체": "042700.KS", "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", 
-    "리노공업": "058470.KQ", "ISC": "095340.KQ", "주성엔지니어링": "036930.KQ", 
-    "원익IPS": "240810.KQ", "동진쎄미켐": "033640.KQ", "솔브레인": "357780.KQ", 
-    "하나마이크론": "084370.KQ", "SFA반도체": "036540.KQ", "원익QnC": "074600.KQ", 
-    "가온칩스": "399500.KQ", "에이직랜드": "448600.KS", "칩스앤미디어": "094360.KQ", 
-    "텔레칩스": "054450.KQ", "오픈엣지테크놀로지": "394280.KQ", "제주반도체": "080220.KQ", 
-    "파두": "440110.KQ", "고영": "014620.KQ",
-    
-    # 바이오 & 제약
-    "알테오젠": "196170.KQ", "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS",
-    "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ",
-    "한미약품": "128940.KS", "대웅제약": "069620.KS", "SK바이오팜": "326030.KS",
-    "보로노이": "310210.KQ", "휴젤": "145020.KQ", "파마리서치": "214450.KQ",
-    
-    # 2차전지 & 화학/소재
-    "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
-    "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS",
-    "금양": "001570.KS", "코스모신소재": "005420.KS", "대주전자재료": "078600.KQ",
-    
-    # 대표 제조 & 방산 & 조선
-    "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS",
-    "한화에어로스페이스": "012450.KS", "현대로템": "064350.KS", "LIG넥스원": "079550.KS",
-    "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "HD현대중공업": "329180.KS", 
-    "삼성중공업": "010140.KS", "두산에너빌리티": "034020.KS", "HD현대일렉트릭": "267260.KS", 
-    "LS일렉트릭": "010120.KS",
-    
-    # IT & 플랫폼 & 금융
-    "NAVER": "035420.KS", "카카오": "035720.KS", "루닛": "328130.KQ", 
-    "KB금융": "105560.KS", "신한지주": "055550.KS", "메리츠금융지주": "138040.KS",
-    
-    # 화장품 & 미용 & 기타
-    "아모레퍼시픽": "090430.KS", "클리오": "159920.KQ", "브이티": "018290.KQ", 
-    "실리콘투": "257720.KQ", "씨앤씨인터내셔널": "352480.KQ", "한국콜마": "161890.KS"
+    "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
+    "이수화학": "005950.KS", "이수스페셜티케미컬": "457190.KS", "마녀공장": "439090.KQ",
+    "뉴파워프라즈마": "144960.KQ", "두산에너빌리티": "034020.KS", "하나마이크론": "084370.KQ"
 }
 
 MASTER_STOCK_DICT = {}
@@ -116,41 +76,6 @@ for name, code in KOREAN_STOCK_MASTER.items():
 
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["테크윙", "한미반도체", "HPSP", "알테오젠", "에코프로비엠"]
-
-# 🌐 [스트림릿 통신 에러 회피용 자체 검색 엔진]
-def search_krx_stock_live(query, market_type="코스닥 (.KQ)"):
-    query = query.strip()
-    if not query:
-        return None, None
-    
-    query_clean = query.replace(" ", "").upper()
-    
-    # 1. 자체 강력 내장 DB에서 우선 검색 (통신 불필요)
-    for name, code in MASTER_STOCK_DICT.items():
-        if name.replace(" ", "").upper() == query_clean:
-            return code, name
-    for name, code in MASTER_STOCK_DICT.items():
-        if query_clean in name.replace(" ", "").upper():
-            return code, name
-
-    # 2. 야후 파이낸스 티커 직접 조회 방식 (가장 안정적)
-    try:
-        suffix = ".KS" if "코스피" in market_type else ".KQ"
-        # 영문 알파벳이나 숫자 코드 입력 시
-        if query.encode().isalpha() or query.isdigit():
-            test_ticker = f"{query}{suffix}" if query.isdigit() else query
-            info = yf.Ticker(test_ticker).info
-            if 'shortName' in info:
-                return test_ticker, info['shortName']
-    except:
-        pass
-
-    # 3. 6자리 숫자 코드 직접 입력 시 강제 매칭
-    if len(query) == 6 and query.isdigit():
-        suffix = ".KS" if "코스피" in market_type else ".KQ"
-        return f"{query}{suffix}", query
-
-    return None, None
 
 def format_money(num):
     return f"{int(round(num)):,}"
@@ -168,23 +93,44 @@ st.sidebar.markdown("---")
 # 🔎 모드 1: 작전 구역(섹터) 탐색기
 # =====================================================================
 if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
-    st.markdown('<div class="main-header">🔎 작전 구역 및 스마트 종목 탐색기</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">대한민국 주요 상장 주식 어디든 이름만 입력하시면 코드를 100% 찾아 바구니에 담아드립니다.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🔎 작전 구역 및 무적 종목 탐색기</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">외부 서버 통신 차단에 대비해, 6자리 종목코드만 입력하면 무조건 바구니에 담아주는 철벽 방어 시스템입니다.</div>', unsafe_allow_html=True)
 
-    # 🌟 [스마트 검색 코너]
-    st.markdown("### 🔍 1. 대한민국 전종목 스마트 종목 검색 & 자동 등록")
-    st.info("💡 **'1초 자동완성 선택기'**에서 고르시거나, **'실전 직접 검색창'**에 어떤 종목이든(예: 뉴파워프라즈마, 마녀공장, 에스피지) 자유롭게 입력해 보세요!")
+    st.markdown("### 🔍 1. 대한민국 전종목 [6자리 숫자 코드] 무적 등록")
+    st.warning("🚨 HTS/네이버에서 찾으신 **'6자리 숫자 종목코드(예: 144960, 439090, 058610)'**만 입력하시면 100% 무조건 등록됩니다!")
 
-    search_tab1, search_tab2 = st.tabs(["⚡ 1초 자동완성 선택기", "🔎 실전 직접 검색창 (강력 추천)"])
+    search_tab1, search_tab2 = st.tabs(["⚡ 6자리 종목코드 직접 입력 (100% 성공)", "🔎 내장 장부에서 이름 고르기"])
 
     with search_tab1:
+        s_col1, s_col2, s_col3 = st.columns([2.5, 1, 1])
+        search_input = s_col1.text_input("종목코드 6자리 숫자만 입력", placeholder="예: 뉴파워프라즈마(144960) -> 144960 입력", key="smart_live_search_input_code")
+        market_choice = s_col2.selectbox("소속 시장 선택", ["코스닥 (.KQ)", "코스피 (.KS)"], key="smart_market_choice_code")
+        
+        if s_col3.button("➕ 코드 등록해서 담기", type="primary", key="btn_live_search_code"):
+            query = search_input.strip()
+            if not query or len(query) != 6 or not query.isdigit():
+                st.error("⚠️ 검색창에 정확히 **숫자로 된 6자리 종목코드**만 입력해 주세요! (예: 144960)")
+            else:
+                suffix = ".KS" if "코스피" in market_choice else ".KQ"
+                resolved_code = f"{query}{suffix}"
+                resolved_name = f"신규작전주({query})"
+                
+                MASTER_STOCK_DICT[resolved_name] = resolved_code
+                if resolved_name not in st.session_state["selected_stocks"]:
+                    st.session_state["selected_stocks"].append(resolved_name)
+                    st.success(f"🎉 [무적 등록 성공] '{resolved_name}' ({resolved_code}) 종목이 바구니에 완벽하게 추가되었습니다!")
+                    st.rerun()
+                else:
+                    st.info(f"💡 해당 코드는 이미 바구니에 담겨 있습니다.")
+
+    with search_tab2:
         all_stock_names = sorted(list(MASTER_STOCK_DICT.keys()))
         selected_from_dropdown = st.selectbox(
-            "종목명을 입력 또는 선택하세요 (타이핑 시 자동 검색됨):",
+            "사령부에 내장된 종목 이름 중에서 고르세요:",
             options=[""] + all_stock_names,
-            key="dropdown_stock_select_final2"
+            key="dropdown_stock_select_final"
         )
-        if st.button("🛒 선택 종목 [백테스트 바구니] 추가", type="primary", key="btn_dropdown_add_final2"):
+        if st.button("🛒 선택 종목 [백테스트 바구니] 추가", type="secondary", key="btn_dropdown_add_final"):
             if selected_from_dropdown and selected_from_dropdown in MASTER_STOCK_DICT:
                 code = MASTER_STOCK_DICT[selected_from_dropdown]
                 if selected_from_dropdown not in st.session_state["selected_stocks"]:
@@ -193,29 +139,6 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                     st.rerun()
                 else:
                     st.info(f"💡 '{selected_from_dropdown}' 종목은 이미 바구니에 담겨 있습니다.")
-
-    with search_tab2:
-        s_col1, s_col2, s_col3 = st.columns([2.5, 1, 1])
-        search_input = s_col1.text_input("종목명 입력", placeholder="예: 뉴파워프라즈마, 마녀공장, 현대힘스", key="smart_live_search_input_final2")
-        market_choice = s_col2.selectbox("소속 시장 (숫자 입력용)", ["코스닥 (.KQ)", "코스피 (.KS)"], key="smart_market_choice_final2")
-        
-        if s_col3.button("➕ 검색해서 담기", type="secondary", key="btn_live_search_final2"):
-            query = search_input.strip()
-            if not query:
-                st.warning("⚠️ 검색할 종목 이름을 입력해 주세요.")
-            else:
-                resolved_code, resolved_name = search_krx_stock_live(query, market_choice)
-                
-                if resolved_code and resolved_name:
-                    MASTER_STOCK_DICT[resolved_name] = resolved_code
-                    if resolved_name not in st.session_state["selected_stocks"]:
-                        st.session_state["selected_stocks"].append(resolved_name)
-                        st.success(f"🎉 [검색 성공] '{resolved_name}' ({resolved_code}) 종목이 바구니에 완벽하게 추가되었습니다!")
-                        st.rerun()
-                    else:
-                        st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 담겨 있습니다.")
-                else:
-                    st.error(f"❌ '{query}' 종목을 찾지 못했습니다. 종목명을 다시 한 번 확인해 주시거나 종목코드 6자리(예: 144960)를 직접 입력해 주세요.")
 
     st.markdown("---")
 
@@ -245,14 +168,14 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     st.markdown("---")
 
-    with st.expander("🛠️ [탐색기 커스텀] 나만의 신규 섹터/종목 등록 (DB 추가)"):
+    with st.expander("🛠️ [탐색기 커스텀] 나만의 신규 섹터/종목 이름 직접 짓기"):
         tab_cust1, tab_cust2 = st.tabs(["➕ 기존 섹터 종목 추가", "📂 신규 섹터 생성"])
         
         with tab_cust1:
             c_col1, c_col2, c_col3 = st.columns([1, 1, 1])
             target_sec = c_col1.selectbox("추가할 섹터", list(st.session_state["sector_db"].keys()))
-            new_s_name = c_col2.text_input("종목명", value="삼성스파크", key="add_s_name")
-            new_s_code = c_col3.text_input("종목코드 (예: 005930.KS)", value="005930.KS", key="add_s_code")
+            new_s_name = c_col2.text_input("종목명 지어주기", value="뉴파워프라즈마", key="add_s_name")
+            new_s_code = c_col3.text_input("종목코드 (예: 144960.KQ)", value="144960.KQ", key="add_s_code")
             
             if st.button("➕ 해당 섹터에 종목 추가"):
                 if new_s_name and new_s_code:
@@ -625,7 +548,7 @@ else:
                             for s_name, count in free_shares_dict.items():
                                 if count > 0:
                                     t_code = PORTFOLIO_UNIVERSE[s_name]
-                                    s_val = count * float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else 0
+                                    s_val = count * float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[PORTFOLIO_UNIVERSE[s_name]]) else 0
                                     fruit_details.append({
                                         "종목명(작전 구역)": s_name,
                                         "수집한 열매": f"{count:,}주",
@@ -697,8 +620,10 @@ else:
                             st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
 
                         st.markdown("---")
-                        st.write("#### 🎯 종목별 손익 합계 표")
-                        stock_summary = []
+                        # 🌟 [신규 기능 1] 수익성 및 자산창출 기여도 기준 1등부터 순위 자동 매기기
+                        st.write("#### 🏆 종목별 작전 성과 순위표 (1위~최하위)")
+                        
+                        stock_temp_list = []
                         for s_name, stats in stock_win_stats.items():
                             s_total = stats['success'] + stats['stop']
                             s_win_rate = (stats['success'] / s_total * 100) if s_total > 0 else 0
@@ -708,15 +633,88 @@ else:
                             if gained_shares > 0 and PORTFOLIO_UNIVERSE[s_name] in last_row and not pd.isna(last_row[PORTFOLIO_UNIVERSE[s_name]]):
                                 share_val = gained_shares * float(last_row[PORTFOLIO_UNIVERSE[s_name]])
 
-                            stock_summary.append({
-                                "작전 구역": s_name, "총작전": f"{s_total}회", "승률": f"{s_win_rate:.1f}%",
-                                "🎯 익절금": f"+{format_money(stats['profit_gain'])}원",
-                                "🚨 손절금": f"{format_money(stats['loss_cost'])}원",
-                                "✨ 순손익": f"{format_money(stats['profit_gain'] + stats['loss_cost'])}원",
-                                "📦 획득 열매": f"{gained_shares}주",
-                                "💎 열매 가치": f"{format_money(share_val)}원"
+                            net_profit_sum = stats['profit_gain'] + stats['loss_cost']
+                            total_value_created = net_profit_sum + share_val
+
+                            stock_temp_list.append({
+                                "name": s_name,
+                                "total_trades": s_total,
+                                "win_rate": s_win_rate,
+                                "profit_gain": stats['profit_gain'],
+                                "loss_cost": stats['loss_cost'],
+                                "net_profit": net_profit_sum,
+                                "gained_shares": gained_shares,
+                                "share_val": share_val,
+                                "total_value_created": total_value_created,
+                                "success_cnt": stats['success'],
+                                "stop_cnt": stats['stop']
                             })
+
+                        # 🌟 생성된 총가치 기준 내림차순 정렬 (수익금 1위가 상단으로)
+                        stock_temp_list.sort(key=lambda x: x['total_value_created'], reverse=True)
+
+                        stock_summary = []
+                        underperformers = []
+
+                        for idx, item in enumerate(stock_temp_list):
+                            rank_num = idx + 1
+                            if rank_num == 1:
+                                rank_badge = "🥇 1위"
+                            elif rank_num == 2:
+                                rank_badge = "🥈 2위"
+                            elif rank_num == 3:
+                                rank_badge = "🥉 3위"
+                            else:
+                                rank_badge = f"🏅 {rank_num}위"
+
+                            stock_summary.append({
+                                "순위": rank_badge,
+                                "작전 구역": item['name'],
+                                "총작전": f"{item['total_trades']}회",
+                                "승률": f"{item['win_rate']:.1f}%",
+                                "🎯 익절금": f"+{format_money(item['profit_gain'])}원",
+                                "🚨 손절금": f"{format_money(item['loss_cost'])}원",
+                                "✨ 순손익": f"{format_money(item['net_profit'])}원",
+                                "📦 획득 열매": f"{item['gained_shares']}주",
+                                "💎 열매 가치": f"{format_money(item['share_val'])}원"
+                            })
+
+                            # 성적 저조 조건: 순손익이 마이너스(-원)이거나 승률이 55% 미만인 종목 추출
+                            if item['net_profit'] < 0 or item['win_rate'] < 55:
+                                underperformers.append(item)
+
                         st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
+
+                        # 🌟 [신규 기능 2] 성적 저조 종목 원인 분석 & 사령관 처방전 리포트
+                        if underperformers:
+                            st.markdown("---")
+                            st.write("#### 📉 성적 저조 종목 정밀 원인 분석 및 사령관 처방전")
+                            st.caption("※ 순손익이 마이너스이거나 작전 승률이 55% 미만인 부진 종목의 패턴을 정밀 진단합니다.")
+
+                            for u in underperformers:
+                                name = u['name']
+                                w_rate = u['win_rate']
+                                net_p = u['net_profit']
+                                stops = u['stop_cnt']
+                                succs = u['success_cnt']
+
+                                if w_rate < 50:
+                                    cause = f"하향 하락 추선이 장기화되어 진입 후 목표가(+{sell_target_input}%) 도달 전 손절선(-{stop_loss_input}%)에 지속적으로 저촉되었습니다. (장기 하락 파동 주기)"
+                                    solution = f"해당 종목은 진입 기준 하락폭(-%)을 현재(-{buy_cond_input}%)보다 더 깊게(-7%~-10%) 잡거나, 하락장이 잦아들 때까지 감시 우선순위를 뒤로 미루는 것이 좋습니다."
+                                elif net_p < 0:
+                                    cause = f"익절 건수({succs}회) 대비 손절 발생 시({stops}회) 깎여나간 손실폭이 상대적으로 컸습니다. (손익비 불균형)"
+                                    solution = f"익절 목표(+{sell_target_input}%)를 상향 조정하거나 손절폭(-{stop_loss_input}%)을 단단하게 감싸쥐어 손실을 최소화하는 전략이 유효합니다."
+                                else:
+                                    cause = f"전체 자산 성장에 대한 기여도가 다소 낮고 승률({w_rate:.1f}%)이 기대에 미치지 못했습니다."
+                                    solution = f"해당 종목의 1회 진입금 비중을 낮추거나, 주도주 섹터의 신규 종목으로 교체하는 것을 추천합니다."
+
+                                st.error(f"""
+                                ⚠️ **[{name}] 진단 리포트 (순손익: {format_money(net_p)}원 / 승률: {w_rate:.1f}% / 손절 {stops}회 발생)**
+                                * **🔍 원인 분석:** {cause}
+                                * **💡 사령관 처방:** {solution}
+                                """)
+                        else:
+                            st.success("🎉 감시 종목 전체가 마이너스 없이 훌륭한 승률과 손익비를 기록했습니다!")
 
                     with tab4:
                         st.write("### ⚔️ 현재 현장 대기 요원 (평가 현황)")
