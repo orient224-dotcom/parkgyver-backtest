@@ -76,7 +76,6 @@ MASTER_STOCK_DICT = {}
 for sector, stocks in st.session_state["sector_db"].items():
     for name, code in stocks.items():
         MASTER_STOCK_DICT[name] = code
-# 스마트 마스터 사전의 종목들도 통합 마스터에 추가
 for name, code in KOREAN_STOCK_MASTER.items():
     if name not in MASTER_STOCK_DICT:
         MASTER_STOCK_DICT[name] = code
@@ -100,16 +99,18 @@ st.sidebar.markdown("---")
 # 🔎 모드 1: 작전 구역(섹터) 탐색기
 # =====================================================================
 if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
-    st.markdown('<div class="main-header">🔎 작전 구역 탐색기</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">섹터별 종목을 둘러보거나, 종목 이름만 입력하여 스마트하게 바구니에 담을 수 있습니다.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🔎 작전 구역 및 스마트 종목 탐색기</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">원하는 종목 이름을 검색하거나 섹터별로 둘러봐 바구니에 담을 수 있습니다.</div>', unsafe_allow_html=True)
 
-    # 🌟 [신규 추가] 종목 이름만 입력하면 자동 검색 및 바구니 등록 바
-    st.subheader("🔍 스마트 종목 검색 및 자동 등록")
-    s_col1, s_col2, s_col3 = st.columns([2, 1, 1])
-    search_input = s_col1.text_input("종목명 입력 (예: 삼성전자, LG에너지솔루션, 셀트리온 등)", placeholder="종목 이름을 입력하세요", key="smart_search_input")
-    market_choice = s_col2.selectbox("소속 시장 선택 (직접 코드 입력 시)", ["코스피 (.KS)", "코스닥 (.KQ)"], key="smart_market_choice")
+    # 🌟 [최상단 배치] 스마트 종목 이름 검색 및 자동 등록 구역
+    st.markdown("### 🔍 1. 스마트 종목 이름 검색 & 자동 등록")
+    st.info("💡 종목 이름(예: 삼성전자, LG에너지솔루션, 셀트리온 등)을 입력하시면 코드가 자동으로 검색되어 아래 바구니에 쏙 담깁니다!")
     
-    if s_col3.button("➕ 스마트 검색으로 바구니 담기", type="primary"):
+    s_col1, s_col2, s_col3 = st.columns([2, 1, 1])
+    search_input = s_col1.text_input("종목명 입력", placeholder="예: 삼성전자, 셀트리온", key="smart_search_input_v3")
+    market_choice = s_col2.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="smart_market_choice_v3")
+    
+    if s_col3.button("➕ 검색해서 바구니 담기", type="primary"):
         query = search_input.strip()
         if not query:
             st.warning("⚠️ 검색할 종목 이름을 입력해 주세요.")
@@ -117,19 +118,16 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
             resolved_code = None
             resolved_name = query
             
-            # 1. 마스터 사전에서 정확히 일치하는 이름 찾기
             if query in KOREAN_STOCK_MASTER:
                 resolved_code = KOREAN_STOCK_MASTER[query]
             elif query in MASTER_STOCK_DICT:
                 resolved_code = MASTER_STOCK_DICT[query]
             else:
-                # 2. 부분 일치(예: '삼성' 입력 시 '삼성전자' 매칭) 확인
                 matched_key = next((k for k in MASTER_STOCK_DICT.keys() if query in k), None)
                 if matched_key:
                     resolved_code = MASTER_STOCK_DICT[matched_key]
                     resolved_name = matched_key
                 elif len(query) == 6 and query.isdigit():
-                    # 6자리 숫자 코드를 직접 입력한 경우
                     suffix = ".KS" if "코스피" in market_choice else ".KQ"
                     resolved_code = query + suffix
                     resolved_name = query
@@ -138,16 +136,16 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                 MASTER_STOCK_DICT[resolved_name] = resolved_code
                 if resolved_name not in st.session_state["selected_stocks"]:
                     st.session_state["selected_stocks"].append(resolved_name)
-                    st.success(f"✨ [{resolved_name} ({resolved_code})] 종목이 백테스트 바구니에 성공적으로 담겼습니다!")
+                    st.success(f"✨ [{resolved_name} ({resolved_code})] 종목이 바구니에 추가되었습니다!")
                     st.rerun()
                 else:
-                    st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 담겨 있습니다.")
+                    st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 들어있습니다.")
             else:
                 st.error(f"❌ '{query}'에 해당하는 종목을 찾지 못했습니다. 6자리 종목코드(예: 005930)를 직접 입력해 주세요.")
 
     st.markdown("---")
 
-    st.subheader("🎯 1. 테마/섹터별 둘러보기")
+    st.markdown("### 🎯 2. 테마/섹터별 둘러보기")
     col_sec1, col_sec2 = st.columns([1, 2])
     with col_sec1:
         selected_sector = st.selectbox("📂 탐색할 섹터 선택", list(st.session_state["sector_db"].keys()))
@@ -204,10 +202,10 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     st.markdown("---")
 
-    st.subheader("🛒 백테스트 최종 바구니")
+    st.markdown("### 🛒 3. 작전 통제실로 전송할 종목 바구니 담기")
 
     st.session_state["selected_stocks"] = st.multiselect(
-        "최종 검증 진행할 바구니 종목 리스트:",
+        "백테스트 검증을 진행할 종목들을 선택해 주세요 (1개~10개 권장):",
         options=list(MASTER_STOCK_DICT.keys()),
         default=st.session_state["selected_stocks"]
     )
@@ -217,12 +215,12 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         for name in st.session_state["selected_stocks"]:
             code = MASTER_STOCK_DICT.get(name, "")
             market_type = "코스닥" if ".KQ" in code else ("코스피" if ".KS" in code else "기타")
-            summary_data.append({"종목명": name, "식별 코드": code.split('.')[0] if code else "", "소속 시장": market_type})
+            summary_data.append({"종목명": name, "티커 코드": code, "소속 테마/섹터": market_type})
         
         st.dataframe(pd.DataFrame(summary_data), use_container_width=True, hide_index=True)
         st.markdown("---")
         
-        if st.button("🚀 선택한 바구니 종목으로 백테스트 실행!", type="primary"):
+        if st.button("🚀 선택한 종목들을 [작전 통제실]로 즉시 전송!", type="primary"):
             st.success(f"🎉 총 {len(st.session_state['selected_stocks'])}개 종목 설정 완료!")
             st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실]을 누르세요!")
 
@@ -685,7 +683,7 @@ else:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             st.dataframe(logs_df, use_container_width=True)
 
-                    # 🌟 [완벽 복구] 자동 채점 및 종합 진단 리포트 (네이티브 컴포넌트 방식)
+                    # 🌟 자동 채점 및 종합 진단 리포트 (네이티브 컴포넌트 방식)
                     perf_score = min(100, max(50, int(70 + (total_return_pct / 15) + (win_rate - 50))))
                     grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
                     
