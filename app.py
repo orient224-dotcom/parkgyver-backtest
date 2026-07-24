@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# --- 1. 페이지 웹 디자인 세팅 (최고급 프리미엄 UX/UI CSS) ---
+# --- 1. 페이지 웹 디자인 세팅 (신박하고 트렌디한 탭 디자인 CSS 강화) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V8 Ultra Pro", page_icon="🛡️", layout="wide")
 
 st.markdown("""
@@ -57,6 +57,42 @@ st.markdown("""
         font-size: 0.95rem;
         color: #94a3b8;
         margin-top: 6px;
+    }
+
+    /* 🌟 [신박한 카드형 입체 탭 디자인] */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+        background-color: #e2e8f0;
+        padding: 10px 14px;
+        border-radius: 14px;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
+        margin-bottom: 20px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 48px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 0 22px;
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #334155;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #eff6ff;
+        color: #2563eb;
+        border-color: #93c5fd;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        color: #ffffff !important;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35) !important;
+        border-color: #1d4ed8 !important;
+        transform: translateY(-1px);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -996,8 +1032,8 @@ else:
                     grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
                     
                     missed_cnt = len(missed_opportunities)
-                    # 🌟 [수정 완료] 놓친 기회가 0회일 때의 '아쉬운 점' 텍스트를 논리적으로 맞춤
-                    cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족 또는 단가 초과)이 발생했습니다." if missed_cnt > 0 else "놓친 기회는 없었으나, 100% 풀가동되는 과정에서 예비 현금 곳간이 다소 타이트하게 운용되어 돌발 하락장 대응 여유가 부족할 수 있었습니다."
+                    # 🌟 [논리적 수정 완료] 놓친 기회가 0회일 때의 '아쉬운 점' 텍스트
+                    cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족 또는 단가 초과)이 발생했습니다." if missed_cnt > 0 else "종목들이 타이밍에 맞춰 빠르게 회전하여 놓친 기회는 없었으나, 자금이 100% 풀가동되는 과정에서 예비 현금 곳간이 다소 타이트하게 운용되어 돌발 하락장 대응 여유가 다소 부족할 수 있었습니다."
                     
                     pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률 **{win_rate:.1f}%**, 최대 낙폭(MDD) **{max_drawdown_pct:.1f}%**로 매우 우수합니다."
                     advice_text = "복리 스케일업 모드와 폭락장 우산 스위치, 그리고 제미니 AI 참모의 실시간 진입금 처방전을 함께 활용해 리스크를 철저히 방어하세요."
