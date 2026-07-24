@@ -33,7 +33,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 동적 데이터베이스 세션 초기화 ---
+# --- 2. 동적 데이터베이스 및 스마트 종목 마스터 세션 초기화 ---
 if "sector_db" not in st.session_state:
     st.session_state["sector_db"] = {
         "⚡ 반도체 & HBM / 칩렛": {
@@ -57,9 +57,28 @@ if "sector_db" not in st.session_state:
         }
     }
 
+# 🌟 스마트 검색을 위한 확장된 한국 주요 종목 마스터 사전
+KOREAN_STOCK_MASTER = {
+    "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "LG에너지솔루션": "373220.KS",
+    "삼성바이오로직스": "207940.KS", "현대차": "005380.KS", "기아": "000270.KS",
+    "POSCO홀딩스": "005490.KS", "NAVER": "035420.KS", "카카오": "035720.KS",
+    "셀트리온": "068270.KS", "한화에어로스페이스": "012450.KS", "LG전자": "066570.KS",
+    "현대모비스": "012330.KS", "KB금융": "105560.KS", "신한지주": "055550.KS",
+    "테크윙": "089030.KQ", "한미반도체": "042700.KS", "HPSP": "403870.KQ",
+    "이오테크닉스": "039030.KQ", "리노공업": "058470.KQ", "ISC": "095340.KQ",
+    "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "알테오젠": "196170.KQ",
+    "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "엘앤에프": "066970.KQ",
+    "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ",
+    "레인보우로보틱스": "277810.KQ", "두산에너빌리티": "034020.KS"
+}
+
 MASTER_STOCK_DICT = {}
 for sector, stocks in st.session_state["sector_db"].items():
     for name, code in stocks.items():
+        MASTER_STOCK_DICT[name] = code
+# 스마트 마스터 사전의 종목들도 통합 마스터에 추가
+for name, code in KOREAN_STOCK_MASTER.items():
+    if name not in MASTER_STOCK_DICT:
         MASTER_STOCK_DICT[name] = code
 
 if "selected_stocks" not in st.session_state:
@@ -82,7 +101,51 @@ st.sidebar.markdown("---")
 # =====================================================================
 if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.markdown('<div class="main-header">🔎 작전 구역 탐색기</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">섹터별 종목을 둘러보고 바구니에 담아 통제실로 보낼 수 있습니다.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">섹터별 종목을 둘러보거나, 종목 이름만 입력하여 스마트하게 바구니에 담을 수 있습니다.</div>', unsafe_allow_html=True)
+
+    # 🌟 [신규 추가] 종목 이름만 입력하면 자동 검색 및 바구니 등록 바
+    st.subheader("🔍 스마트 종목 검색 및 자동 등록")
+    s_col1, s_col2, s_col3 = st.columns([2, 1, 1])
+    search_input = s_col1.text_input("종목명 입력 (예: 삼성전자, LG에너지솔루션, 셀트리온 등)", placeholder="종목 이름을 입력하세요", key="smart_search_input")
+    market_choice = s_col2.selectbox("소속 시장 선택 (직접 코드 입력 시)", ["코스피 (.KS)", "코스닥 (.KQ)"], key="smart_market_choice")
+    
+    if s_col3.button("➕ 스마트 검색으로 바구니 담기", type="primary"):
+        query = search_input.strip()
+        if not query:
+            st.warning("⚠️ 검색할 종목 이름을 입력해 주세요.")
+        else:
+            resolved_code = None
+            resolved_name = query
+            
+            # 1. 마스터 사전에서 정확히 일치하는 이름 찾기
+            if query in KOREAN_STOCK_MASTER:
+                resolved_code = KOREAN_STOCK_MASTER[query]
+            elif query in MASTER_STOCK_DICT:
+                resolved_code = MASTER_STOCK_DICT[query]
+            else:
+                # 2. 부분 일치(예: '삼성' 입력 시 '삼성전자' 매칭) 확인
+                matched_key = next((k for k in MASTER_STOCK_DICT.keys() if query in k), None)
+                if matched_key:
+                    resolved_code = MASTER_STOCK_DICT[matched_key]
+                    resolved_name = matched_key
+                elif len(query) == 6 and query.isdigit():
+                    # 6자리 숫자 코드를 직접 입력한 경우
+                    suffix = ".KS" if "코스피" in market_choice else ".KQ"
+                    resolved_code = query + suffix
+                    resolved_name = query
+            
+            if resolved_code:
+                MASTER_STOCK_DICT[resolved_name] = resolved_code
+                if resolved_name not in st.session_state["selected_stocks"]:
+                    st.session_state["selected_stocks"].append(resolved_name)
+                    st.success(f"✨ [{resolved_name} ({resolved_code})] 종목이 백테스트 바구니에 성공적으로 담겼습니다!")
+                    st.rerun()
+                else:
+                    st.info(f"💡 '{resolved_name}' 종목은 이미 바구니에 담겨 있습니다.")
+            else:
+                st.error(f"❌ '{query}'에 해당하는 종목을 찾지 못했습니다. 6자리 종목코드(예: 005930)를 직접 입력해 주세요.")
+
+    st.markdown("---")
 
     st.subheader("🎯 1. 테마/섹터별 둘러보기")
     col_sec1, col_sec2 = st.columns([1, 2])
@@ -100,7 +163,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
             key=f"sec_select_{selected_sector}"
         )
         
-        if st.button(f"🛒 선택 종목 [백테스트 바구니] 추가", type="primary"):
+        if st.button(f"🛒 선택 종목 [백테스트 바구니] 추가", type="secondary"):
             added_count = 0
             for s_name in sector_target_list:
                 if s_name not in st.session_state["selected_stocks"]:
@@ -142,18 +205,6 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.markdown("---")
 
     st.subheader("🛒 백테스트 최종 바구니")
-    
-    with st.expander("✍️ 목록에 없는 종목 바구니에 직접 추가"):
-        b_col1, b_col2 = st.columns(2)
-        direct_name = b_col1.text_input("추가할 종목명", value="한화에어로스페이스")
-        direct_code = b_col2.text_input("종목코드 (예: 012450.KS)", value="012450.KS")
-        if st.button("➕ 바구니 즉시 담기"):
-            if direct_name and direct_code:
-                MASTER_STOCK_DICT[direct_name] = direct_code
-                if direct_name not in st.session_state["selected_stocks"]:
-                    st.session_state["selected_stocks"].append(direct_name)
-                st.success(f"🎉 '{direct_name}' 종목이 바구니에 담겼습니다!")
-                st.rerun()
 
     st.session_state["selected_stocks"] = st.multiselect(
         "최종 검증 진행할 바구니 종목 리스트:",
@@ -634,7 +685,7 @@ else:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             st.dataframe(logs_df, use_container_width=True)
 
-                    # 🌟 [네이티브 컴포넌트 변환] 자동 채점 및 종합 진단 리포트 (HTML 깨짐 원천 차단)
+                    # 🌟 [완벽 복구] 자동 채점 및 종합 진단 리포트 (네이티브 컴포넌트 방식)
                     perf_score = min(100, max(50, int(70 + (total_return_pct / 15) + (win_rate - 50))))
                     grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
                     
