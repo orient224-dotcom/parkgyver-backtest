@@ -242,16 +242,20 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 선택된 종목이 없습니다. 1개 이상 선택해 주세요.")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 과거 파동 데이터를 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 과거 파동 및 배당금 데이터를 분석 중입니다..."):
                 try:
                     end_date = datetime.datetime.today()
                     start_date = end_date - relativedelta(months=months_input)
                     tickers = list(PORTFOLIO_UNIVERSE.values())
-                    raw_df = yf.download(tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), progress=False)
+                    
+                    raw_df = yf.download(tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), actions=True, progress=False)
 
-                    close_df = raw_df['Close'] if 'Close' in raw_df else raw_df
-                    if isinstance(close_df, pd.Series):
-                        close_df = pd.DataFrame({tickers[0]: close_df})
+                    if isinstance(raw_df.columns, pd.MultiIndex):
+                        close_df = raw_df['Close']
+                        div_df = raw_df['Dividends'] if 'Dividends' in raw_df.columns.levels[0] else pd.DataFrame(index=raw_df.index, columns=tickers).fillna(0)
+                    else:
+                        close_df = pd.DataFrame({tickers[0]: raw_df['Close']})
+                        div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_df.index)
 
                     return_df = close_df.pct_change() * 100
                     buy_cond = -float(buy_cond_input)
@@ -269,15 +273,43 @@ else:
                     total_success, total_stop_loss, total_cash_profit, total_fee_tax_paid = 0, 0, 0, 0
                     global_max_deployed = 0
                     daily_deployment_snapshots = []
-                    
-                    # 🌟 [신규] 현금/슬롯 부족으로 놓친 기회 추적용 리스트
                     missed_opportunities = []
+                    total_dividend_profit = 0
 
                     for date, row in close_df.iterrows():
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
                         if year not in yearly_stats:
                             yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0}
+                        
+                        # 배당금 자동 수금
+                        daily_dividend_sum = 0
+                        if date in div_df.index:
+                            for s_name, count in free_shares_dict.items():
+                                if count > 0:
+                                    t_code = PORTFOLIO_UNIVERSE[s_name]
+                                    if t_code in div_df.columns:
+                                        d_val = div_df.loc[date, t_code]
+                                        if pd.notna(d_val) and d_val > 0:
+                                            daily_dividend_sum += count * d_val
+                            
+                            for pos in active_positions:
+                                t_code = pos['ticker']
+                                if t_code in div_df.columns:
+                                    d_val = div_df.loc[date, t_code]
+                                    if pd.notna(d_val) and d_val > 0:
+                                        pos_shares = pos['invest_amount'] / pos['entry_price']
+                                        daily_dividend_sum += pos_shares * d_val
+                        
+                        if daily_dividend_sum > 0:
+                            current_cash += daily_dividend_sum
+                            total_dividend_profit += daily_dividend_sum
+                            trade_logs.append({
+                                '요원': '시스템', '작전 구역': '배당금(꿀) 수금', '출격일': date_str,
+                                '진입단가': '-', '복귀일': date_str,
+                                '청산단가': '-', '순수익률': '-',
+                                '정산내역': f"🍯 꿀 수입: +{format_money(daily_dividend_sum)}원", '구분': '🌟 특별 보너스'
+                            })
                         
                         survived_positions = []
                         for pos in active_positions:
@@ -343,7 +375,6 @@ else:
                         remaining_slots = max_active_slots - len(active_positions)
                         dynamic_invest_amount = max(float(invest_amount_input), current_cash / remaining_slots) if (use_compounding and remaining_slots > 0) else float(invest_amount_input)
 
-                        # 신규 진입 및 놓친 기회 검사
                         day_returns = return_df.loc[date] if date in return_df.index else None
                         if day_returns is not None:
                             candidates = []
@@ -357,19 +388,14 @@ else:
                             for cand in candidates:
                                 actual_invest = min(dynamic_invest_amount, current_cash)
                                 
-                                # 🌟 진입 조건은 맞았으나 출격 불가한 사유 기록
                                 if len(active_positions) >= max_active_slots:
                                     missed_opportunities.append({
-                                        "발생 일자": date_str,
-                                        "미출격 종목": cand[0],
-                                        "당일 하락률": f"{cand[2]:.2f}%",
+                                        "발생 일자": date_str, "미출격 종목": cand[0], "당일 하락률": f"{cand[2]:.2f}%",
                                         "불가 사유": f"요원 슬롯 풀가동 ({max_active_slots}/{max_active_slots}개)"
                                     })
                                 elif actual_invest < 500000 or current_cash < 500000:
                                     missed_opportunities.append({
-                                        "발생 일자": date_str,
-                                        "미출격 종목": cand[0],
-                                        "당일 하락률": f"{cand[2]:.2f}%",
+                                        "발생 일자": date_str, "미출격 종목": cand[0], "당일 하락률": f"{cand[2]:.2f}%",
                                         "불가 사유": f"가용 현금 부족 ({format_money(current_cash)}원)"
                                     })
                                 else:
@@ -404,20 +430,52 @@ else:
                     win_rate = (total_success / total_trades * 100) if total_trades > 0 else 0
 
                     st.subheader("🏆 백테스트 최종 성과 지표")
-                    m1, m2, m3, m4, m5 = st.columns(5)
+                    
+                    m1, m2, m3 = st.columns(3)
                     m1.metric("🏁 원금 예산", f"{format_money(total_capital_input)}원")
                     m2.metric(f"✨ {period_label} 후 총자산", f"{format_money(final_total_asset)}원")
                     m3.metric("📈 총 순수익금", f"{format_money(total_net_profit)}원", delta=f"{total_return_pct:.2f}%")
                     
+                    st.write("") 
+                    
+                    m4, m5, m6 = st.columns(3)
                     if reward_type == '열매로 결실 모으기':
-                        m4.metric("💵 가용 현금", f"{format_money(current_cash)}원", delta=f"잔돈: +{format_money(total_cash_profit)}원")
+                        m4.metric("💵 가용 현금", f"{format_money(current_cash)}원", delta=f"매매 잔돈: +{format_money(total_cash_profit)}원")
                         m5.metric("📦 공짜 열매", f"{total_free_shares_count:,}주", delta=f"가치: {format_money(total_free_shares_value)}원")
                     else:
-                        m4.metric("💵 최종 현금", f"{format_money(current_cash)}원", delta=f"수익금: +{format_money(total_cash_profit)}원")
+                        m4.metric("💵 최종 현금", f"{format_money(current_cash)}원", delta=f"매매 수익금: +{format_money(total_cash_profit)}원")
                         m5.metric("🎯 작전 승률", f"{win_rate:.1f}%", delta=f"{total_trades}전 {total_success}승")
+                        
+                    m6.metric("🍯 누적 배당금 (보너스)", f"{format_money(total_dividend_profit)}원", delta="나무에서 떨어진 달콤한 꿀")
 
                     if use_fee:
                         st.caption(f"💸 **실전 거래비용 정산 완료:** 누적 수수료 및 거래세 -{format_money(total_fee_tax_paid)}원 이미 차감됨")
+
+                    # 🌟 [신규 탑재] 은퇴자를 위한 제2의 연금통장 변환기 (황금알 전광판)
+                    monthly_pension = (final_total_asset * 0.04) / 12
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(to right, #fffbeb, #fef3c7); padding: 20px; border-radius: 12px; border-left: 6px solid #f59e0b; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                        <h4 style="margin-top: 0; color: #d97706; font-size: 1.2rem;">🐣 은퇴자를 위한 '제2의 연금통장' 변환기</h4>
+                        <p style="font-size: 1.05rem; color: #451a03; margin-bottom: 0; line-height: 1.5;">
+                            이 백테스트로 달성한 총자산 <b>{format_money(final_total_asset)}원</b>을 연 4% 배당 ETF에 재투자한다면?<br>
+                            원금을 단 1원도 까먹지 않고, 매월 <b>💰 {format_money(monthly_pension)}원의 제2의 월급(연금)</b>을 평생 받을 수 있습니다!
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    if reward_type == '열매로 결실 모으기' and total_free_shares_count > 0:
+                        with st.expander("🍎 내 보물상자 (수집한 공짜 열매 상세 내역) 열어보기"):
+                            fruit_details = []
+                            for s_name, count in free_shares_dict.items():
+                                if count > 0:
+                                    t_code = PORTFOLIO_UNIVERSE[s_name]
+                                    s_val = count * float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else 0
+                                    fruit_details.append({
+                                        "종목명(작전 구역)": s_name,
+                                        "수집한 열매": f"{count:,}주",
+                                        "현재 평가 가치": f"{format_money(s_val)}원"
+                                    })
+                            st.dataframe(pd.DataFrame(fruit_details), use_container_width=True, hide_index=True)
 
                     st.markdown("---")
 
@@ -436,7 +494,6 @@ else:
                         fig_asset.update_traces(line_color="#2563eb", line_width=2.5)
                         st.plotly_chart(fig_asset, use_container_width=True)
 
-                    # 🌟 [보완] TAB 2: 놓친 출격 타점 정밀 분석 리포트
                     with tab2:
                         st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
                         st.warning(f"📊 {period_label} 기간 중 역사적 절대 최고 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개)")
@@ -448,13 +505,11 @@ else:
                             st.dataframe(peak_df, use_container_width=True, hide_index=True)
 
                         st.markdown("---")
-                        
-                        # 놓친 타점 리포트 출력
                         st.write("### 🚫 현금/슬롯 부족으로 놓쳐버린 출격 타점 추적기")
                         if missed_opportunities:
                             st.error(f"🚨 지난 {period_label} 동안 하락 타점(-{buy_cond_input}%)이 맞았으나, **현금 부족/슬롯 제한으로 놓친 기회가 총 {len(missed_opportunities)}회** 발생했습니다!")
                             st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
-                            st.info("💡 **전략 가이드:** 만약 놓친 횟수가 많다면, 전체 슬롯 수를 올리거나 1회 진입금 비율을 조금 낮추면 이 타점들까지 알뜰하게 다 잡아채서 수익을 극대화할 수 있습니다!")
+                            st.info("💡 **전략 가이드:** 전체 슬롯 수를 올리거나 1회 진입금 비율을 조금 낮추면 이 타점들까지 알뜰하게 다 잡아채서 수익을 극대화할 수 있습니다!")
                         else:
                             st.success("🎉 단 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다! 자금 관리가 100% 완벽했습니다!")
 
@@ -474,11 +529,19 @@ else:
                             for s_name, stats in stock_win_stats.items():
                                 s_total = stats['success'] + stats['stop']
                                 s_win_rate = (stats['success'] / s_total * 100) if s_total > 0 else 0
+                                
+                                gained_shares = free_shares_dict.get(s_name, 0)
+                                share_val = 0
+                                if gained_shares > 0 and PORTFOLIO_UNIVERSE[s_name] in last_row and not pd.isna(last_row[PORTFOLIO_UNIVERSE[s_name]]):
+                                    share_val = gained_shares * float(last_row[PORTFOLIO_UNIVERSE[s_name]])
+
                                 stock_summary.append({
                                     "작전 구역": s_name, "총작전": f"{s_total}회", "승률": f"{s_win_rate:.1f}%",
-                                    "🎯 총 익절금": f"+{format_money(stats['profit_gain'])}원",
-                                    "🚨 총 손절금": f"{format_money(stats['loss_cost'])}원",
-                                    "✨ 순손익": f"{format_money(stats['profit_gain'] + stats['loss_cost'])}원"
+                                    "🎯 익절금": f"+{format_money(stats['profit_gain'])}원",
+                                    "🚨 손절금": f"{format_money(stats['loss_cost'])}원",
+                                    "✨ 순손익": f"{format_money(stats['profit_gain'] + stats['loss_cost'])}원",
+                                    "📦 획득 열매": f"{gained_shares}주",
+                                    "💎 열매 가치": f"{format_money(share_val)}원"
                                 })
                             st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
 
