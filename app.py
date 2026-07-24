@@ -11,7 +11,6 @@ st.set_page_config(page_title="박가이버 통합 작전 사령부 V6 Pro", pag
 
 st.markdown("""
 <style>
-    /* 메트릭 카드 디자인 및 선명한 음영/테두리 강화 */
     div[data-testid="stMetric"] {
         background-color: #ffffff !important;
         padding: 14px 16px !important;
@@ -19,21 +18,16 @@ st.markdown("""
         border: 1px solid #94a3b8 !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.08) !important;
     }
-    
-    /* 지표 이름(라벨) 글자색을 아주 진하고 선명하게 강제 고정 */
     div[data-testid="stMetricLabel"], div[data-testid="stMetricLabel"] * {
         color: #0f172a !important;
         font-size: 0.9rem !important;
         font-weight: 800 !important;
     }
-    
-    /* 지표 수치(돈/숫자) 글자색 강제 고정 */
     div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] * {
         color: #1e293b !important;
         font-size: 1.3rem !important;
         font-weight: 900 !important;
     }
-    
     .main-header { font-size: 1.6rem !important; font-weight: 800; margin-bottom: 0.2rem; }
     .sub-header { font-size: 0.88rem !important; color: #64748b; margin-bottom: 1.0rem; }
 </style>
@@ -573,18 +567,33 @@ else:
                                 })
                             st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
 
+                    # 🌟 [업데이트] TAB 4: 현장 대기요원 평가금액 및 평가손익 표기 추가
                     with tab4:
-                        st.write("### ⚔️ 현재 현장 대기 요원")
+                        st.write("### ⚔️ 현재 현장 대기 요원 (평가 현황)")
                         if len(active_positions) > 0:
-                            active_table = [{
-                                '요원': p['name'], '구역명': p['stock_name'], '출격일': p['entry_date'],
-                                '진입단가': f"{format_money(p['entry_price'])}원", 
-                                '현재수익률': f"{((float(last_row[p['ticker']]) - p['entry_price'])/p['entry_price'])*100:.2f}%"
-                            } for p in active_positions]
-                            st.table(pd.DataFrame(active_table))
-                        else:
-                            st.success("🎉 현재 현장에 대기 중인 요원이 없습니다!")
+                            active_table = []
+                            for p in active_positions:
+                                t_code = p['ticker']
+                                curr_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else p['entry_price']
+                                eval_val = p['invest_amount'] * (curr_price / p['entry_price'])
+                                eval_profit = eval_val - p['invest_amount']
+                                ret = ((curr_price - p['entry_price']) / p['entry_price']) * 100
 
+                                active_table.append({
+                                    '요원': p['name'], 
+                                    '구역명': p['stock_name'], 
+                                    '출격일': p['entry_date'],
+                                    '진입금액': f"{format_money(p['invest_amount'])}원",
+                                    '현재 평가금액': f"{format_money(eval_val)}원",
+                                    '평가 손익': f"{format_money(eval_profit)}원",
+                                    '현재수익률': f"{ret:.2f}%"
+                                })
+                            st.dataframe(pd.DataFrame(active_table), use_container_width=True, hide_index=True)
+                        else:
+                            st.success("🎉 현재 현장에 대기 중인 요원이 없습니다! (100% 현금 회수 완료)")
+
+                        st.markdown("---")
+                        st.write("### 📜 전체 매매 장부 (최근 순)")
                         if trade_logs:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             st.dataframe(logs_df, use_container_width=True)
