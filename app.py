@@ -634,19 +634,42 @@ else:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             st.dataframe(logs_df, use_container_width=True)
 
-                    # 🌟 [신규 추가] 박가이버 사령관의 종합 진단 및 실전 어드바이스 섹션
+                    # 🌟 [신규 추가] 자동 채점 및 종합 진단 & 실전 어드바이스 엔진
+                    perf_score = min(100, max(50, int(70 + (total_return_pct / 15) + (win_rate - 50))))
+                    grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
+                    
+                    missed_cnt = len(missed_opportunities)
+                    pros_text = f"총자산이 초기 대비 <b>{total_return_pct:.1f}%</b> 폭발적으로 성장했으며, 작전 승률이 <b>{win_rate:.1f}%</b>로 매우 탄탄하게 방어 및 수익을 창출했습니다."
+                    cons_text = f"백테스트 기간 중 총 <b>{missed_cnt}회</b>의 미출격 타점(현금/슬롯 부족)이 발생하여 아쉽게 놓친 기회가 존재합니다." if missed_cnt > 0 else "현금 관리와 슬롯 회전율이 100% 완벽하여 자금 공백이 거의 없었습니다."
+                    advice_text = "복리 스케일업 모드를 적극 활용하여 덩치를 키우되, 후반부 거대한 실탄 진입 시 변동성에 대비한 분할 매수 슬롯 관리를 병행하는 것이 핵심입니다."
+
                     st.markdown("---")
-                    st.markdown("""
-                    <div style="background: linear-gradient(to right, #f0fdf4, #dcfce7); padding: 25px; border-radius: 14px; border-left: 6px solid #22c55e; margin-top: 30px; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.06);">
-                        <h3 style="margin-top: 0; color: #166534; font-size: 1.35rem;">🎖️ 박가이버 사령관의 종합 진단 및 실전 어드바이스</h3>
-                        <p style="font-size: 1.05rem; color: #14532d; line-height: 1.6; margin-bottom: 12px;">
-                            <b>1. 📈 스노우볼 복리의 위력:</b> 본 백테스트 결과, 초기 종잣돈이 시간이 흐를수록 눈덩이처럼 불어나며 요원들의 투입 덩치(실탄)를 함께 키워주는 복리 스케일업 모드가 완벽하게 작동했습니다. 밭에 작은 씨앗을 뿌려 거대한 과수원으로 일궈낸 것과 같습니다.
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(to right, #f8fafc, #f1f5f9); padding: 25px; border-radius: 14px; border: 1px solid #cbd5e1; margin-top: 30px; margin-bottom: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">
+                        <h3 style="margin-top: 0; color: #0f172a; font-size: 1.4rem;">🎖️ 박가이버 사령관의 종합 진단 및 실전 리포트</h3>
+                        
+                        <div style="display: flex; gap: 15px; margin: 15px 0;">
+                            <div style="background: #ffffff; padding: 12px 18px; border-radius: 10px; border: 1px solid #cbd5e1; flex: 1;">
+                                <span style="font-size: 0.85rem; color: #64748b; font-weight: 700;">작전 종합 점수</span><br>
+                                <span style="font-size: 1.4rem; color: #2563eb; font-weight: 900;">{perf_score}점 / 100점</span>
+                            </div>
+                            <div style="background: #ffffff; padding: 12px 18px; border-radius: 10px; border: 1px solid #cbd5e1; flex: 1.5;">
+                                <span style="font-size: 0.85rem; color: #64748b; font-weight: 700;">종합 평가 등급</span><br>
+                                <span style="font-size: 1.4rem; color: #16a34a; font-weight: 900;">{grade_title}</span>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 1.02rem; color: #334155; line-height: 1.6; margin-top: 15px;">
+                            <b>✨ 1. 잘된 점 (강점):</b> {pros_text}
                         </p>
-                        <p style="font-size: 1.05rem; color: #14532d; line-height: 1.6; margin-bottom: 12px;">
-                            <b>2. 🛡️ 리스크 방어와 승률 관리:</b> 평균 70%를 상회하는 작전 승률과 철저한 손절·익절 룰 덕분에, 시장의 거친 파동 속에서도 원금을 안전하게 보호하며 지속 가능한 현금 흐름과 자산 성취를 이뤄냈습니다.
+                        <p style="font-size: 1.02rem; color: #334155; line-height: 1.6;">
+                            <b>⚠️ 2. 아쉬운 점 (한계):</b> {cons_text}
                         </p>
-                        <p style="font-size: 1.05rem; color: #14532d; line-height: 1.6; margin-bottom: 0;">
-                            <b>3. 💡 은퇴자 및 4050 실전 활용 팁:</b> 하단 <i>'제2의 연금통장 변환기'</i>에서 확인하신 것처럼, 최종 자산은 단순한 숫자가 아니라 <b>평생 마르지 않는 황금알 낳는 거위(월세·배당 연금)</b>입니다. 구독자분들과 함께 이 시스템으로 든든한 노후 현금 흐름의 지도를 완성하시기 바랍니다!
+                        <p style="font-size: 1.02rem; color: #334155; line-height: 1.6;">
+                            <b>🛠️ 3. 향후 개선할 점:</b> 1회 진입 금액 비율과 최대 슬롯 개수를 본인의 투자 성향(공격형 vs 안정형)에 맞게 미세조정하여 회전율을 극대화하세요.
+                        </p>
+                        <p style="font-size: 1.02rem; color: #1e293b; line-height: 1.6; margin-bottom: 0; background: #e2e8f0; padding: 12px; border-radius: 8px;">
+                            <b>💡 종합 실전 어드바이스:</b> {advice_text}
                         </p>
                     </div>
                     """, unsafe_allow_html=True)
