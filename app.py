@@ -284,7 +284,7 @@ else:
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
                         if year not in yearly_stats:
-                            yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0}
+                            yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0}
                         
                         daily_dividend_sum = 0
                         if date in div_df.index:
@@ -368,13 +368,14 @@ else:
 
                                     yearly_stats[year]['shares'] += buyable
                                     yearly_stats[year]['cash'] += leftover
+                                    yearly_stats[year]['share_val'] += (buyable * curr_price) # 🌟 연도별 열매 획득 금액 누적
                                     daily_returns_history.append(net_ret)
 
                                     log_reward = f"열매 {buyable}개 + 잔돈/수익 {format_money(leftover)}원" if buyable > 0 else f"{format_money(leftover)}원"
                                     trade_logs.append({
                                         '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
                                         '진입금액': f"{format_money(pos['invest_amount'])}원",
-                                        '매도금액': f"{format_money(sell_gross_val)}원",  # 🌟 [신규 추가] 매도(청산) 총금액
+                                        '매도금액': f"{format_money(sell_gross_val)}원",
                                         '진입단가': f"{format_money(pos['entry_price'])}원", '복귀일': date_str,
                                         '청산단가': f"{format_money(curr_price)}원", '순수익률': f"{net_ret:.2f}%",
                                         '정산내역': log_reward, '구분': exit_reason
@@ -559,6 +560,7 @@ else:
                                     "🎯 익절": f"{val['success']}회",
                                     "🚨 손절": f"{val['stop']}회",
                                     "📦 열매": f"{int(val['shares'])}주",
+                                    "💎 열매 획득금액": f"{format_money(val['share_val'])}원", # 🌟 [신규 추가] 연도별 열매 획득금액 표시
                                     "💵 현금수익": f"{format_money(val['cash'])}원"
                                 })
                             st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
