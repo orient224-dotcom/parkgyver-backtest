@@ -567,17 +567,25 @@ else:
                                 })
                             st.dataframe(pd.DataFrame(stock_summary), use_container_width=True, hide_index=True)
 
-                    # 🌟 [업데이트] TAB 4: 현장 대기요원 평가금액 및 평가손익 표기 추가
+                    # 🌟 [업데이트] TAB 4: 현장 대기요원 합계 평가액 요약 카드 추가
                     with tab4:
                         st.write("### ⚔️ 현재 현장 대기 요원 (평가 현황)")
                         if len(active_positions) > 0:
                             active_table = []
+                            tot_inv = 0
+                            tot_eval = 0
+                            tot_prof = 0
+
                             for p in active_positions:
                                 t_code = p['ticker']
                                 curr_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else p['entry_price']
                                 eval_val = p['invest_amount'] * (curr_price / p['entry_price'])
                                 eval_profit = eval_val - p['invest_amount']
                                 ret = ((curr_price - p['entry_price']) / p['entry_price']) * 100
+
+                                tot_inv += p['invest_amount']
+                                tot_eval += eval_val
+                                tot_prof += eval_profit
 
                                 active_table.append({
                                     '요원': p['name'], 
@@ -588,6 +596,15 @@ else:
                                     '평가 손익': f"{format_money(eval_profit)}원",
                                     '현재수익률': f"{ret:.2f}%"
                                 })
+
+                            # 합계 요약 팻말(Metric) 3개 출력
+                            tot_ret_pct = (tot_prof / tot_inv * 100) if tot_inv > 0 else 0
+                            ac1, ac2, ac3 = st.columns(3)
+                            ac1.metric("💰 현장 투입 원금 합계", f"{format_money(tot_inv)}원")
+                            ac2.metric("📊 현재 총 평가금액 합계", f"{format_money(tot_eval)}원", delta=f"{tot_ret_pct:.2f}%")
+                            ac3.metric("📈 총 평가 손익 합계", f"{format_money(tot_prof)}원")
+
+                            st.write("")
                             st.dataframe(pd.DataFrame(active_table), use_container_width=True, hide_index=True)
                         else:
                             st.success("🎉 현재 현장에 대기 중인 요원이 없습니다! (100% 현금 회수 완료)")
