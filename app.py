@@ -6,15 +6,38 @@ import datetime
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
 
-# --- 1. 페이지 웹 디자인 세팅 ---
+# --- 1. 페이지 웹 디자인 세팅 (모바일 다크모드 완벽 대응 CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V6 Pro", page_icon="🛡️", layout="wide")
 
-# Custom CSS for UI
+# 스마트폰 및 다크모드 글자 잘림/눈뽕 방지 CSS
 st.markdown("""
 <style>
-    .main-header { font-size: 2.0rem; font-weight: 800; color: #1e293b; margin-bottom: 0.2rem; }
-    .sub-header { font-size: 0.95rem; color: #64748b; margin-bottom: 1.2rem; }
-    .stMetric { background-color: #ffffff; padding: 12px 16px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    /* 메트릭 카드 배경 및 글자 색상 강제 지정 (다크모드에서도 흰 배경+검은 글씨 유지) */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        padding: 12px 14px !important;
+        border-radius: 12px !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
+    }
+    
+    /* 메트릭 항목 제목 글자색 강제 고정 */
+    div[data-testid="stMetricLabel"] > label, div[data-testid="stMetricLabel"] {
+        color: #475569 !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+    }
+    
+    /* 메트릭 수치(돈/수익률) 글자색 강제 고정 */
+    div[data-testid="stMetricValue"] {
+        color: #0f172a !important;
+        font-size: 1.25rem !important;
+        font-weight: 800 !important;
+    }
+    
+    /* 타이틀 및 서브타이틀 스마트폰 대응 모바일 폰트 */
+    .main-header { font-size: 1.6rem !important; font-weight: 800; margin-bottom: 0.2rem; }
+    .sub-header { font-size: 0.88rem !important; color: #64748b; margin-bottom: 1.0rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -42,7 +65,7 @@ if "sector_db" not in st.session_state:
         }
     }
 
-# master_stock_dict 동적 갱신
+# MASTER_STOCK_DICT 갱신
 MASTER_STOCK_DICT = {}
 for sector, stocks in st.session_state["sector_db"].items():
     for name, code in stocks.items():
@@ -59,39 +82,35 @@ st.sidebar.title("🎛️ 박가이버 사령부")
 menu_choice = st.sidebar.radio(
     "모드 선택",
     ["🔎 1. 작전 구역(섹터) 탐색기", "🛡️ 2. 실전 작전 통제실 (백테스트)"],
-    index=0
+    index=1
 )
 st.sidebar.markdown("---")
 
 # =====================================================================
-# 🔎 모드 1: 작전 구역(섹터) 탐색기 (직통 연동 & 커스텀 강화)
+# 🔎 모드 1: 작전 구역(섹터) 탐색기
 # =====================================================================
 if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
-    st.markdown('<div class="main-header">🔎 작전 구역(섹터/종목) 탐색기</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">섹터별 종목을 둘러보고 바구니에담아 [작전 통제실]로 한 번에 보낼 수 있습니다.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🔎 작전 구역 탐색기</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">섹터별 종목을 둘러보고 바구니에 담아 통제실로 보낼 수 있습니다.</div>', unsafe_allow_html=True)
 
-    # -----------------------------------------------------------------
-    # A. 테마/섹터 둘러보기 & 바구니 즉시 담기
-    # -----------------------------------------------------------------
-    st.subheader("🎯 1. 테마/섹터별 종목 둘러보기 & 바구니 담기")
+    st.subheader("🎯 1. 테마/섹터별 둘러보기")
     
     col_sec1, col_sec2 = st.columns([1, 2])
     with col_sec1:
-        selected_sector = st.selectbox("📂 탐색할 섹터/테마 선택", list(st.session_state["sector_db"].keys()))
+        selected_sector = st.selectbox("📂 탐색할 섹터 선택", list(st.session_state["sector_db"].keys()))
     
     sector_stocks_dict = st.session_state["sector_db"][selected_sector]
     
     with col_sec2:
         st.write(f"▼ **[{selected_sector}] 보유 종목 리스트**")
-        # 선택한 섹터의 종목들을 다중 선택 가능한 박스로 제공
         sector_target_list = st.multiselect(
-            "바구니로 전송할 종목을 선택하세요:",
+            "바구니로 전송할 종목 선택:",
             options=list(sector_stocks_dict.keys()),
             default=list(sector_stocks_dict.keys()),
             key=f"sec_select_{selected_sector}"
         )
         
-        if st.button(f"🛒 선택한 종목들을 [백테스트 바구니]에 추가하기", type="primary"):
+        if st.button(f"🛒 선택 종목 [백테스트 바구니] 추가", type="primary"):
             added_count = 0
             for s_name in sector_target_list:
                 if s_name not in st.session_state["selected_stocks"]:
@@ -101,28 +120,25 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     st.markdown("---")
 
-    # -----------------------------------------------------------------
-    # B. 탐색기 자체 커스텀 (신규 섹터/종목 등록)
-    # -----------------------------------------------------------------
-    with st.expander("🛠️ [탐색기 커스텀] 나만의 신규 섹터 또는 종목 등록하기"):
-        tab_cust1, tab_cust2 = st.tabs(["➕ 기존 섹터에 종목 추가", "📂 신규 섹터 만들기"])
+    with st.expander("🛠️ [탐색기 커스텀] 나만의 신규 섹터/종목 등록"):
+        tab_cust1, tab_cust2 = st.tabs(["➕ 기존 섹터 종목 추가", "📂 신규 섹터 생성"])
         
         with tab_cust1:
             c_col1, c_col2, c_col3 = st.columns([1, 1, 1])
-            target_sec = c_col1.selectbox("종목을 추가할 섹터", list(st.session_state["sector_db"].keys()))
-            new_s_name = c_col2.text_input("추가할 종목명", value="삼성스파크", key="add_s_name")
+            target_sec = c_col1.selectbox("추가할 섹터", list(st.session_state["sector_db"].keys()))
+            new_s_name = c_col2.text_input("종목명", value="삼성스파크", key="add_s_name")
             new_s_code = c_col3.text_input("종목코드 (예: 005930.KS)", value="005930.KS", key="add_s_code")
             
             if st.button("➕ 해당 섹터에 종목 추가"):
                 if new_s_name and new_s_code:
                     st.session_state["sector_db"][target_sec][new_s_name] = new_s_code
                     MASTER_STOCK_DICT[new_s_name] = new_s_code
-                    st.success(f"✨ [{target_sec}] 섹터에 '{new_s_name}' 종목이 추가되었습니다!")
+                    st.success(f"✨ [{target_sec}] 섹터에 '{new_s_name}' 추가 완료!")
                     st.rerun()
 
         with tab_cust2:
             s_col1, s_col2, s_col3 = st.columns([1, 1, 1])
-            new_sec_name = s_col1.text_input("신규 섹터명 (예: 🤖 로봇 & AI)", value="🤖 로봇 & AI")
+            new_sec_name = s_col1.text_input("신규 섹터명", value="🤖 로봇 & AI")
             first_s_name = s_col2.text_input("첫 종목명", value="레인보우로보틱스")
             first_s_code = s_col3.text_input("첫 종목코드", value="277810.KQ")
             
@@ -135,17 +151,13 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
     st.markdown("---")
 
-    # -----------------------------------------------------------------
-    # C. 최종 백테스트 바구니 담기 및 직접 추가
-    # -----------------------------------------------------------------
     st.subheader("🛒 백테스트 최종 바구니")
     
-    # 바구니 직접 추가 옵션
-    with st.expander("✍️ 목록에 없는 종목 바구니에 직접 추가하기"):
+    with st.expander("✍️ 목록에 없는 종목 바구니에 직접 추가"):
         b_col1, b_col2 = st.columns(2)
         direct_name = b_col1.text_input("추가할 종목명", value="한화에어로스페이스")
         direct_code = b_col2.text_input("종목코드 (예: 012450.KS)", value="012450.KS")
-        if st.button("➕ 바구니에 즉시 담기"):
+        if st.button("➕ 바구니 즉시 담기"):
             if direct_name and direct_code:
                 MASTER_STOCK_DICT[direct_name] = direct_code
                 if direct_name not in st.session_state["selected_stocks"]:
@@ -153,9 +165,8 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                 st.success(f"🎉 '{direct_name}' 종목이 바구니에 담겼습니다!")
                 st.rerun()
 
-    # 바구니 목록 편집
     st.session_state["selected_stocks"] = st.multiselect(
-        "최종 검증을 진행할 바구니 종목 리스트:",
+        "최종 검증 진행할 바구니 종목 리스트:",
         options=list(MASTER_STOCK_DICT.keys()),
         default=st.session_state["selected_stocks"]
     )
@@ -170,15 +181,15 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         st.dataframe(pd.DataFrame(summary_data), use_container_width=True, hide_index=True)
         st.markdown("---")
         
-        if st.button("🚀 선택한 바구니 종목들로 [작전 통제실 백테스트] 실행!", type="primary"):
+        if st.button("🚀 선택한 바구니 종목으로 백테스트 실행!", type="primary"):
             st.success(f"🎉 총 {len(st.session_state['selected_stocks'])}개 종목 설정 완료!")
-            st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실 (백테스트)]를 클릭하세요!")
+            st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실]을 누르세요!")
 
 # =====================================================================
 # 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V6)
 # =====================================================================
 else:
-    st.markdown('<div class="main-header">🛡️ 박가이버표 실전 작전 통제실 (V6 Pro)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🛡️ 박가이버표 실전 작전 통제실</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">1,000만 원 원금 보호 및 스노우볼 자산 증식 알고리즘 시뮬레이터입니다.</div>', unsafe_allow_html=True)
 
     st.sidebar.subheader("⚙️ 빠른 전략 프리셋")
