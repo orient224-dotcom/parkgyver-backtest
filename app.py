@@ -157,7 +157,6 @@ for name, code in st.session_state["custom_stocks"].items():
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
 
-# 🌟 [요청 완벽 반영] 만 원 단위를 폐지하고 1,000,000원 형태로 직관적 표기하는 전용 함수
 def format_money(num):
     if num is None or pd.isna(num):
         return "-"
@@ -839,7 +838,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 🌟 [요청 완벽 적용] 대시보드 상단 메트릭 숫자를 만 원에서 순수 콤마 원화 금액으로 표기
                     m0, m1, m2, m3 = st.columns(4)
                     m0.metric("💵 금고 잔고 (가용 현금)", format_money(current_cash), delta="현재 통장 실탄")
                     m1.metric("🏁 원금 예산", format_money(total_capital_input))
@@ -997,6 +995,23 @@ else:
                             st.dataframe(pd.DataFrame(yearly_stock_fruit_list), use_container_width=True, hide_index=True)
                         else:
                             st.info("해당 기간 동안 수확된 열매가 없습니다.")
+
+                        # 🌟 [요청 완벽 반영] 3번 탭 하단 '종목별 열매 수확 총합계 리포트' 신설!
+                        st.markdown("---")
+                        st.write("#### 📦 종목별 누적 열매 수확 총합계 리포트")
+                        total_stock_fruit_summary = []
+                        for s_name in PORTFOLIO_UNIVERSE.keys():
+                            total_shares = free_shares_dict.get(s_name, 0)
+                            t_code = PORTFOLIO_UNIVERSE[s_name]
+                            c_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else 0
+                            eval_val = total_shares * c_price
+                            total_stock_fruit_summary.append({
+                                "작전 구역 (종목명)": s_name,
+                                "총 수확한 열매(주식) 수": f"{total_shares}주",
+                                "현재 1주 단가": format_exact_price(c_price),
+                                "현재 열매 총 평가액": format_money(eval_val)
+                            })
+                        st.dataframe(pd.DataFrame(total_stock_fruit_summary), use_container_width=True, hide_index=True)
 
                         st.markdown("---")
                         st.write("#### 🏆 종목별 작전 성과 순위표 (1위~최하위)")
