@@ -182,12 +182,18 @@ def format_money(num):
     else:
         return f"{sign}{abs_num:,}원"
 
-# 🌟 [현장요원 & 장부거래 내역 전용] 순수 콤마 원화 숫자 표기 함수 (예: 1,000,000)
+# 🌟 현장요원 & 장부거래 내역 전용: 순수 콤마 원화 숫자 표기 함수
 def format_pure_number(num):
     if num is None or pd.isna(num):
         return "-"
     num_int = int(round(num))
     return f"{num_int:,}"
+
+# 🌟 매매장부용 단가 표기 함수 (원 포함)
+def format_exact_price(num):
+    if num is None or pd.isna(num):
+        return "-"
+    return f"{int(round(num)):,}원"
 
 @st.cache_data(ttl=3600)
 def analyze_stock_suitability(stock_dict, invest_amount=2000000):
@@ -530,7 +536,7 @@ else:
                         div_df = raw_df['Dividends'] if 'Dividends' in raw_df.columns.levels[0] else pd.DataFrame(index=raw_df.index, columns=tickers).fillna(0)
                     else:
                         close_df = pd.DataFrame({tickers[0]: raw_df['Close']})
-                        div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_index)
+                        div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_df.index)
 
                     return_df = close_df.pct_change() * 100
                     sma200_df = close_df.rolling(window=200).mean()
@@ -585,9 +591,10 @@ else:
                             total_dividend_profit += daily_dividend_sum
                             trade_logs.append({
                                 '요원': '시스템', '작전 구역': '배당금(꿀) 수금', '출격일': date_str,
-                                '출격 당일 등락률': '-',
-                                '진입금액': '-', '매도금액': '-', '진입단가': '-', '복귀일': date_str,
-                                '청산단가': '-', '등락폭': '-', '소요기간': '-', '순수익률': '-',
+                                '진입일 등락률': '-',
+                                '진입금액': '-', '진입단가': '-', '복귀일': date_str,
+                                '청산일 등락률': '-', '청산단가': '-', '매도금액': '-',
+                                '등락폭': '-', '소요기간': '-', '순수익률': '-',
                                 '정산내역': f"🍯 꿀 수입: +{format_pure_number(daily_dividend_sum)}원", '구분': '🌟 특별 보너스'
                             })
                         
@@ -659,20 +666,21 @@ else:
 
                                     log_reward = f"열매 {buyable}개 + 잔돈 {format_pure_number(leftover)}원" if buyable > 0 else f"{format_pure_number(leftover)}원"
                                     
-                                    # 🌟 [신규 추가] 출격일 옆 출격 당일 등락률 표기 (예: 한미반도체 -7.0%)
-                                    day_ret_val = pos.get('entry_day_ret', 0)
-                                    day_ret_str = f"{pos['stock_name']} {day_ret_val:+.1f}%"
+                                    # 🌟 [신규 적용] 진입/청산 당일 등락률 추출
+                                    entry_day_ret = pos.get('entry_day_ret', 0)
+                                    exit_day_ret = float(return_df.loc[date, t_code]) if date in return_df.index and t_code in return_df.columns and not pd.isna(return_df.loc[date, t_code]) else 0.0
 
                                     trade_logs.append({
                                         '요원': pos['name'], 
                                         '작전 구역': pos['stock_name'], 
                                         '출격일': pos['entry_date'],
-                                        '출격 당일 등락률': day_ret_str, # 🌟 신규 컬럼!
+                                        '진입일 등락률': f"{entry_day_ret:+.2f}%", 
                                         '진입금액': f"{format_pure_number(pos['invest_amount'])}원",
-                                        '매도금액': f"{format_pure_number(sell_gross_val)}원",
-                                        '진입단가': f"{format_pure_number(pos['entry_price'])}원", 
+                                        '진입단가': format_exact_price(pos['entry_price']), 
                                         '복귀일': date_str,
-                                        '청산단가': f"{format_pure_number(curr_price)}원",
+                                        '청산일 등락률': f"{exit_day_ret:+.2f}%", 
+                                        '청산단가': format_exact_price(curr_price),
+                                        '매도금액': f"{format_pure_number(sell_gross_val)}원",
                                         '등락폭': price_change_str,
                                         '소요기간': duration_str,
                                         '순수익률': f"{net_ret:.2f}%",
@@ -738,7 +746,7 @@ else:
                                         'entry_price': c_price, 
                                         'entry_date': date_str, 
                                         'invest_amount': actual_invest,
-                                        'entry_day_ret': ret_val # 🌟 당일 하락률 저장!
+                                        'entry_day_ret': ret_val 
                                     })
 
                         curr_count = len(active_positions)
@@ -1017,7 +1025,7 @@ else:
                         else:
                             st.success("🎉 감시 종목 전체가 마이너스 없이 훌륭한 승률과 손익비를 기록했습니다!")
 
-                    # 🌟 [요청사항 반영] 4번 탭: 현장요원 및 매매장부 순수 콤마 숫자(예: 1,310,000원) 및 당일 등락률 적용
+                    # 🌟 [수정 완료] 현장요원 및 매매장부
                     with tab4:
                         st.write("### ⚔️ 현재 현장 대기 요원 (평가 현황)")
                         if len(active_positions) > 0:
@@ -1035,16 +1043,15 @@ else:
                                 tot_eval += eval_val
                                 tot_prof += eval_profit
 
-                                # 🌟 출격 당일 등락률 문자열
+                                # 대기 요원은 '진입일 등락률'만 순수 %로 표기 (종목명 제거)
                                 day_ret_val = p.get('entry_day_ret', 0)
-                                day_ret_str = f"{p['stock_name']} {day_ret_val:+.1f}%"
 
                                 active_table.append({
                                     '요원': p['name'], 
                                     '구역명': p['stock_name'], 
                                     '출격일': p['entry_date'],
-                                    '출격 당일 등락률': day_ret_str, # 🌟 새로 추가!
-                                    '출격 당시 주가': f"{format_pure_number(p['entry_price'])}원",
+                                    '진입일 등락률': f"{day_ret_val:+.2f}%", 
+                                    '출격 당시 주가': format_exact_price(p['entry_price']),
                                     '진입금액': f"{format_pure_number(p['invest_amount'])}원",
                                     '현재 평가금액': f"{format_pure_number(eval_val)}원",
                                     '평가 손익': f"{format_pure_number(eval_profit)}원",
@@ -1066,6 +1073,15 @@ else:
                         st.write("### 📜 전체 매매 장부 (최근 순)")
                         if trade_logs:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
+                            
+                            # 매매 장부 컬럼 순서를 보기 좋게 강제 정렬
+                            columns_order = [
+                                '요원', '작전 구역', '출격일', '진입일 등락률', '진입금액', '진입단가',
+                                '복귀일', '청산일 등락률', '청산단가', '매도금액', '등락폭', '소요기간', 
+                                '순수익률', '정산내역', '구분'
+                            ]
+                            logs_df = logs_df[[col for col in columns_order if col in logs_df.columns]]
+                            
                             st.dataframe(logs_df, use_container_width=True)
 
                     perf_score = min(100, max(50, int(70 + (total_return_pct / 15) + (win_rate - 50))))
