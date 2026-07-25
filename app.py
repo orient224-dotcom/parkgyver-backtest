@@ -35,7 +35,7 @@ st.markdown("""
     }
     div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] * {
         color: #0f172a !important;
-        font-size: 1.4rem !important;
+        font-size: 1.35rem !important;
         font-weight: 900 !important;
     }
     .hero-banner {
@@ -157,30 +157,13 @@ for name, code in st.session_state["custom_stocks"].items():
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
 
+# 🌟 [요청 완벽 반영] 만 원 단위를 폐지하고 1,000,000원 형태로 직관적 표기하는 전용 함수
 def format_money(num):
     if num is None or pd.isna(num):
         return "-"
-    num = round(num)
-    abs_num = abs(num)
-    sign = "-" if num < 0 else ""
-    if abs_num >= 100000000:
-        eok = abs_num // 100000000
-        man = (abs_num % 100000000) // 10000
-        if man > 0:
-            return f"{sign}{eok:,}억 {man:,}만 원"
-        return f"{sign}{eok:,}억 원"
-    elif abs_num >= 10000:
-        man = abs_num / 10000
-        if man >= 100:
-            if man == int(man):
-                return f"{sign}{int(man):,}만 원"
-            return f"{sign}{man:,.1f}만 원"
-        else:
-            if man == int(man):
-                return f"{sign}{int(man):,}만 원"
-            return f"{sign}{man:,.1f}만 원"
-    else:
-        return f"{sign}{abs_num:,}원"
+    num_int = int(round(num))
+    sign = "-" if num_int < 0 else ""
+    return f"{sign}{abs(num_int):,}원"
 
 def format_pure_number(num):
     if num is None or pd.isna(num):
@@ -374,9 +357,9 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         rec_def = total_budget_input // 8
 
         r_col1, r_col2, r_col3 = st.columns(3)
-        r_col1.metric("🎯 표준 권장 (5슬롯 균형)", f"{format_pure_number(rec_std)}원", delta="총 예산의 20%")
-        r_col2.metric("⚡ 적극 공격 (3슬롯 회전)", f"{format_pure_number(rec_aggr)}원", delta="총 예산의 33%")
-        r_col3.metric("🛡️ 철벽 방어 (8슬롯 연금)", f"{format_pure_number(rec_def)}원", delta="총 예산의 12.5%")
+        r_col1.metric("🎯 표준 권장 (5슬롯 균형)", format_money(rec_std), delta="총 예산의 20%")
+        r_col2.metric("⚡ 적극 공격 (3슬롯 회전)", format_money(rec_aggr), delta="총 예산의 33%")
+        r_col3.metric("🛡️ 철벽 방어 (8슬롯 연금)", format_money(rec_def), delta="총 예산의 12.5%")
 
         st.markdown("---")
         st.markdown("#### 🎯 바구니 종목 작전 적합도 & 단가 검진 리포트")
@@ -455,8 +438,6 @@ else:
 
     buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, buy_preset, 1)
     sell_target_input = st.sidebar.slider("🎯 익절 목표 (+%)", 1, 30, sell_preset, 1)
-    
-    # 🌟 [요청사항 수정 반영] 손절 기준 슬라이더 1단위 미세 조정 지원 (0 ~ 50, step=1)
     stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1)
 
     st.sidebar.subheader("💸 거래비용 적용")
@@ -858,6 +839,7 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
+                    # 🌟 [요청 완벽 적용] 대시보드 상단 메트릭 숫자를 만 원에서 순수 콤마 원화 금액으로 표기
                     m0, m1, m2, m3 = st.columns(4)
                     m0.metric("💵 금고 잔고 (가용 현금)", format_money(current_cash), delta="현재 통장 실탄")
                     m1.metric("🏁 원금 예산", format_money(total_capital_input))
@@ -1088,7 +1070,7 @@ else:
 
                                 if w_rate < 50:
                                     cause = f"하향 하락 추세가 장기화되어 진입 후 목표가(+{sell_target_input}%) 도달 전 손절선(-{stop_loss_input}%)에 지속 저촉되었습니다."
-                                    solution = f"진입 기준 하락폭(-%)을 현재(-{buy_cond_input}%)보다 더 깊게(-7%~-10%) 잡거나, 폭락장 우산 스위치 및 타임 컷을 켜두시는 것을 추천합니다."
+                                    solution = f"진입 기준 하락폭(-%)을 현재(-{buy_cond_input}%)보다 더 깊게(-7%~-10%) 잡거나, 폭락장 우산 스위치 및 타임 컷을 켜두하시는 것을 추천합니다."
                                 elif net_p < 0:
                                     cause = f"익절 건수({succs}회) 대비 손절 발생 시({stops}회) 깎여나간 손실폭이 상대적으로 컸습니다."
                                     solution = f"익절 목표(+{sell_target_input}%)를 상향 조정하거나 손절폭(-{stop_loss_input}%)을 단단하게 죄어 손실을 줄이세요."
