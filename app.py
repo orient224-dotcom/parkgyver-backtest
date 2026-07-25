@@ -777,9 +777,24 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    st.subheader("🏆 백테스트 최종 성과 대시보드")
+                    # 🌟 [신규 추가] 조회일 기준 시각 및 명확한 검증 기간(시작일~종료일) 표기
+                    current_query_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    backtest_period_str = f"{start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')} ({period_label})"
+                    
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.5rem; color: #0f172a; font-weight: 800;">🏆 백테스트 최종 성과 대시보드</h2>
+                            <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #475569; font-weight: 700;">
+                                📅 검증 기간: <b style="color: #2563eb;">{backtest_period_str}</b>
+                            </p>
+                        </div>
+                        <span style="font-size: 0.9rem; color: #64748b; font-weight: 600; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                            🕒 조회 시각: <b style="color: #0284c7;">{current_query_time}</b>
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                    # 🌟 [신규 추가] 금고 잔고(가용 현금) 카드를 첫 번째로 배치하여 한눈에 보이도록 함!
                     m0, m1, m2, m3 = st.columns(4)
                     m0.metric("💵 금고 잔고 (가용 현금)", format_money(current_cash), delta="현재 통장 실탄")
                     m1.metric("🏁 원금 예산", format_money(total_capital_input))
@@ -812,7 +827,7 @@ else:
                                 <h3 style="color: #f59e0b; margin: 0; font-size: 1.5rem;">🎥 당귀다TV X 박가이버 사령부 V8</h3>
                                 <span style="background: #2563eb; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold;">VERIFIED QUANT</span>
                             </div>
-                            <p style="font-size: 1.05rem; color: #94a3b8; margin-top: 8px;"><b>주요 감시 종목:</b> {', '.join(list(PORTFOLIO_UNIVERSE.keys())[:5])} 등</p>
+                            <p style="font-size: 1.05rem; color: #94a3b8; margin-top: 8px;"><b>검증 종목:</b> {', '.join(list(PORTFOLIO_UNIVERSE.keys())[:5])} 등 | <b>기간:</b> {backtest_period_str}</p>
                             <hr style="border-color: #334155; margin: 15px 0;">
                             <div style="display: flex; justify-content: space-between; font-size: 1.1rem; line-height: 2.0;">
                                 <div>
