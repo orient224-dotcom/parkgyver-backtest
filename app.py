@@ -58,8 +58,6 @@ st.markdown("""
         color: #94a3b8;
         margin-top: 6px;
     }
-
-    /* 🌟 [카드형 입체 탭 디자인] */
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
         background-color: #e2e8f0;
@@ -143,19 +141,22 @@ KOREAN_STOCK_MASTER = {
 }
 
 MASTER_STOCK_DICT = {}
+TICKER_TO_SECTOR = {} # 🌟 섹터 쏠림 방지를 위한 역매핑 딕셔너리
 for sector, stocks in st.session_state["sector_db"].items():
     for name, code in stocks.items():
         MASTER_STOCK_DICT[name] = code
+        TICKER_TO_SECTOR[code] = sector
 for name, code in KOREAN_STOCK_MASTER.items():
     if name not in MASTER_STOCK_DICT:
         MASTER_STOCK_DICT[name] = code
+        TICKER_TO_SECTOR[code] = "기타 우량주"
 for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
+    TICKER_TO_SECTOR[code] = "커스텀 종목"
 
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["한국콜마", "RFHIC", "테크윙", "한미반도체", "HPSP"]
 
-# 요약 카드용 축약 단위 (만 원/억 원)
 def format_money(num):
     if num is None or pd.isna(num):
         return "-"
@@ -182,14 +183,12 @@ def format_money(num):
     else:
         return f"{sign}{abs_num:,}원"
 
-# 🌟 현장요원 & 장부거래 내역 전용: 순수 콤마 원화 숫자 표기 함수
 def format_pure_number(num):
     if num is None or pd.isna(num):
         return "-"
     num_int = int(round(num))
     return f"{num_int:,}"
 
-# 🌟 매매장부용 단가 표기 함수 (원 포함)
 def format_exact_price(num):
     if num is None or pd.isna(num):
         return "-"
@@ -315,6 +314,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
             if resolved_name and resolved_code:
                 st.session_state["custom_stocks"][resolved_name] = resolved_code
                 MASTER_STOCK_DICT[resolved_name] = resolved_code
+                TICKER_TO_SECTOR[resolved_code] = "커스텀 종목"
                 
                 if resolved_name not in st.session_state["selected_stocks"]:
                     st.session_state["selected_stocks"].append(resolved_name)
@@ -436,7 +436,10 @@ else:
 
     st.sidebar.subheader("🛡️ 스마트 방어 스위치")
     use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="주가가 200일 이평선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
-
+    
+    # 🌟 [신규] 섹터 몰빵(쏠림) 방지 기능
+    use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
+    
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
     valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
     
@@ -458,6 +461,9 @@ else:
     max_active_slots = max(1, int(total_capital_input // invest_amount_input))
     st.sidebar.info(f"💡 동원 가능 요원 슬롯: **{max_active_slots}개**")
 
+    # 동일 섹터당 최대 진입 가능 슬롯 수 (기본적으로 전체 슬롯의 절반 또는 최소 1개)
+    max_sector_slots = max(1, max_active_slots // 2)
+
     use_compounding = st.sidebar.checkbox("🚀 복리 스케일업 모드", value=True)
     time_unit = st.sidebar.radio("🗓️ 기간 단위", ["월 단위 (개월)", "년 단위 (년)"], horizontal=True)
 
@@ -477,6 +483,9 @@ else:
     use_fee = st.sidebar.checkbox("수수료/거래세 반영", value=True)
     broker_fee_pct = (st.sidebar.number_input("위탁수수료 (%)", value=0.015, format="%.3f") / 100) if use_fee else 0.0
     tax_pct = (st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100) if use_fee else 0.0
+    
+    # 🌟 [신규] 체결 오차(슬리피지) 안전마진 입력 추가
+    slippage_pct = (st.sidebar.number_input("체결 오차 (슬리피지) (%)", value=0.10, format="%.2f", help="실제 호가에서 밀려 체결되는 오차율을 보수적으로 선반영합니다.") / 100) if use_fee else 0.0
 
     reward_type = st.sidebar.selectbox(
         "🎁 전리품 수령 방식", 
@@ -523,19 +532,24 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 선택된 종목이 없습니다. 1개 이상 선택해 주세요.")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 배당금 및 MDD 데이터를 퀀트 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 배당금 및 MDD 데이터를 퀀트 분석 중입니다..."):
                 try:
                     end_date = datetime.datetime.today()
                     start_date = end_date - relativedelta(months=months_input)
                     tickers = list(PORTFOLIO_UNIVERSE.values())
                     
-                    raw_df = yf.download(tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), actions=True, progress=False)
+                    # 🌟 [신규] KOSPI, KOSDAQ 벤치마크 데이터 로드
+                    bench_tickers = ["^KS11", "^KQ11"]
+                    raw_df = yf.download(tickers + bench_tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), actions=True, progress=False)
 
                     if isinstance(raw_df.columns, pd.MultiIndex):
-                        close_df = raw_df['Close']
-                        div_df = raw_df['Dividends'] if 'Dividends' in raw_df.columns.levels[0] else pd.DataFrame(index=raw_df.index, columns=tickers).fillna(0)
+                        close_df = raw_df['Close'][tickers]
+                        bench_df = raw_df['Close'][bench_tickers] if '^KS11' in raw_df['Close'] else pd.DataFrame()
+                        div_df = raw_df['Dividends'][tickers] if 'Dividends' in raw_df.columns.levels[0] else pd.DataFrame(index=raw_df.index, columns=tickers).fillna(0)
                     else:
+                        # Fallback for single ticker
                         close_df = pd.DataFrame({tickers[0]: raw_df['Close']})
+                        bench_df = pd.DataFrame()
                         div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_df.index)
 
                     return_df = close_df.pct_change() * 100
@@ -616,8 +630,10 @@ else:
                                     buy_fee = pos['invest_amount'] * broker_fee_pct
                                     sell_fee = sell_gross_val * broker_fee_pct
                                     sell_tax = sell_gross_val * tax_pct
-                                    total_trade_cost = buy_fee + sell_fee + sell_tax
-                                    total_fee_tax_paid += total_trade_cost
+                                    
+                                    # 🌟 [신규 적용] 실전 체결 오차(슬리피지) 비용 추가 차감
+                                    slippage_cost = (pos['invest_amount'] * slippage_pct) + (sell_gross_val * slippage_pct)
+                                    total_trade_cost = buy_fee + sell_fee + sell_tax + slippage_cost
 
                                     net_profit = (sell_gross_val - pos['invest_amount']) - total_trade_cost
                                     net_ret = (net_profit / pos['invest_amount']) * 100
@@ -666,7 +682,6 @@ else:
 
                                     log_reward = f"열매 {buyable}개 + 잔돈 {format_pure_number(leftover)}원" if buyable > 0 else f"{format_pure_number(leftover)}원"
                                     
-                                    # 🌟 [신규 적용] 진입/청산 당일 등락률 추출
                                     entry_day_ret = pos.get('entry_day_ret', 0)
                                     exit_day_ret = float(return_df.loc[date, t_code]) if date in return_df.index and t_code in return_df.columns and not pd.isna(return_df.loc[date, t_code]) else 0.0
 
@@ -719,7 +734,19 @@ else:
                                 actual_invest = min(dynamic_invest_amount, current_cash)
                                 c_price = cand[3]
                                 ret_val = cand[2]
+                                t_code = cand[1]
                                 
+                                # 🌟 [신규 적용] 동일 섹터 몰빵(쏠림) 방지 캡 적용
+                                if use_sector_limit:
+                                    c_sector = TICKER_TO_SECTOR.get(t_code, "기타")
+                                    current_sector_count = sum(1 for p in active_positions if TICKER_TO_SECTOR.get(p['ticker'], "기타") == c_sector)
+                                    if current_sector_count >= max_sector_slots:
+                                        missed_opportunities.append({
+                                            "발생 일자": date_str, "미출격 종목": cand[0], "당일 하락률": f"{cand[2]:.2f}%",
+                                            "불가 사유": f"특정 섹터({c_sector}) 쏠림 방지 캡 도달 (최대 {max_sector_slots}개)"
+                                        })
+                                        continue # 이 종목은 패스!
+
                                 if c_price > actual_invest:
                                     missed_opportunities.append({
                                         "발생 일자": date_str, "미출격 종목": cand[0], "당일 하락률": f"{cand[2]:.2f}%",
@@ -767,6 +794,23 @@ else:
                             max_drawdown_pct = current_drawdown
 
                         asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
+
+                    # 🌟 [신규 적용] 벤치마크 누적 수익률 계산 (시작점 = 내 원금 1,000만 원으로 맞춤)
+                    if not bench_df.empty and '^KS11' in bench_df.columns:
+                        kospi_base = float(bench_df['^KS11'].iloc[0])
+                        kosdaq_base = float(bench_df['^KQ11'].iloc[0])
+                        for i in range(len(asset_history)):
+                            dt = asset_history[i]["Date"]
+                            if dt in bench_df.index:
+                                asset_history[i]["KOSPI"] = (bench_df.loc[dt, '^KS11'] / kospi_base) * total_capital_input
+                                asset_history[i]["KOSDAQ"] = (bench_df.loc[dt, '^KQ11'] / kosdaq_base) * total_capital_input
+                            else:
+                                asset_history[i]["KOSPI"] = asset_history[i-1]["KOSPI"] if i > 0 else total_capital_input
+                                asset_history[i]["KOSDAQ"] = asset_history[i-1]["KOSDAQ"] if i > 0 else total_capital_input
+                    else:
+                        for i in range(len(asset_history)):
+                            asset_history[i]["KOSPI"] = total_capital_input
+                            asset_history[i]["KOSDAQ"] = total_capital_input
 
                     last_row = close_df.iloc[-1]
                     active_eval_value = sum([p['invest_amount'] * (float(last_row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in last_row and not pd.isna(last_row[p['ticker']])])
@@ -879,17 +923,21 @@ else:
                     ])
 
                     with tab1:
-                        st.write("### 📈 백테스트 기간 자산 성장 & MDD 파도 차트")
+                        st.write("### 📈 백테스트 기간 자산 성장 & 벤치마크 & MDD 차트")
                         asset_df = pd.DataFrame(asset_history)
                         
-                        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 ({period_label})", "계좌 최대 낙폭 (MDD Underwater)"))
+                        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 (시장 지수 비교)", "계좌 최대 낙폭 (MDD Underwater)"))
 
-                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='총자산', line=dict(color='#2563eb', width=2.5), fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'), row=1, col=1)
-                        fig.add_hline(y=total_capital_input, line_dash="dash", line_color="#ef4444", annotation_text="원금", row=1, col=1)
+                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='내 총자산 (박가이버 전략)', line=dict(color='#2563eb', width=3), fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'), row=1, col=1)
+                        # 🌟 [신규 적용] KOSPI, KOSDAQ 비교 벤치마크 라인 추가
+                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSPI'], mode='lines', name='KOSPI 지수 (단순 보유 시)', line=dict(color='#94a3b8', width=1.5, dash='dash')), row=1, col=1)
+                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSDAQ'], mode='lines', name='KOSDAQ 지수 (단순 보유 시)', line=dict(color='#cbd5e1', width=1.5, dash='dot')), row=1, col=1)
+                        
+                        fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
 
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='낙폭(MDD)', line=dict(color='#dc2626', width=1.5), fill='tozeroy', fillcolor='rgba(220, 38, 38, 0.15)'), row=2, col=1)
 
-                        fig.update_layout(height=580, template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), hovermode="x unified")
+                        fig.update_layout(height=650, template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
                         st.plotly_chart(fig, use_container_width=True)
 
                     with tab2:
@@ -1025,7 +1073,6 @@ else:
                         else:
                             st.success("🎉 감시 종목 전체가 마이너스 없이 훌륭한 승률과 손익비를 기록했습니다!")
 
-                    # 🌟 [수정 완료] 현장요원 및 매매장부
                     with tab4:
                         st.write("### ⚔️ 현재 현장 대기 요원 (평가 현황)")
                         if len(active_positions) > 0:
@@ -1043,7 +1090,6 @@ else:
                                 tot_eval += eval_val
                                 tot_prof += eval_profit
 
-                                # 대기 요원은 '진입일 등락률'만 순수 %로 표기 (종목명 제거)
                                 day_ret_val = p.get('entry_day_ret', 0)
 
                                 active_table.append({
@@ -1070,11 +1116,11 @@ else:
                             st.success("🎉 현재 현장에 대기 중인 요원이 없습니다! (100% 현금 회수 완료)")
 
                         st.markdown("---")
+                        
                         st.write("### 📜 전체 매매 장부 (최근 순)")
                         if trade_logs:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             
-                            # 매매 장부 컬럼 순서를 보기 좋게 강제 정렬
                             columns_order = [
                                 '요원', '작전 구역', '출격일', '진입일 등락률', '진입금액', '진입단가',
                                 '복귀일', '청산일 등락률', '청산단가', '매도금액', '등락폭', '소요기간', 
@@ -1082,13 +1128,32 @@ else:
                             ]
                             logs_df = logs_df[[col for col in columns_order if col in logs_df.columns]]
                             
-                            st.dataframe(logs_df, use_container_width=True)
+                            # 🌟 [신규 적용] 정상 복귀 / 강제 철수 한눈에 들어오는 컬러링 함수!
+                            def color_status(val):
+                                if isinstance(val, str):
+                                    if '정상 복귀' in val:
+                                        return 'background-color: rgba(34, 197, 94, 0.15); color: #166534; font-weight: bold;'
+                                    elif '강제 철수' in val:
+                                        return 'background-color: rgba(239, 68, 68, 0.15); color: #991b1b; font-weight: bold;'
+                                return ''
+                            
+                            styled_logs = logs_df.style.map(color_status, subset=['구분'])
+                            st.dataframe(styled_logs, use_container_width=True)
+                            
+                            # 🌟 [신규 적용] 엑셀(CSV) 다운로드 버튼 장착
+                            csv_data = logs_df.to_csv(index=False).encode('utf-8-sig')
+                            st.download_button(
+                                label="📥 엑셀(CSV) 파일로 매매 장부 다운로드 받기",
+                                data=csv_data,
+                                file_name=f"당귀다TV_박가이버_사령부_매매장부_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
+                                mime="text/csv",
+                            )
 
                     perf_score = min(100, max(50, int(70 + (total_return_pct / 15) + (win_rate - 50))))
                     grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
                     
                     missed_cnt = len(missed_opportunities)
-                    cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족 또는 단가 초과)이 발생했습니다." if missed_cnt > 0 else "종목들이 타이밍에 맞춰 빠르게 회전하여 놓친 기회는 없었으나, 자금이 100% 풀가동되는 과정에서 예비 현금 곳간이 다소 타이트하게 운용되어 돌발 하락장 대응 여유가 다소 부족할 수 있었습니다."
+                    cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯/섹터 초과 제한)이 발생했습니다." if missed_cnt > 0 else "종목들이 타이밍에 맞춰 빠르게 회전하여 놓친 기회는 없었으나, 자금이 100% 풀가동되는 과정에서 예비 현금 곳간이 다소 타이트하게 운용되어 돌발 하락장 대응 여유가 다소 부족할 수 있었습니다."
                     
                     pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률 **{win_rate:.1f}%**, 최대 낙폭(MDD) **{max_drawdown_pct:.1f}%**로 매우 우수합니다."
                     advice_text = "복리 스케일업 모드와 폭락장 우산 스위치, 그리고 제미니 AI 참모의 실시간 진입금 처방전을 함께 활용해 리스크를 철저히 방어하세요."
