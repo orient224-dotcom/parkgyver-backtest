@@ -129,7 +129,7 @@ if "custom_stocks" not in st.session_state:
 
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
-    "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
+    "현대힘ส": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
     "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
     "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
@@ -996,7 +996,6 @@ else:
                         else:
                             st.info("해당 기간 동안 수확된 열매가 없습니다.")
 
-                        # 🌟 [요청 완벽 반영] 3번 탭 하단 '종목별 열매 수확 총합계 리포트' 신설!
                         st.markdown("---")
                         st.write("#### 📦 종목별 누적 열매 수확 총합계 리포트")
                         total_stock_fruit_summary = []
@@ -1156,6 +1155,15 @@ else:
                             ]
                             logs_df = logs_df[[col for col in columns_order if col in logs_df.columns]]
                             
+                            # 🌟 [요청 완벽 반영] 진입일 등락률 & 청산일 등락률 파스텔톤 컬러링 함수 (마이너스=연한 파랑, 플러스=연한 빨강)
+                            def color_returns(val):
+                                if isinstance(val, str) and ('%' in val):
+                                    if val.startswith('-'):
+                                        return 'background-color: rgba(37, 99, 235, 0.12); color: #1e40af; font-weight: 600;'
+                                    elif val.startswith('+'):
+                                        return 'background-color: rgba(239, 68, 68, 0.12); color: #991b1b; font-weight: 600;'
+                                return ''
+
                             def color_status(val):
                                 if isinstance(val, str):
                                     if '정상 복귀' in val:
@@ -1166,7 +1174,8 @@ else:
                                         return 'background-color: rgba(245, 158, 11, 0.15); color: #b45309; font-weight: bold;'
                                 return ''
                             
-                            styled_logs = logs_df.style.map(color_status, subset=['구분'])
+                            cols_to_style = [col for col in ['진입일 등락률', '청산일 등락률'] if col in logs_df.columns]
+                            styled_logs = logs_df.style.map(color_status, subset=['구분']).map(color_returns, subset=cols_to_style)
                             st.dataframe(styled_logs, use_container_width=True)
                             
                             report_lines = [
