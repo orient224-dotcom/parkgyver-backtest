@@ -129,7 +129,7 @@ if "custom_stocks" not in st.session_state:
 
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
-    "현대힘ส": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
+    "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
     "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
     "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
@@ -445,9 +445,15 @@ else:
     tax_pct = (st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100) if use_fee else 0.0
     slippage_pct = (st.sidebar.number_input("체결 오차 (슬리피지) (%)", value=0.10, format="%.2f", help="실제 동시호가 체결 시 일어날 수 있는 체결 오차를 보수적으로 선반영합니다.") / 100) if use_fee else 0.0
 
+    # 🌟 [요청 완벽 반영] 현금 40% + 열매 60% 하이브리드 옵션 추가
     reward_type = st.sidebar.selectbox(
         "🎁 전리품 수령 방식", 
-        ["🌟 현금 50% + 열매 50% (하이브리드)", "전액 현금으로 챙기기", "열매로 결실 모으기"]
+        [
+            "🌟 현금 50% + 열매 50% (하이브리드)", 
+            "🌟 현금 40% + 열매 60% (하이브리드 강화)", 
+            "전액 현금으로 챙기기", 
+            "열매로 결실 모으기"
+        ]
     )
     
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
@@ -459,7 +465,7 @@ else:
         2. **🕒 오후 3시 20분 동시호가 체크:** 퇴근 전 3시 20분, 이 앱을 열어 하단의 **`🚨 오늘의 실전 출격 명령서`**를 확인합니다.
         3. **🛒 원클릭 종가 매수:** 포착된 종목이 있다면, 증권사 앱(MTS/HTS)을 열고 **'종가(동시호가)'**로 회당 지정된 진입금액만큼 매수 주문을 넣습니다.
         4. **🎯 자동 목표가 예약 주문:** 매수한 다음 날 아침, 증권사 앱의 **'GTC 예약 매도(자동 매도)'** 기능을 이용해 목표가(+5%~+7%)와 손절가(-12%~-15%)를 걸어두면 매매 끝!
-        5. **📦 하이브리드 결실 수확:** 수익이 나면 50%는 현금 실탄으로 차곡차곡 쌓이고, 50%는 공짜 주식(열매)으로 내 금고에 평생 모여 배당금 꿀 수입을 가져다줍니다.
+        5. **📦 하이브리드 결실 수확:** 수익이 나면 현금 실탄으로 차곡차곡 쌓이고, 공짜 주식(열매)으로 내 금고에 평생 모여 배당금 꿀 수입을 가져다줍니다.
         """)
 
     if len(PORTFOLIO_UNIVERSE) >= 3:
@@ -629,7 +635,11 @@ else:
                                             buyable = int(max(0, net_profit) // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
                                         elif reward_type == '🌟 현금 50% + 열매 50% (하이브리드)':
-                                            share_budget = max(0, net_profit) / 2
+                                            share_budget = max(0, net_profit) * 0.5
+                                            buyable = int(share_budget // curr_price)
+                                            leftover = net_profit - (buyable * curr_price)
+                                        elif reward_type == '🌟 현금 40% + 열매 60% (하이브리드)':
+                                            share_budget = max(0, net_profit) * 0.6
                                             buyable = int(share_budget // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
                                         else:
@@ -1155,7 +1165,6 @@ else:
                             ]
                             logs_df = logs_df[[col for col in columns_order if col in logs_df.columns]]
                             
-                            # 🌟 [요청 완벽 반영] 진입일 등락률 & 청산일 등락률 파스텔톤 컬러링 함수 (마이너스=연한 파랑, 플러스=연한 빨강)
                             def color_returns(val):
                                 if isinstance(val, str) and ('%' in val):
                                     if val.startswith('-'):
