@@ -110,11 +110,11 @@ if "sector_db" not in st.session_state:
         },
         "📡 통신 & 방산 & 조선": {
             "RFHIC": "218410.KQ", "한화시스템": "272210.KS", "현대로템": "064350.KS",
-            "LIG넥스원": "079550.KS", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "두산에너빌리티": "034020.KS"
+            "LIG넥스원": "079550.KS", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "두산에너빌리티": "034020.KS", "HD현대일렉트릭": "267260.KS"
         },
         "🔋 2차전지 & 에코": {
             "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
-            "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ"
+            "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS"
         },
         "🚗 자동차 & 대표 제조": {
             "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS"
@@ -155,7 +155,7 @@ for name, code in st.session_state["custom_stocks"].items():
     TICKER_TO_SECTOR[code] = "커스텀 종목"
 
 if "selected_stocks" not in st.session_state:
-    st.session_state["selected_stocks"] = ["테크윙", "HPSP", "뉴파워프라즈마", "피에스케이", "두산에너빌리티"]
+    st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
 
 def format_money(num):
     if num is None or pd.isna(num):
@@ -406,6 +406,12 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
+    st.sidebar.subheader("💡 [추천] AI 시대 1,000만 원 황금 조합")
+    if st.sidebar.button("🤖 AI시대 1,000만 원 추천 조합 자동 세팅", type="primary"):
+        st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
+        st.sidebar.success("🎉 [SK하이닉스, 한미반도체, 테크윙, HD현대일렉트릭, HPSP] 추천 5종목이 세팅되었습니다!")
+        st.rerun()
+
     st.sidebar.subheader("⚙️ 빠른 전략 프리셋")
     preset_col1, preset_col2 = st.sidebar.columns(2)
     buy_preset, sell_preset = 5, 5
@@ -419,8 +425,6 @@ else:
     st.sidebar.subheader("🛡️ 스마트 방어 스위치")
     use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="주가가 200일 이평선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
-    
-    # 🌟 [신규 추가] 타임 컷 (최대 보유 기간 제한) 스위치 & 슬라이더!
     use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=True, help="익절/손절선에 도달하지 않더라도 지정된 날짜가 지나면 종가에 정리하여 자금 묶임 현상을 방지합니다.")
     max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 20, 5) if use_time_cut else 9999
 
@@ -451,7 +455,9 @@ else:
 
     buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, buy_preset, 1)
     sell_target_input = st.sidebar.slider("🎯 익절 목표 (+%)", 1, 30, sell_preset, 1)
-    stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 5)
+    
+    # 🌟 [요청사항 수정 반영] 손절 기준 슬라이더 1단위 미세 조정 지원 (0 ~ 50, step=1)
+    stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1)
 
     st.sidebar.subheader("💸 거래비용 적용")
     use_fee = st.sidebar.checkbox("수수료/거래세 반영", value=True)
@@ -461,12 +467,21 @@ else:
 
     reward_type = st.sidebar.selectbox(
         "🎁 전리품 수령 방식", 
-        ["전액 현금으로 챙기기", "열매로 결실 모으기", "🌟 현금 50% + 열매 50% (하이브리드)"]
+        ["🌟 현금 50% + 열매 50% (하이브리드)", "전액 현금으로 챙기기", "열매로 결실 모으기"]
     )
     
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
 
-    # 🌟 [신규 기능] 포트폴리오 섹터 쏠림 사전 경보 레이더 UI
+    with st.expander("📖 [당귀다TV] 박가이버 사령부 V8 초간단 실전 사용 설명서 (이렇게 해보세요!)", expanded=False):
+        st.markdown("""
+        ### 🛡️ 직장인을 위한 '하루 1분 동시호가 매매법' 핵심 수칙
+        1. **👔 업무 수호 (장중 감시 금지):** 장중 주가창을 열어보며 조바심을 내지 않습니다. 본업에 온전히 집중하세요!
+        2. **🕒 오후 3시 20분 동시호가 체크:** 퇴근 전 3시 20분, 이 앱을 열어 하단의 **`🚨 오늘의 실전 출격 명령서`**를 확인합니다.
+        3. **🛒 원클릭 종가 매수:** 포착된 종목이 있다면, 증권사 앱(MTS/HTS)을 열고 **'종가(동시호가)'**로 회당 지정된 진입금액만큼 매수 주문을 넣습니다.
+        4. **🎯 자동 목표가 예약 주문:** 매수한 다음 날 아침, 증권사 앱의 **'GTC 예약 매도(자동 매도)'** 기능을 이용해 목표가(+5%~+7%)와 손절가(-12%~-15%)를 걸어두면 매매 끝!
+        5. **📦 하이브리드 결실 수확:** 수익이 나면 50%는 현금 실탄으로 차곡차곡 쌓이고, 50%는 공짜 주식(열매)으로 내 금고에 평생 모여 배당금 꿀 수입을 가져다줍니다.
+        """)
+
     if len(PORTFOLIO_UNIVERSE) >= 3:
         sector_counts = {}
         for code in PORTFOLIO_UNIVERSE.values():
@@ -601,7 +616,6 @@ else:
                                 days_taken = (exit_dt - entry_dt).days
                                 duration_str = f"{days_taken}일 소요"
 
-                                # 🌟 [종가 매매 청산 우선순위 조건 로직]
                                 if gross_ret >= sell_target:
                                     is_exit, exit_reason = True, f"🎯 정상 복귀(+{sell_target_input}%)"
                                 elif stop_loss_limit is not None and gross_ret <= stop_loss_limit:
