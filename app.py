@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# --- 1. 페이지 웹 디자인 세팅 (신박하고 트렌디한 탭 디자인 CSS 강화) ---
+# --- 1. 페이지 웹 디자인 세팅 (최고급 프리미엄 UX/UI CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V8 Ultra Pro", page_icon="🛡️", layout="wide")
 
 st.markdown("""
@@ -779,7 +779,9 @@ else:
 
                     st.subheader("🏆 백테스트 최종 성과 대시보드")
 
-                    m1, m2, m3 = st.columns(3)
+                    # 🌟 [신규 추가] 금고 잔고(가용 현금) 카드를 첫 번째로 배치하여 한눈에 보이도록 함!
+                    m0, m1, m2, m3 = st.columns(4)
+                    m0.metric("💵 금고 잔고 (가용 현금)", format_money(current_cash), delta="현재 통장 실탄")
                     m1.metric("🏁 원금 예산", format_money(total_capital_input))
                     m2.metric(f"✨ {period_label} 후 총자산", format_money(final_total_asset))
                     m3.metric("📈 총 순수익금", format_money(total_net_profit), delta=f"{total_return_pct:.2f}%")
@@ -814,7 +816,7 @@ else:
                             <hr style="border-color: #334155; margin: 15px 0;">
                             <div style="display: flex; justify-content: space-between; font-size: 1.1rem; line-height: 2.0;">
                                 <div>
-                                    • 초기 종잣돈: <b>{format_money(total_capital_input)}</b><br>
+                                    • 금고 잔고(현금): <b><span style="color: #38bdf8;">{format_money(current_cash)}</span></b><br>
                                     • 최종 총자산: <b><span style="color: #4ade80; font-size: 1.3rem;">{format_money(final_total_asset)}</span></b><br>
                                     • 총 순수익률: <b><span style="color: #facc15; font-size: 1.2rem;">+{total_return_pct:.2f}%</span></b>
                                 </div>
@@ -1032,7 +1034,6 @@ else:
                     grade_title = "🏆 S급 (마스터 최우수 작전)" if perf_score >= 90 else ("🔥 A급 (우수 성장 작전)" if perf_score >= 75 else "🛡️ B급 (안정 방어 작전)")
                     
                     missed_cnt = len(missed_opportunities)
-                    # 🌟 [논리적 수정 완료] 놓친 기회가 0회일 때의 '아쉬운 점' 텍스트
                     cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯 부족 또는 단가 초과)이 발생했습니다." if missed_cnt > 0 else "종목들이 타이밍에 맞춰 빠르게 회전하여 놓친 기회는 없었으나, 자금이 100% 풀가동되는 과정에서 예비 현금 곳간이 다소 타이트하게 운용되어 돌발 하락장 대응 여유가 다소 부족할 수 있었습니다."
                     
                     pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률 **{win_rate:.1f}%**, 최대 낙폭(MDD) **{max_drawdown_pct:.1f}%**로 매우 우수합니다."
