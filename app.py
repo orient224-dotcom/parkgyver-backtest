@@ -59,7 +59,7 @@ st.markdown("""
         margin-top: 6px;
     }
 
-    /* 🌟 [신박한 카드형 입체 탭 디자인] */
+    /* 🌟 [카드형 입체 탭 디자인] */
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
         background-color: #e2e8f0;
@@ -155,6 +155,7 @@ for name, code in st.session_state["custom_stocks"].items():
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = ["한국콜마", "RFHIC", "테크윙", "한미반도체", "HPSP"]
 
+# 요약 카드용 축약 단위 (만 원/억 원)
 def format_money(num):
     if num is None or pd.isna(num):
         return "-"
@@ -181,10 +182,12 @@ def format_money(num):
     else:
         return f"{sign}{abs_num:,}원"
 
-def format_exact_price(num):
+# 🌟 [현장요원 & 장부거래 내역 전용] 순수 콤마 원화 숫자 표기 함수 (예: 1,000,000)
+def format_pure_number(num):
     if num is None or pd.isna(num):
         return "-"
-    return f"{int(round(num)):,}\원"
+    num_int = int(round(num))
+    return f"{num_int:,}"
 
 @st.cache_data(ttl=3600)
 def analyze_stock_suitability(stock_dict, invest_amount=2000000):
@@ -203,7 +206,7 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
                 if curr_price > invest_amount:
                     total_score = 0
                     fit_grade = "🚫 출격 불가 (단가 초과)"
-                    reason = f"1주 가격({format_money(curr_price)})이 진입 예산({format_money(invest_amount)})보다 비쌉니다!"
+                    reason = f"1주 가격({format_pure_number(curr_price)}원)이 진입 예산({format_pure_number(invest_amount)}원)보다 비쌉니다!"
                     buyable_qty = 0
                 else:
                     buyable_qty = int(invest_amount // curr_price)
@@ -225,7 +228,7 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
                     if buyable_qty < 3:
                         total_score = max(30, total_score - 20)
                         fit_grade = "⚠️ 주의 (단가 부담)"
-                        reason = f"1주 가격({format_money(curr_price)})이 높아 진입 시 {buyable_qty}주밖에 못 사 자금 효율이 낮습니다."
+                        reason = f"1주 가격({format_pure_number(curr_price)}원)이 높아 진입 시 {buyable_qty}주밖에 못 사 자금 효율이 낮습니다."
                     elif total_score >= 80:
                         fit_grade = "🥇 최적합 (강력 추천)"
                         reason = f"파동(±{avg_volatility:.1f}%)이 훌륭하며, 1회 진입 시 약 {buyable_qty}주씩 분할 매수 가능합니다."
@@ -239,7 +242,7 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
                 results.append({
                     "종목명": name,
                     "티커": code,
-                    "현재가(1주)": format_money(curr_price),
+                    "현재가(1주)": f"{format_pure_number(curr_price)}원",
                     "1회 진입 가능 수량": f"{buyable_qty}주",
                     "적합도 점수": f"{total_score}점",
                     "적합도 판정": fit_grade,
@@ -380,9 +383,9 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         rec_def = total_budget_input // 8
 
         r_col1, r_col2, r_col3 = st.columns(3)
-        r_col1.metric("🎯 표준 권장 (5슬롯 균형)", format_money(rec_std), delta="총 예산의 20%")
-        r_col2.metric("⚡ 적극 공격 (3슬롯 회전)", format_money(rec_aggr), delta="총 예산의 33%")
-        r_col3.metric("🛡️ 철벽 방어 (8슬롯 연금)", format_money(rec_def), delta="총 예산의 12.5%")
+        r_col1.metric("🎯 표준 권장 (5슬롯 균형)", f"{format_pure_number(rec_std)}원", delta="총 예산의 20%")
+        r_col2.metric("⚡ 적극 공격 (3슬롯 회전)", f"{format_pure_number(rec_aggr)}원", delta="총 예산의 33%")
+        r_col3.metric("🛡️ 철벽 방어 (8슬롯 연금)", f"{format_pure_number(rec_def)}원", delta="총 예산의 12.5%")
 
         st.markdown("---")
         st.markdown("#### 🎯 바구니 종목 작전 적합도 & 단가 검진 리포트")
@@ -527,7 +530,7 @@ else:
                         div_df = raw_df['Dividends'] if 'Dividends' in raw_df.columns.levels[0] else pd.DataFrame(index=raw_df.index, columns=tickers).fillna(0)
                     else:
                         close_df = pd.DataFrame({tickers[0]: raw_df['Close']})
-                        div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_df.index)
+                        div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_index)
 
                     return_df = close_df.pct_change() * 100
                     sma200_df = close_df.rolling(window=200).mean()
@@ -582,9 +585,10 @@ else:
                             total_dividend_profit += daily_dividend_sum
                             trade_logs.append({
                                 '요원': '시스템', '작전 구역': '배당금(꿀) 수금', '출격일': date_str,
+                                '출격 당일 등락률': '-',
                                 '진입금액': '-', '매도금액': '-', '진입단가': '-', '복귀일': date_str,
                                 '청산단가': '-', '등락폭': '-', '소요기간': '-', '순수익률': '-',
-                                '정산내역': f"🍯 꿀 수입: +{format_money(daily_dividend_sum)}", '구분': '🌟 특별 보너스'
+                                '정산내역': f"🍯 꿀 수입: +{format_pure_number(daily_dividend_sum)}원", '구분': '🌟 특별 보너스'
                             })
                         
                         survived_positions = []
@@ -614,7 +618,7 @@ else:
                                     
                                     price_diff = curr_price - pos['entry_price']
                                     diff_sign = "+" if price_diff >= 0 else ""
-                                    price_change_str = f"{diff_sign}{format_exact_price(price_diff)} ({gross_ret:+.2f}%)"
+                                    price_change_str = f"{diff_sign}{format_pure_number(price_diff)}원 ({gross_ret:+.2f}%)"
                                     
                                     entry_dt = pd.to_datetime(pos['entry_date'])
                                     exit_dt = pd.to_datetime(date_str)
@@ -653,18 +657,27 @@ else:
                                     yearly_stats[year]['share_val'] += (buyable * curr_price)
                                     daily_returns_history.append(net_ret)
 
-                                    log_reward = f"열매 {buyable}개 + 잔돈 {format_money(leftover)}" if buyable > 0 else format_money(leftover)
+                                    log_reward = f"열매 {buyable}개 + 잔돈 {format_pure_number(leftover)}원" if buyable > 0 else f"{format_pure_number(leftover)}원"
+                                    
+                                    # 🌟 [신규 추가] 출격일 옆 출격 당일 등락률 표기 (예: 한미반도체 -7.0%)
+                                    day_ret_val = pos.get('entry_day_ret', 0)
+                                    day_ret_str = f"{pos['stock_name']} {day_ret_val:+.1f}%"
+
                                     trade_logs.append({
-                                        '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
-                                        '진입금액': format_money(pos['invest_amount']),
-                                        '매도금액': format_money(sell_gross_val),
-                                        '진입단가': format_exact_price(pos['entry_price']), 
+                                        '요원': pos['name'], 
+                                        '작전 구역': pos['stock_name'], 
+                                        '출격일': pos['entry_date'],
+                                        '출격 당일 등락률': day_ret_str, # 🌟 신규 컬럼!
+                                        '진입금액': f"{format_pure_number(pos['invest_amount'])}원",
+                                        '매도금액': f"{format_pure_number(sell_gross_val)}원",
+                                        '진입단가': f"{format_pure_number(pos['entry_price'])}원", 
                                         '복귀일': date_str,
-                                        '청산단가': format_exact_price(curr_price),
+                                        '청산단가': f"{format_pure_number(curr_price)}원",
                                         '등락폭': price_change_str,
                                         '소요기간': duration_str,
                                         '순수익률': f"{net_ret:.2f}%",
-                                        '정산내역': log_reward, '구분': exit_reason
+                                        '정산내역': log_reward, 
+                                        '구분': exit_reason
                                     })
                                 else:
                                     survived_positions.append(pos)
@@ -697,11 +710,12 @@ else:
                             for cand in candidates:
                                 actual_invest = min(dynamic_invest_amount, current_cash)
                                 c_price = cand[3]
+                                ret_val = cand[2]
                                 
                                 if c_price > actual_invest:
                                     missed_opportunities.append({
                                         "발생 일자": date_str, "미출격 종목": cand[0], "당일 하락률": f"{cand[2]:.2f}%",
-                                        "불가 사유": f"1주 가격({format_money(c_price)})이 진입 예산({format_money(actual_invest)})을 초과함"
+                                        "불가 사유": f"1주 가격({format_pure_number(c_price)}원)이 진입 예산({format_pure_number(actual_invest)}원)을 초과함"
                                     })
                                 elif len(active_positions) >= max_active_slots:
                                     missed_opportunities.append({
@@ -711,15 +725,20 @@ else:
                                 elif actual_invest < 500000 or current_cash < 500000:
                                     missed_opportunities.append({
                                         "발생 일자": date_str, "미출격 종목": cand[0], "당일 하락률": f"{cand[2]:.2f}%",
-                                        "불가 사유": f"가용 현금 부족 ({format_money(current_cash)})"
+                                        "불가 사유": f"가용 현금 부족 ({format_pure_number(current_cash)}원)"
                                     })
                                 else:
                                     agent_counter += 1
                                     s_name, t_code, ret_val, c_price = cand
                                     current_cash -= actual_invest
                                     active_positions.append({
-                                        'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
-                                        'entry_price': c_price, 'entry_date': date_str, 'invest_amount': actual_invest
+                                        'name': f"{agent_counter}호 요원", 
+                                        'stock_name': s_name, 
+                                        'ticker': t_code,
+                                        'entry_price': c_price, 
+                                        'entry_date': date_str, 
+                                        'invest_amount': actual_invest,
+                                        'entry_day_ret': ret_val # 🌟 당일 하락률 저장!
                                     })
 
                         curr_count = len(active_positions)
@@ -777,7 +796,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 🌟 [신규 추가] 조회일 기준 시각 및 명확한 검증 기간(시작일~종료일) 표기
                     current_query_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     backtest_period_str = f"{start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')} ({period_label})"
                     
@@ -819,7 +837,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 🎥 당귀다TV 전용 요약 카드뉴스
                     with st.expander("📸 [당귀다TV 전용] 럭셔리 방송용 요약 카드뉴스 (캡처/썸네일용)"):
                         st.markdown(f"""
                         <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 28px; border-radius: 18px; border: 2px solid #f59e0b; box-shadow: 0 12px 30px rgba(0,0,0,0.3);">
@@ -1000,6 +1017,7 @@ else:
                         else:
                             st.success("🎉 감시 종목 전체가 마이너스 없이 훌륭한 승률과 손익비를 기록했습니다!")
 
+                    # 🌟 [요청사항 반영] 4번 탭: 현장요원 및 매매장부 순수 콤마 숫자(예: 1,310,000원) 및 당일 등락률 적용
                     with tab4:
                         st.write("### ⚔️ 현재 현장 대기 요원 (평가 현황)")
                         if len(active_positions) > 0:
@@ -1017,22 +1035,27 @@ else:
                                 tot_eval += eval_val
                                 tot_prof += eval_profit
 
+                                # 🌟 출격 당일 등락률 문자열
+                                day_ret_val = p.get('entry_day_ret', 0)
+                                day_ret_str = f"{p['stock_name']} {day_ret_val:+.1f}%"
+
                                 active_table.append({
                                     '요원': p['name'], 
                                     '구역명': p['stock_name'], 
                                     '출격일': p['entry_date'],
-                                    '출격 당시 주가': format_exact_price(p['entry_price']),
-                                    '진입금액': format_money(p['invest_amount']),
-                                    '현재 평가금액': format_money(eval_val),
-                                    '평가 손익': format_money(eval_profit),
+                                    '출격 당일 등락률': day_ret_str, # 🌟 새로 추가!
+                                    '출격 당시 주가': f"{format_pure_number(p['entry_price'])}원",
+                                    '진입금액': f"{format_pure_number(p['invest_amount'])}원",
+                                    '현재 평가금액': f"{format_pure_number(eval_val)}원",
+                                    '평가 손익': f"{format_pure_number(eval_profit)}원",
                                     '현재수익률': f"{ret:.2f}%"
                                 })
 
                             tot_ret_pct = (tot_prof / tot_inv * 100) if tot_inv > 0 else 0
                             ac1, ac2, ac3 = st.columns(3)
-                            ac1.metric("💰 현장 투입 원금 합계", format_money(tot_inv))
-                            ac2.metric("📊 현재 총 평가금액 합계", format_money(tot_eval), delta=f"{tot_ret_pct:.2f}%")
-                            ac3.metric("📈 총 평가 손익 합계", format_money(tot_prof))
+                            ac1.metric("💰 현장 투입 원금 합계", f"{format_pure_number(tot_inv)}원")
+                            ac2.metric("📊 현재 총 평가금액 합계", f"{format_pure_number(tot_eval)}원", delta=f"{tot_ret_pct:.2f}%")
+                            ac3.metric("📈 총 평가 손익 합계", f"{format_pure_number(tot_prof)}원")
 
                             st.write("")
                             st.dataframe(pd.DataFrame(active_table), use_container_width=True, hide_index=True)
