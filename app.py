@@ -537,7 +537,6 @@ else:
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
                         if year not in yearly_stats:
-                            # 🌟 [종목별 상세 열매 기록 구조체 추가]
                             yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0, 'stock_fruits': {}}
                         
                         daily_dividend_sum = 0
@@ -633,7 +632,6 @@ else:
                                     yearly_stats[year]['cash'] += leftover
                                     yearly_stats[year]['share_val'] += (buyable * curr_price)
                                     
-                                    # 🌟 [연도별/종목별 열매 합계 딕셔너리 업데이트]
                                     if buyable > 0:
                                         if s_name not in yearly_stats[year]['stock_fruits']:
                                             yearly_stats[year]['stock_fruits'][s_name] = {'shares': 0, 'value': 0}
@@ -830,14 +828,12 @@ else:
                     
                     st.write("") 
                     
-                    # 🌟 [신규 적용] 메트릭 하단에 수확한 열매 총 평가액 카드 추가!
                     m4, m5, m6, m7 = st.columns(4)
                     m4.metric("🎯 작전 승률", f"{win_rate:.1f}%", delta=f"{total_trades}전 {total_success}승")
                     m5.metric("🌊 멘탈 방어 지수 (MDD)", f"{max_drawdown_pct:.1f}%", delta="최대 파도 높이")
                     m6.metric("📦 수확한 열매 평가액", format_money(total_free_shares_value), delta=f"총 {total_free_shares_count}주")
                     m7.metric("🍯 누적 배당금 (보너스)", format_money(total_dividend_profit), delta="달콤한 배당 꿀")
 
-                    # 🌟 [신규 적용] 금고 안에 있는 종목별 열매 수량 및 평가액 상세 테이블 출력
                     if total_free_shares_count > 0:
                         st.markdown(f"""
                         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 18px 22px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
@@ -964,7 +960,6 @@ else:
                                 })
                             st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
 
-                        # 🌟 [신규 적용] 연도별 & 종목별 열매 수확 상세 내역 장부
                         st.markdown("---")
                         st.write("#### 🗓️ 연도별 & 종목별 열매 수확 상세 내역")
                         yearly_stock_fruit_list = []
@@ -1137,11 +1132,46 @@ else:
                             styled_logs = logs_df.style.map(color_status, subset=['구분'])
                             st.dataframe(styled_logs, use_container_width=True)
                             
-                            csv_data = logs_df.to_csv(index=False).encode('utf-8-sig')
+                            # 🌟 [신규 완벽 반영] 다운로드 파일에 설정 조건 및 대시보드 요약 정보 포함!
+                            report_lines = [
+                                "=== 🛡️ 박가이버 통합 작전 사령부 V8 Ultra Pro - 작전 검증 종합 리포트 ===",
+                                f"🕒 조회 기준 시각,{current_query_time}",
+                                f"📅 검증 기간,{backtest_period_str}",
+                                f"🎯 감시 종목 리스트,\"{', '.join(list(PORTFOLIO_UNIVERSE.keys()))}\"",
+                                "",
+                                "--- [1. 작전 설정 조건 (Strategy Parameters)] ---",
+                                f"🏦 총 작전 예산,{format_pure_number(total_capital_input)}원",
+                                f"💰 회당 초기 진입금액,{format_pure_number(invest_amount_input)}원",
+                                f"💡 동원 가능 요원 슬롯,{max_active_slots}개",
+                                f"🛒 진입 기준,-{buy_cond_input}%",
+                                f"🎯 익절 목표,+{sell_target_input}%",
+                                f"🚨 손절 기준,-{stop_loss_input}%",
+                                f"🌤️ 대세 하락장 우산 스위치,{'ON (가동)' if use_market_filter else 'OFF (미가동)'}",
+                                f"🤹‍♂️ 동일 섹터 몰빵 방지 캡,{'ON (가동)' if use_sector_limit else 'OFF (미가동)'}",
+                                f"🎁 전리품 수령 방식,{reward_type}",
+                                f"💸 위탁수수료 / 매도거래세 / 체결오차,{broker_fee_pct*100:.3f}% / {tax_pct*100:.2f}% / {slippage_pct*100:.2f}%",
+                                "",
+                                "--- [2. 백테스트 최종 성과 대시보드 요약 (Performance Summary)] ---",
+                                f"🏁 원금 예산,{format_money(total_capital_input)}",
+                                f"✨ 최종 총자산,{format_money(final_total_asset)}",
+                                f"📈 총 순수익금,{format_money(total_net_profit)} ({total_return_pct:+.2f}%)",
+                                f"💵 금고 잔고 (가용 현금),{format_money(current_cash)}",
+                                f"📦 수확한 열매 평가액,{format_money(total_free_shares_value)} (총 {total_free_shares_count}주)",
+                                f"🎯 작전 승률,{win_rate:.1f}% ({total_trades}전 {total_success}승 {total_stop_loss}패)",
+                                f"🌊 멘탈 방어 지수 (MDD),{max_drawdown_pct:.1f}%",
+                                f"🍯 누적 배당금,{format_money(total_dividend_profit)}",
+                                "",
+                                "--- [3. 전체 매매 장부 (Trade Logs)] ---",
+                                logs_df.to_csv(index=False)
+                            ]
+                            
+                            report_csv_str = "\n".join(report_lines)
+                            csv_data = report_csv_str.encode('utf-8-sig')
+
                             st.download_button(
-                                label="📥 엑셀(CSV) 파일로 매매 장부 다운로드 받기",
+                                label="📥 엑셀(CSV) 파일로 작전 조건 & 매매 장부 종합 다운로드",
                                 data=csv_data,
-                                file_name=f"당귀다TV_박가이버_사령부_매매장부_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
+                                file_name=f"당귀다TV_박가이버_사령부_종합리포트_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
                                 mime="text/csv",
                             )
 
