@@ -141,7 +141,7 @@ KOREAN_STOCK_MASTER = {
 }
 
 MASTER_STOCK_DICT = {}
-TICKER_TO_SECTOR = {} # 🌟 섹터 쏠림 방지를 위한 역매핑 딕셔너리
+TICKER_TO_SECTOR = {}
 for sector, stocks in st.session_state["sector_db"].items():
     for name, code in stocks.items():
         MASTER_STOCK_DICT[name] = code
@@ -163,7 +163,6 @@ def format_money(num):
     num = round(num)
     abs_num = abs(num)
     sign = "-" if num < 0 else ""
-    
     if abs_num >= 100000000:
         eok = abs_num // 100000000
         man = (abs_num % 100000000) // 10000
@@ -200,14 +199,12 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
     tickers = list(stock_dict.values())
     if not tickers:
         return pd.DataFrame()
-
     try:
         data = yf.download(tickers, period="1y", progress=False)['Close']
         for name, code in stock_dict.items():
             if code in data.columns and len(data[code].dropna()) > 10:
                 s_data = data[code].dropna()
                 curr_price = float(s_data.iloc[-1])
-                
                 if curr_price > invest_amount:
                     total_score = 0
                     fit_grade = "🚫 출격 불가 (단가 초과)"
@@ -217,19 +214,15 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
                     buyable_qty = int(invest_amount // curr_price)
                     daily_change = s_data.pct_change().abs() * 100
                     avg_volatility = daily_change.mean()
-                    
                     sma200 = s_data.rolling(min(200, len(s_data))).mean().iloc[-1]
                     trend_score = 35 if curr_price >= sma200 else 20
-                    
                     if 1.5 <= avg_volatility <= 4.0:
                         vol_score = 45
                     elif avg_volatility > 4.0:
                         vol_score = 30
                     else:
                         vol_score = 15
-                        
                     total_score = vol_score + trend_score + 20
-                    
                     if buyable_qty < 3:
                         total_score = max(30, total_score - 20)
                         fit_grade = "⚠️ 주의 (단가 부담)"
@@ -243,7 +236,6 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
                     else:
                         fit_grade = "⚠️ 주의 (파동 부족/하락세)"
                         reason = f"변동폭이 너무 적거나 하락세가 지속되어 진입 타점이 더디게 올 수 있습니다."
-
                 results.append({
                     "종목명": name,
                     "티커": code,
@@ -255,7 +247,6 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
                 })
     except Exception:
         pass
-
     return pd.DataFrame(results)
 
 # --- 3. 사이드바 조종간 ---
@@ -292,7 +283,6 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         if c_col4.button("➕ 바구니에 담기", type="primary", key="btn_add_custom_stock"):
             name_q = input_name.strip()
             code_q = input_code.strip()
-            
             resolved_name = None
             resolved_code = None
 
@@ -315,7 +305,6 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                 st.session_state["custom_stocks"][resolved_name] = resolved_code
                 MASTER_STOCK_DICT[resolved_name] = resolved_code
                 TICKER_TO_SECTOR[resolved_code] = "커스텀 종목"
-                
                 if resolved_name not in st.session_state["selected_stocks"]:
                     st.session_state["selected_stocks"].append(resolved_name)
                 st.success(f"🎉 [{resolved_name} ({resolved_code})] 종목이 바구니에 완벽하게 추가되었습니다!")
@@ -357,7 +346,6 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
             default=list(sector_stocks_dict.keys()),
             key=f"sec_select_{selected_sector}"
         )
-        
         if st.button(f"🛒 선택 종목 [백테스트 바구니] 추가", type="secondary"):
             added_count = 0
             for s_name in sector_target_list:
@@ -371,7 +359,6 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     st.markdown("### 🛒 3. 작전 통제실로 전송할 종목 바구니 담기")
 
     valid_selected_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
-    
     st.session_state["selected_stocks"] = st.multiselect(
         "백테스트 검증을 진행할 종목들을 선택해 주세요 (1개~10개 권장):",
         options=list(MASTER_STOCK_DICT.keys()),
@@ -381,9 +368,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     if st.session_state["selected_stocks"]:
         st.markdown("---")
         st.markdown("#### 💡 자금별 1회 진입금액 최적 추천 가이드")
-        
         total_budget_input = st.number_input("🏦 내 총 작전 예산(원)을 입력하세요", value=10000000, step=1000000, key="rec_total_budget")
-        
         rec_std = total_budget_input // 5
         rec_aggr = total_budget_input // 3
         rec_def = total_budget_input // 8
@@ -395,14 +380,11 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
 
         st.markdown("---")
         st.markdown("#### 🎯 바구니 종목 작전 적합도 & 단가 검진 리포트")
-        
         diag_invest_amount = rec_std
-
         basket_dict = {name: MASTER_STOCK_DICT[name] for name in st.session_state["selected_stocks"] if name in MASTER_STOCK_DICT}
         
         with st.spinner("📡 종목별 1주 단가, 자금 비율 및 파동 적합도를 검진 중..."):
             suitability_df = analyze_stock_suitability(basket_dict, diag_invest_amount)
-            
         if not suitability_df.empty:
             st.dataframe(suitability_df, use_container_width=True, hide_index=True)
         else:
@@ -436,32 +418,20 @@ else:
 
     st.sidebar.subheader("🛡️ 스마트 방어 스위치")
     use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="주가가 200일 이평선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
-    
-    # 🌟 [신규] 섹터 몰빵(쏠림) 방지 기능
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
     
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
     valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
-    
-    selected_stock_names = st.sidebar.multiselect(
-        "감시 종목 리스트",
-        options=list(MASTER_STOCK_DICT.keys()),
-        default=valid_watch_stocks
-    )
-
+    selected_stock_names = st.sidebar.multiselect("감시 종목 리스트", options=list(MASTER_STOCK_DICT.keys()), default=valid_watch_stocks)
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in selected_stock_names if s_name in MASTER_STOCK_DICT}
 
     st.sidebar.markdown("---")
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000)
-    
     rec_default_invest = total_capital_input // 5
     st.sidebar.caption(f"💡 권장 1회 진입금 (5슬롯 표준): **{format_money(rec_default_invest)}**")
     invest_amount_input = st.sidebar.number_input("💰 회당 초기 진입금액(원)", value=int(rec_default_invest), step=500000)
-    
     max_active_slots = max(1, int(total_capital_input // invest_amount_input))
     st.sidebar.info(f"💡 동원 가능 요원 슬롯: **{max_active_slots}개**")
-
-    # 동일 섹터당 최대 진입 가능 슬롯 수 (기본적으로 전체 슬롯의 절반 또는 최소 1개)
     max_sector_slots = max(1, max_active_slots // 2)
 
     use_compounding = st.sidebar.checkbox("🚀 복리 스케일업 모드", value=True)
@@ -483,8 +453,6 @@ else:
     use_fee = st.sidebar.checkbox("수수료/거래세 반영", value=True)
     broker_fee_pct = (st.sidebar.number_input("위탁수수료 (%)", value=0.015, format="%.3f") / 100) if use_fee else 0.0
     tax_pct = (st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100) if use_fee else 0.0
-    
-    # 🌟 [신규] 체결 오차(슬리피지) 안전마진 입력 추가
     slippage_pct = (st.sidebar.number_input("체결 오차 (슬리피지) (%)", value=0.10, format="%.2f", help="실제 호가에서 밀려 체결되는 오차율을 보수적으로 선반영합니다.") / 100) if use_fee else 0.0
 
     reward_type = st.sidebar.selectbox(
@@ -494,9 +462,8 @@ else:
     
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
 
-    # 🚨 실시간 터미널 시그널 알림판
-    st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
     if len(PORTFOLIO_UNIVERSE) > 0:
+        st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
         try:
             live_tickers = list(PORTFOLIO_UNIVERSE.values())
             live_data = yf.download(live_tickers, period="5d", progress=False)['Close']
@@ -520,14 +487,6 @@ else:
             st.info("💡 실시간 시세를 동기화하는 중입니다.")
 
     st.markdown("---")
-    st.write(f"### 🛡️ 감시 구역 요약 ({len(PORTFOLIO_UNIVERSE)}개 종목)")
-    universe_list = []
-    for name, code in PORTFOLIO_UNIVERSE.items():
-        market_type = "코스닥" if ".KQ" in code else ("코스피" if ".KS" in code else "기타")
-        universe_list.append({"구역명": name, "티커": code.split('.')[0], "시장": market_type, "상태": "실시간 감시 중"})
-    st.dataframe(pd.DataFrame(universe_list), use_container_width=True, hide_index=True)
-    st.markdown("---")
-
     if run_btn:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 선택된 종목이 없습니다. 1개 이상 선택해 주세요.")
@@ -538,7 +497,6 @@ else:
                     start_date = end_date - relativedelta(months=months_input)
                     tickers = list(PORTFOLIO_UNIVERSE.values())
                     
-                    # 🌟 [신규] KOSPI, KOSDAQ 벤치마크 데이터 로드
                     bench_tickers = ["^KS11", "^KQ11"]
                     raw_df = yf.download(tickers + bench_tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), actions=True, progress=False)
 
@@ -547,7 +505,6 @@ else:
                         bench_df = raw_df['Close'][bench_tickers] if '^KS11' in raw_df['Close'] else pd.DataFrame()
                         div_df = raw_df['Dividends'][tickers] if 'Dividends' in raw_df.columns.levels[0] else pd.DataFrame(index=raw_df.index, columns=tickers).fillna(0)
                     else:
-                        # Fallback for single ticker
                         close_df = pd.DataFrame({tickers[0]: raw_df['Close']})
                         bench_df = pd.DataFrame()
                         div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_df.index)
@@ -580,7 +537,8 @@ else:
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
                         if year not in yearly_stats:
-                            yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0}
+                            # 🌟 [종목별 상세 열매 기록 구조체 추가]
+                            yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0, 'stock_fruits': {}}
                         
                         daily_dividend_sum = 0
                         if date in div_df.index:
@@ -591,7 +549,6 @@ else:
                                         d_val = div_df.loc[date, t_code]
                                         if pd.notna(d_val) and d_val > 0:
                                             daily_dividend_sum += count * d_val
-                            
                             for pos in active_positions:
                                 t_code = pos['ticker']
                                 if t_code in div_df.columns:
@@ -605,8 +562,7 @@ else:
                             total_dividend_profit += daily_dividend_sum
                             trade_logs.append({
                                 '요원': '시스템', '작전 구역': '배당금(꿀) 수금', '출격일': date_str,
-                                '진입일 등락률': '-',
-                                '진입금액': '-', '진입단가': '-', '복귀일': date_str,
+                                '진입일 등락률': '-', '진입금액': '-', '진입단가': '-', '복귀일': date_str,
                                 '청산일 등락률': '-', '청산단가': '-', '매도금액': '-',
                                 '등락폭': '-', '소요기간': '-', '순수익률': '-',
                                 '정산내역': f"🍯 꿀 수입: +{format_pure_number(daily_dividend_sum)}원", '구분': '🌟 특별 보너스'
@@ -630,8 +586,6 @@ else:
                                     buy_fee = pos['invest_amount'] * broker_fee_pct
                                     sell_fee = sell_gross_val * broker_fee_pct
                                     sell_tax = sell_gross_val * tax_pct
-                                    
-                                    # 🌟 [신규 적용] 실전 체결 오차(슬리피지) 비용 추가 차감
                                     slippage_cost = (pos['invest_amount'] * slippage_pct) + (sell_gross_val * slippage_pct)
                                     total_trade_cost = buy_fee + sell_fee + sell_tax + slippage_cost
 
@@ -678,6 +632,14 @@ else:
                                     yearly_stats[year]['shares'] += buyable
                                     yearly_stats[year]['cash'] += leftover
                                     yearly_stats[year]['share_val'] += (buyable * curr_price)
+                                    
+                                    # 🌟 [연도별/종목별 열매 합계 딕셔너리 업데이트]
+                                    if buyable > 0:
+                                        if s_name not in yearly_stats[year]['stock_fruits']:
+                                            yearly_stats[year]['stock_fruits'][s_name] = {'shares': 0, 'value': 0}
+                                        yearly_stats[year]['stock_fruits'][s_name]['shares'] += buyable
+                                        yearly_stats[year]['stock_fruits'][s_name]['value'] += (buyable * curr_price)
+
                                     daily_returns_history.append(net_ret)
 
                                     log_reward = f"열매 {buyable}개 + 잔돈 {format_pure_number(leftover)}원" if buyable > 0 else f"{format_pure_number(leftover)}원"
@@ -708,7 +670,6 @@ else:
                                 survived_positions.append(pos)
                         
                         active_positions = survived_positions
-
                         remaining_slots = max_active_slots - len(active_positions)
                         dynamic_invest_amount = max(float(invest_amount_input), current_cash / remaining_slots) if (use_compounding and remaining_slots > 0) else float(invest_amount_input)
 
@@ -718,7 +679,6 @@ else:
                             for s_name, t_code in PORTFOLIO_UNIVERSE.items():
                                 if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
                                     ret_val = float(day_returns[t_code])
-                                    
                                     target_buy_cond = buy_cond
                                     if use_market_filter and (t_code in sma200_df.columns) and date in sma200_df.index:
                                         sma_val = sma200_df.loc[date, t_code]
@@ -736,7 +696,6 @@ else:
                                 ret_val = cand[2]
                                 t_code = cand[1]
                                 
-                                # 🌟 [신규 적용] 동일 섹터 몰빵(쏠림) 방지 캡 적용
                                 if use_sector_limit:
                                     c_sector = TICKER_TO_SECTOR.get(t_code, "기타")
                                     current_sector_count = sum(1 for p in active_positions if TICKER_TO_SECTOR.get(p['ticker'], "기타") == c_sector)
@@ -745,7 +704,7 @@ else:
                                             "발생 일자": date_str, "미출격 종목": cand[0], "당일 하락률": f"{cand[2]:.2f}%",
                                             "불가 사유": f"특정 섹터({c_sector}) 쏠림 방지 캡 도달 (최대 {max_sector_slots}개)"
                                         })
-                                        continue # 이 종목은 패스!
+                                        continue
 
                                 if c_price > actual_invest:
                                     missed_opportunities.append({
@@ -792,10 +751,8 @@ else:
                         current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
                         if current_drawdown < max_drawdown_pct:
                             max_drawdown_pct = current_drawdown
-
                         asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
-                    # 🌟 [신규 적용] 벤치마크 누적 수익률 계산 (시작점 = 내 원금 1,000만 원으로 맞춤)
                     if not bench_df.empty and '^KS11' in bench_df.columns:
                         kospi_base = float(bench_df['^KS11'].iloc[0])
                         kosdaq_base = float(bench_df['^KQ11'].iloc[0])
@@ -873,10 +830,34 @@ else:
                     
                     st.write("") 
                     
-                    m4, m5, m6 = st.columns(3)
+                    # 🌟 [신규 적용] 메트릭 하단에 수확한 열매 총 평가액 카드 추가!
+                    m4, m5, m6, m7 = st.columns(4)
                     m4.metric("🎯 작전 승률", f"{win_rate:.1f}%", delta=f"{total_trades}전 {total_success}승")
                     m5.metric("🌊 멘탈 방어 지수 (MDD)", f"{max_drawdown_pct:.1f}%", delta="최대 파도 높이")
-                    m6.metric("🍯 누적 배당금 (보너스)", format_money(total_dividend_profit), delta="달콤한 배당 꿀")
+                    m6.metric("📦 수확한 열매 평가액", format_money(total_free_shares_value), delta=f"총 {total_free_shares_count}주")
+                    m7.metric("🍯 누적 배당금 (보너스)", format_money(total_dividend_profit), delta="달콤한 배당 꿀")
+
+                    # 🌟 [신규 적용] 금고 안에 있는 종목별 열매 수량 및 평가액 상세 테이블 출력
+                    if total_free_shares_count > 0:
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 18px 22px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                            <h4 style="margin-top: 0; color: #166534; font-size: 1.15rem; margin-bottom: 10px;">📦 내 열매(무료 주식) 금고 상세 현황</h4>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        fruit_list = []
+                        for s_name, count in free_shares_dict.items():
+                            if count > 0:
+                                t_code = PORTFOLIO_UNIVERSE[s_name]
+                                c_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else 0
+                                eval_val = count * c_price
+                                fruit_list.append({
+                                    "작전 구역 (종목명)": s_name,
+                                    "보유 수량": f"{count}주",
+                                    "현재 1주 단가": format_exact_price(c_price),
+                                    "현재 평가액": format_money(eval_val)
+                                })
+                        st.dataframe(pd.DataFrame(fruit_list), use_container_width=True, hide_index=True)
 
                     monthly_pension = (final_total_asset * 0.04) / 12
                     st.markdown(f"""
@@ -901,6 +882,7 @@ else:
                             <div style="display: flex; justify-content: space-between; font-size: 1.1rem; line-height: 2.0;">
                                 <div>
                                     • 금고 잔고(현금): <b><span style="color: #38bdf8;">{format_money(current_cash)}</span></b><br>
+                                    • 수확한 열매 평가액: <b><span style="color: #fbbf24;">{format_money(total_free_shares_value)}</span></b><br>
                                     • 최종 총자산: <b><span style="color: #4ade80; font-size: 1.3rem;">{format_money(final_total_asset)}</span></b><br>
                                     • 총 순수익률: <b><span style="color: #facc15; font-size: 1.2rem;">+{total_return_pct:.2f}%</span></b>
                                 </div>
@@ -929,12 +911,9 @@ else:
                         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 (시장 지수 비교)", "계좌 최대 낙폭 (MDD Underwater)"))
 
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='내 총자산 (박가이버 전략)', line=dict(color='#2563eb', width=3), fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'), row=1, col=1)
-                        # 🌟 [신규 적용] KOSPI, KOSDAQ 비교 벤치마크 라인 추가
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSPI'], mode='lines', name='KOSPI 지수 (단순 보유 시)', line=dict(color='#94a3b8', width=1.5, dash='dash')), row=1, col=1)
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSDAQ'], mode='lines', name='KOSDAQ 지수 (단순 보유 시)', line=dict(color='#cbd5e1', width=1.5, dash='dot')), row=1, col=1)
-                        
                         fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
-
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='낙폭(MDD)', line=dict(color='#dc2626', width=1.5), fill='tozeroy', fillcolor='rgba(220, 38, 38, 0.15)'), row=2, col=1)
 
                         fig.update_layout(height=650, template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
@@ -979,11 +958,30 @@ else:
                                     "연도": str(y),
                                     "🎯 익절": f"{val['success']}회",
                                     "🚨 손절": f"{val['stop']}회",
-                                    "📦 열매": f"{int(val['shares'])}주",
-                                    "💎 열매 가치": format_money(val['share_val']),
+                                    "📦 획득 열매": f"{int(val['shares'])}주",
+                                    "💎 열매 합계가치": format_money(val['share_val']),
                                     "💵 현금수익": format_money(val['cash'])
                                 })
                             st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
+
+                        # 🌟 [신규 적용] 연도별 & 종목별 열매 수확 상세 내역 장부
+                        st.markdown("---")
+                        st.write("#### 🗓️ 연도별 & 종목별 열매 수확 상세 내역")
+                        yearly_stock_fruit_list = []
+                        for y in sorted(yearly_stats.keys()):
+                            if 'stock_fruits' in yearly_stats[y]:
+                                for s_name, f_data in yearly_stats[y]['stock_fruits'].items():
+                                    if f_data['shares'] > 0:
+                                        yearly_stock_fruit_list.append({
+                                            "연도": str(y),
+                                            "작전 구역 (종목명)": s_name,
+                                            "수확한 열매 수": f"{f_data['shares']}주",
+                                            "획득 당시 평가액 합계": format_money(f_data['value'])
+                                        })
+                        if yearly_stock_fruit_list:
+                            st.dataframe(pd.DataFrame(yearly_stock_fruit_list), use_container_width=True, hide_index=True)
+                        else:
+                            st.info("해당 기간 동안 수확된 열매가 없습니다.")
 
                         st.markdown("---")
                         st.write("#### 🏆 종목별 작전 성과 순위표 (1위~최하위)")
@@ -1128,7 +1126,6 @@ else:
                             ]
                             logs_df = logs_df[[col for col in columns_order if col in logs_df.columns]]
                             
-                            # 🌟 [신규 적용] 정상 복귀 / 강제 철수 한눈에 들어오는 컬러링 함수!
                             def color_status(val):
                                 if isinstance(val, str):
                                     if '정상 복귀' in val:
@@ -1140,7 +1137,6 @@ else:
                             styled_logs = logs_df.style.map(color_status, subset=['구분'])
                             st.dataframe(styled_logs, use_container_width=True)
                             
-                            # 🌟 [신규 적용] 엑셀(CSV) 다운로드 버튼 장착
                             csv_data = logs_df.to_csv(index=False).encode('utf-8-sig')
                             st.download_button(
                                 label="📥 엑셀(CSV) 파일로 매매 장부 다운로드 받기",
