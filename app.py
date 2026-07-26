@@ -207,9 +207,8 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
                     buyable_qty = int(invest_amount // curr_price)
                     daily_change = s_data.pct_change().abs() * 100
                     avg_volatility = daily_change.mean()
-                    # 💡 적합도 진단 시에도 240일선 기준으로 트렌드 점수 반영
-                    sma240 = s_data.rolling(min(240, len(s_data))).mean().iloc[-1]
-                    trend_score = 35 if curr_price >= sma240 else 20
+                    sma200 = s_data.rolling(min(200, len(s_data))).mean().iloc[-1]
+                    trend_score = 35 if curr_price >= sma200 else 20
                     if 1.5 <= avg_volatility <= 4.0:
                         vol_score = 45
                     elif avg_volatility > 4.0:
@@ -417,8 +416,7 @@ else:
         st.sidebar.info("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
 
     st.sidebar.subheader("🛡️ 스마트 방어 스위치")
-    # 💡 240일선 기준으로 대세 하락장 우산 스위치 문구 및 기능 업데이트
-    use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="주가가 240일(1년) 이평선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
+    use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="주가가 200일 이평선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
     use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=True, help="익절/손절선에 도달하지 않더라도 지정된 날짜가 지나면 종가에 정리하여 자금 묶임 현상을 방지합니다.")
     max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 30, 5) if use_time_cut else 9999
@@ -544,9 +542,7 @@ else:
                         div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_df.index)
 
                     return_df = close_df.pct_change() * 100
-                    
-                    # 💡 핵심 변경: 200일선에서 240일선(1년 영업일)으로 이동평균선 계산 변경
-                    sma240_df = close_df.rolling(window=240).mean()
+                    sma200_df = close_df.rolling(window=200).mean()
 
                     buy_cond = -float(buy_cond_input)
                     sell_target = float(sell_target_input)
@@ -720,10 +716,8 @@ else:
                                 if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
                                     ret_val = float(day_returns[t_code])
                                     target_buy_cond = buy_cond
-                                    
-                                    # 💡 240일선 하락장 우산 스위치 적용 부분
-                                    if use_market_filter and (t_code in sma240_df.columns) and date in sma240_df.index:
-                                        sma_val = sma240_df.loc[date, t_code]
+                                    if use_market_filter and (t_code in sma200_df.columns) and date in sma200_df.index:
+                                        sma_val = sma200_df.loc[date, t_code]
                                         curr_p = row[t_code]
                                         if pd.notna(sma_val) and pd.notna(curr_p) and curr_p < sma_val:
                                             target_buy_cond = buy_cond * 1.4
@@ -785,15 +779,15 @@ else:
                                 "출격 종목 리스트": ", ".join([p['stock_name'] for p in active_positions])
                             })
 
-                    eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
-                    today_total_asset = current_cash + eval_pos
-                    
-                    if today_total_asset > peak_asset_value:
-                        peak_asset_value = today_total_asset
-                    current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
-                    if current_drawdown < max_drawdown_pct:
-                        max_drawdown_pct = current_drawdown
-                    asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
+                        eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
+                        today_total_asset = current_cash + eval_pos
+                        
+                        if today_total_asset > peak_asset_value:
+                            peak_asset_value = today_total_asset
+                        current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
+                        if current_drawdown < max_drawdown_pct:
+                            max_drawdown_pct = current_drawdown
+                        asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
                     if not bench_df.empty and '^KS11' in bench_df.columns:
                         kospi_base = float(bench_df['^KS11'].iloc[0])
@@ -1230,7 +1224,7 @@ else:
                                 f"🎯 익절 목표,+{sell_target_input}%",
                                 f"🚨 손절 기준,-{stop_loss_input}%",
                                 f"⏱️ 타임 컷 (최대 보유 제한),{'ON (' + str(max_hold_days_input) + '일 제한)' if use_time_cut else 'OFF (미가동)'}",
-                                f"🌤️ 대세 하락장 우산 스위치 (240일선),{'ON (가동)' if use_market_filter else 'OFF (미가동)'}",
+                                f"🌤️ 대세 하락장 우산 스위치,{'ON (가동)' if use_market_filter else 'OFF (미가동)'}",
                                 f"🤹‍♂️ 동일 섹터 몰빵 방지 캡,{'ON (가동)' if use_sector_limit else 'OFF (미가동)'}",
                                 f"🎁 전리품 수령 방식,{reward_type}",
                                 f"💸 위탁수수료 / 매도거래세 / 체결오차,{broker_fee_pct*100:.3f}% / {tax_pct*100:.2f}% / {slippage_pct*100:.2f}%",
@@ -1266,7 +1260,7 @@ else:
                     cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯/섹터 초과 제한)이 발생했습니다." if missed_cnt > 0 else "종목들이 타이밍에 맞춰 빠르게 회전하여 놓친 기회는 없었으나, 자금이 100% 풀가동되는 과정에서 예비 현금 곳간이 다소 타이트하게 운용되어 돌발 하락장 대응 여유가 다소 부족할 수 있었습니다."
                     
                     pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률 **{win_rate:.1f}%**, 최대 낙폭(MDD) **{max_drawdown_pct:.1f}%**로 매우 우수합니다."
-                    advice_text = "복리 스케일업 모드, 타임 컷 스위치, 240일선 폭락장 우산 스위치, 그리고 제미니 AI 참모의 실시간 진입금 처방전을 함께 활용해 리스크를 철저히 방어하세요."
+                    advice_text = "복리 스케일업 모드, 타임 컷 스위치, 폭락장 우산 스위치, 그리고 제미니 AI 참모의 실시간 진입금 처방전을 함께 활용해 리스크를 철저히 방어하세요."
 
                     st.markdown("---")
                     st.markdown("### 🎖️ 박가이버 사령관의 종합 진단 및 실전 리포트")
