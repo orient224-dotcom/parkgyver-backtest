@@ -140,7 +140,7 @@ if "custom_stocks" not in st.session_state:
 
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
-    "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
+    "현대힘ส": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
     "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
     "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
@@ -187,15 +187,17 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 @st.cache_data(ttl=3600)
-def analyze_stock_suitability(stock_dict, invest_amount=2000000):
+def analyze_stock_suitability(stock_dict, invest_amount=2000000, ma_period=240):
     results = []
     tickers = list(stock_dict.values())
     if not tickers:
         return pd.DataFrame()
     try:
-        data = yf.download(tickers, period="1y", progress=False)['Close']
+        data = yf.download(tickers, period="1y", interval="1d", progress=False)
+        close_data = data['Close'] if isinstance(data.columns, pd.MultiIndex) and 'Close' in data.columns.levels[0] else (data['Close'] if 'Close' in data.columns else data)
+
         for name, code in stock_dict.items():
-            s_data = data[code].dropna() if isinstance(data, pd.DataFrame) and code in data.columns else (data.dropna() if isinstance(data, pd.Series) else pd.Series())
+            s_data = close_data[code].dropna() if isinstance(close_data, pd.DataFrame) and code in close_data.columns else (close_data.dropna() if isinstance(close_data, pd.Series) else pd.Series())
             if len(s_data) > 10:
                 curr_price = float(s_data.iloc[-1])
                 if curr_price > invest_amount:
@@ -207,8 +209,8 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000):
                     buyable_qty = int(invest_amount // curr_price)
                     daily_change = s_data.pct_change().abs() * 100
                     avg_volatility = daily_change.mean()
-                    sma200 = s_data.rolling(min(200, len(s_data))).mean().iloc[-1]
-                    trend_score = 35 if curr_price >= sma200 else 20
+                    sma_val_eval = s_data.rolling(min(ma_period, len(s_data))).mean().iloc[-1]
+                    trend_score = 35 if curr_price >= sma_val_eval else 20
                     if 1.5 <= avg_volatility <= 4.0:
                         vol_score = 45
                     elif avg_volatility > 4.0:
@@ -377,7 +379,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         basket_dict = {name: MASTER_STOCK_DICT[name] for name in st.session_state["selected_stocks"] if name in MASTER_STOCK_DICT}
         
         with st.spinner("📡 종목별 1주 단가, 자금 비율 및 파동 적합도를 검진 중..."):
-            suitability_df = analyze_stock_suitability(basket_dict, diag_invest_amount)
+            suitability_df = analyze_stock_suitability(basket_dict, diag_invest_amount, ma_period=240)
         if not suitability_df.empty:
             st.dataframe(suitability_df, use_container_width=True, hide_index=True)
         else:
@@ -416,7 +418,23 @@ else:
         st.sidebar.info("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
 
     st.sidebar.subheader("🛡️ 스마트 방어 스위치")
-    use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="주가가 200일 이평선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
+    use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="지정된 이동평균선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
+    
+    ma_period_choice = st.sidebar.radio(
+        "📏 하락장 우산 기준선 선택",
+        [120, 240],
+        index=1,
+        horizontal=True,
+        help="120일선(반기 추세, 민첩함) 또는 240일선(1년 풀사이클, 묵직함) 중 선택하세요."
+    )
+
+    # 💡 [신규 추가] 이동평균선 위에서만 거래 허용하는 엄격한 추세 필터 옵션
+    use_strict_ma_filter = st.sidebar.checkbox(
+        "📈 장기 이평선 위에서만 출격 (추세 필터)", 
+        value=False, 
+        help="켜시면 주가가 선택하신 기준선(120일 또는 240일선) 위에 있을 때만 매수 진입을 허용하고, 아래에 있으면 역배열로 판단하여 출격을 차단합니다."
+    )
+
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
     use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=True, help="익절/손절선에 도달하지 않더라도 지정된 날짜가 지나면 종가에 정리하여 자금 묶임 현상을 방지합니다.")
     max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 30, 5) if use_time_cut else 9999
@@ -498,7 +516,8 @@ else:
         st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
         try:
             live_tickers = list(PORTFOLIO_UNIVERSE.values())
-            live_data = yf.download(live_tickers, period="5d", progress=False)['Close']
+            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
+            live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
             
             buy_signals = []
             for name, code in PORTFOLIO_UNIVERSE.items():
@@ -523,26 +542,61 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 선택된 종목이 없습니다. 1개 이상 선택해 주세요.")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 타임컷 및 MDD 데이터를 퀀트 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 타임컷 및 MDD 데이터를 안전하게 동기화 및 퀀트 분석 중입니다..."):
                 try:
-                    end_date = datetime.datetime.today()
-                    start_date = end_date - relativedelta(months=months_input)
+                    end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
+                    start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                     tickers = list(PORTFOLIO_UNIVERSE.values())
                     
-                    bench_tickers = ["^KS11", "^KQ11"]
-                    raw_df = yf.download(tickers + bench_tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), actions=True, progress=False)
-
-                    if isinstance(raw_df.columns, pd.MultiIndex):
-                        close_df = raw_df['Close'][tickers]
-                        bench_df = raw_df['Close'][bench_tickers] if '^KS11' in raw_df['Close'] else pd.DataFrame()
-                        div_df = raw_df['Dividends'][tickers] if 'Dividends' in raw_df.columns.levels[0] else pd.DataFrame(index=raw_df.index, columns=tickers).fillna(0)
+                    # 💡 1. 포트폴리오 주가 다운로드 (일간 데이터 interval="1d" 강제)
+                    raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", progress=False)
+                    if isinstance(raw_close.columns, pd.MultiIndex) and 'Close' in raw_close.columns.levels[0]:
+                        close_df = raw_close['Close']
+                    elif 'Close' in raw_close.columns:
+                        close_df = raw_close['Close'].to_frame() if len(tickers) == 1 else raw_close
                     else:
-                        close_df = pd.DataFrame({tickers[0]: raw_df['Close']})
-                        bench_df = pd.DataFrame()
-                        div_df = pd.DataFrame({tickers[0]: raw_df['Dividends']}) if 'Dividends' in raw_df.columns else pd.DataFrame({tickers[0]: 0}, index=raw_df.index)
+                        close_df = raw_close
+
+                    if isinstance(close_df, pd.Series):
+                        close_df = close_df.to_frame(name=tickers[0])
+
+                    close_df = close_df.dropna(how='all')
+
+                    if close_df.empty:
+                        st.error("❌ 야후 파이낸스에서 선택한 종목의 주가 데이터를 가져오지 못했습니다. 기간을 조정하거나 잠시 후 다시 시도해 주세요.")
+                        st.stop()
+
+                    close_df.index = pd.to_datetime(close_df.index).normalize()
+
+                    # 💡 2. 배당금 다운로드 (별도 안전 다운로드)
+                    try:
+                        raw_actions = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", actions=True, progress=False)
+                        if isinstance(raw_actions.columns, pd.MultiIndex) and 'Dividends' in raw_actions.columns.levels[0]:
+                            div_df = raw_actions['Dividends']
+                        else:
+                            div_df = pd.DataFrame(0, index=close_df.index, columns=tickers)
+                    except Exception:
+                        div_df = pd.DataFrame(0, index=close_df.index, columns=tickers)
+                    
+                    div_df.index = pd.to_datetime(div_df.index).normalize()
+                    div_df = div_df.reindex(close_df.index).fillna(0)
+
+                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 안전 다운로드
+                    bench_df = pd.DataFrame()
+                    try:
+                        bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, interval="1d", progress=False)
+                        if isinstance(bench_raw.columns, pd.MultiIndex) and 'Close' in bench_raw.columns.levels[0]:
+                            bench_df = bench_raw['Close']
+                        elif 'Close' in bench_raw.columns:
+                            bench_df = bench_raw[['Close']]
+                        else:
+                            bench_df = bench_raw
+                        bench_df.index = pd.to_datetime(bench_df.index).normalize()
+                    except Exception:
+                        pass
 
                     return_df = close_df.pct_change() * 100
-                    sma200_df = close_df.rolling(window=200).mean()
+                    sma_df = close_df.rolling(window=int(ma_period_choice)).mean()
 
                     buy_cond = -float(buy_cond_input)
                     sell_target = float(sell_target_input)
@@ -716,11 +770,18 @@ else:
                                 if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
                                     ret_val = float(day_returns[t_code])
                                     target_buy_cond = buy_cond
-                                    if use_market_filter and (t_code in sma200_df.columns) and date in sma200_df.index:
-                                        sma_val = sma200_df.loc[date, t_code]
+                                    
+                                    # 💡 [추세 필터 적용] 장기 이평선(120/240선) 위에 있을 때만 진입 허용 옵션 체크
+                                    if t_code in sma_df.columns and date in sma_df.index:
+                                        sma_val = sma_df.loc[date, t_code]
                                         curr_p = row[t_code]
-                                        if pd.notna(sma_val) and pd.notna(curr_p) and curr_p < sma_val:
-                                            target_buy_cond = buy_cond * 1.4
+                                        if pd.notna(sma_val) and pd.notna(curr_p):
+                                            if use_strict_ma_filter and curr_p < sma_val:
+                                                # 이평선 아래(역배열)면 진입 자체를 금지함
+                                                continue
+
+                                            if use_market_filter and curr_p < sma_val:
+                                                target_buy_cond = buy_cond * 1.4
 
                                     if ret_val <= target_buy_cond:
                                         candidates.append((s_name, t_code, ret_val, float(row[t_code])))
@@ -779,31 +840,38 @@ else:
                                 "출격 종목 리스트": ", ".join([p['stock_name'] for p in active_positions])
                             })
 
-                        eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
-                        today_total_asset = current_cash + eval_pos
-                        
-                        if today_total_asset > peak_asset_value:
-                            peak_asset_value = today_total_asset
-                        current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
-                        if current_drawdown < max_drawdown_pct:
-                            max_drawdown_pct = current_drawdown
-                        asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
+                    eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
+                    today_total_asset = current_cash + eval_pos
+                    
+                    if today_total_asset > peak_asset_value:
+                        peak_asset_value = today_total_asset
+                    current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
+                    if current_drawdown < max_drawdown_pct:
+                        max_drawdown_pct = current_drawdown
+                    
+                    asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
-                    if not bench_df.empty and '^KS11' in bench_df.columns:
-                        kospi_base = float(bench_df['^KS11'].iloc[0])
-                        kosdaq_base = float(bench_df['^KQ11'].iloc[0])
-                        for i in range(len(asset_history)):
-                            dt = asset_history[i]["Date"]
-                            if dt in bench_df.index:
-                                asset_history[i]["KOSPI"] = (bench_df.loc[dt, '^KS11'] / kospi_base) * total_capital_input
-                                asset_history[i]["KOSDAQ"] = (bench_df.loc[dt, '^KQ11'] / kosdaq_base) * total_capital_input
-                            else:
-                                asset_history[i]["KOSPI"] = asset_history[i-1]["KOSPI"] if i > 0 else total_capital_input
-                                asset_history[i]["KOSDAQ"] = asset_history[i-1]["KOSDAQ"] if i > 0 else total_capital_input
+                    # 💡 7. 판다스 기반 완벽하고 견고한 벤치마크 지수 정렬 및 매핑
+                    asset_df = pd.DataFrame(asset_history)
+                    asset_df['Date'] = pd.to_datetime(asset_df['Date']).dt.normalize()
+                    asset_df = asset_df.set_index('Date')
+
+                    if not bench_df.empty:
+                        bench_df.index = pd.to_datetime(bench_df.index).normalize()
+                        bench_aligned = bench_df.reindex(asset_df.index).ffill().bfill()
+                        ks_key = '^KS11' if '^KS11' in bench_aligned.columns else bench_aligned.columns[0]
+                        kq_key = '^KQ11' if '^KQ11' in bench_aligned.columns else (bench_aligned.columns[1] if len(bench_aligned.columns) > 1 else ks_key)
+                        
+                        ks_base = float(bench_aligned[ks_key].iloc[0]) if len(bench_aligned[ks_key].dropna()) > 0 else 1.0
+                        kq_base = float(bench_aligned[kq_key].iloc[0]) if len(bench_aligned[kq_key].dropna()) > 0 else 1.0
+                        
+                        asset_df['KOSPI'] = (bench_aligned[ks_key] / ks_base) * total_capital_input
+                        asset_df['KOSDAQ'] = (bench_aligned[kq_key] / kq_base) * total_capital_input
                     else:
-                        for i in range(len(asset_history)):
-                            asset_history[i]["KOSPI"] = total_capital_input
-                            asset_history[i]["KOSDAQ"] = total_capital_input
+                        asset_df['KOSPI'] = total_capital_input
+                        asset_df['KOSDAQ'] = total_capital_input
+
+                    asset_df = asset_df.reset_index()
 
                     last_row = close_df.iloc[-1]
                     active_eval_value = sum([p['invest_amount'] * (float(last_row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in last_row and not pd.isna(last_row[p['ticker']])])
@@ -842,14 +910,14 @@ else:
                     """, unsafe_allow_html=True)
 
                     current_query_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    backtest_period_str = f"{start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')} ({period_label})"
+                    backtest_period_str = f"{start_date_str} ~ {end_date_str} ({period_label})"
                     
                     st.markdown(f"""
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
                         <div>
                             <h2 style="margin: 0; font-size: 1.5rem; color: #0f172a; font-weight: 800;">🏆 백테스트 최종 성과 대시보드</h2>
                             <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #475569; font-weight: 700;">
-                                📅 검증 기간: <b style="color: #2563eb;">{backtest_period_str}</b>
+                                📅 검증 기간: <b style="color: #2563eb;">{backtest_period_str}</b> | 📏 기준선: <b style="color: #2563eb;">{ma_period_choice}일선 적용</b>
                             </p>
                         </div>
                         <span style="font-size: 0.9rem; color: #64748b; font-weight: 600; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
@@ -909,7 +977,7 @@ else:
                         <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 28px; border-radius: 18px; border: 2px solid #f59e0b; box-shadow: 0 12px 30px rgba(0,0,0,0.3);">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <h3 style="color: #f59e0b; margin: 0; font-size: 1.5rem;">🎥 당귀다TV X 박가이버 사령부 V8</h3>
-                                <span style="background: #2563eb; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold;">VERIFIED QUANT</span>
+                                <span style="background: #2563eb; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold;">VERIFIED QUANT ({ma_period_choice}선)</span>
                             </div>
                             <p style="font-size: 1.05rem; color: #94a3b8; margin-top: 8px;"><b>검증 종목:</b> {', '.join(list(PORTFOLIO_UNIVERSE.keys())[:5])} 등 | <b>기간:</b> {backtest_period_str}</p>
                             <hr style="border-color: #334155; margin: 15px 0;">
@@ -940,9 +1008,8 @@ else:
 
                     with tab1:
                         st.write("### 📈 백테스트 기간 자산 성장 & 벤치마크 & MDD 차트")
-                        asset_df = pd.DataFrame(asset_history)
                         
-                        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 (시장 지수 비교)", "계좌 최대 낙폭 (MDD Underwater)"))
+                        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 ({ma_period_choice}선 우산 적용)", "계좌 최대 낙폭 (MDD Underwater)"))
 
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='내 총자산 (박가이버 전략)', line=dict(color='#2563eb', width=3), fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'), row=1, col=1)
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSPI'], mode='lines', name='KOSPI 지수 (단순 보유 시)', line=dict(color='#94a3b8', width=1.5, dash='dash')), row=1, col=1)
@@ -1224,7 +1291,8 @@ else:
                                 f"🎯 익절 목표,+{sell_target_input}%",
                                 f"🚨 손절 기준,-{stop_loss_input}%",
                                 f"⏱️ 타임 컷 (최대 보유 제한),{'ON (' + str(max_hold_days_input) + '일 제한)' if use_time_cut else 'OFF (미가동)'}",
-                                f"🌤️ 대세 하락장 우산 스위치,{'ON (가동)' if use_market_filter else 'OFF (미가동)'}",
+                                f"🌤️ 대세 하락장 우산 스위치 ({ma_period_choice}선 기준),{'ON (가동)' if use_market_filter else 'OFF (미가동)'}",
+                                f"📈 장기 이평선 위 추세 필터 ({ma_period_choice}선),{'ON (가동)' if use_strict_ma_filter else 'OFF (미가동)'}",
                                 f"🤹‍♂️ 동일 섹터 몰빵 방지 캡,{'ON (가동)' if use_sector_limit else 'OFF (미가동)'}",
                                 f"🎁 전리품 수령 방식,{reward_type}",
                                 f"💸 위탁수수료 / 매도거래세 / 체결오차,{broker_fee_pct*100:.3f}% / {tax_pct*100:.2f}% / {slippage_pct*100:.2f}%",
@@ -1260,7 +1328,7 @@ else:
                     cons_text = f"백테스트 기간 중 총 **{missed_cnt}회**의 미출격 타점(현금/슬롯/섹터 초과 제한)이 발생했습니다." if missed_cnt > 0 else "종목들이 타이밍에 맞춰 빠르게 회전하여 놓친 기회는 없었으나, 자금이 100% 풀가동되는 과정에서 예비 현금 곳간이 다소 타이트하게 운용되어 돌발 하락장 대응 여유가 다소 부족할 수 있었습니다."
                     
                     pros_text = f"총자산이 초기 대비 **{total_return_pct:.1f}%** 폭발적으로 성장했으며, 작전 승률 **{win_rate:.1f}%**, 최대 낙폭(MDD) **{max_drawdown_pct:.1f}%**로 매우 우수합니다."
-                    advice_text = "복리 스케일업 모드, 타임 컷 스위치, 폭락장 우산 스위치, 그리고 제미니 AI 참모의 실시간 진입금 처방전을 함께 활용해 리스크를 철저히 방어하세요."
+                    advice_text = f"복리 스케일업 모드, 타임 컷 스위치, {ma_period_choice}선 추세 필터를 함께 활용해 리스크를 철저히 방어하세요."
 
                     st.markdown("---")
                     st.markdown("### 🎖️ 박가이버 사령관의 종합 진단 및 실전 리포트")
