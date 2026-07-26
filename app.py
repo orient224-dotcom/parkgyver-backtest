@@ -194,19 +194,10 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000, ma_period=240):
         return pd.DataFrame()
     try:
         data = yf.download(tickers, period="1y", progress=False)
-        if isinstance(data.columns, pd.MultiIndex) and 'Close' in data.columns.levels[0]:
-            close_data = data['Close']
-        else:
-            close_data = data['Close'] if 'Close' in data.columns else data
+        close_data = data['Close'] if isinstance(data.columns, pd.MultiIndex) and 'Close' in data.columns.levels[0] else (data['Close'] if 'Close' in data.columns else data)
 
         for name, code in stock_dict.items():
-            if isinstance(close_data, pd.DataFrame) and code in close_data.columns:
-                s_data = close_data[code].dropna()
-            elif isinstance(close_data, pd.Series):
-                s_data = close_data.dropna()
-            else:
-                s_data = pd.Series()
-
+            s_data = close_data[code].dropna() if isinstance(close_data, pd.DataFrame) and code in close_data.columns else (close_data.dropna() if isinstance(close_data, pd.Series) else pd.Series())
             if len(s_data) > 10:
                 curr_price = float(s_data.iloc[-1])
                 if curr_price > invest_amount:
@@ -523,13 +514,7 @@ else:
             
             buy_signals = []
             for name, code in PORTFOLIO_UNIVERSE.items():
-                if isinstance(live_data, pd.DataFrame) and code in live_data.columns:
-                    s_data = live_data[code].dropna()
-                elif isinstance(live_data, pd.Series):
-                    s_data = live_data.dropna()
-                else:
-                    s_data = pd.Series()
-
+                s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
                 if len(s_data) >= 2:
                     today_p = float(s_data.iloc[-1])
                     yester_p = float(s_data.iloc[-2])
@@ -552,12 +537,12 @@ else:
         else:
             with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 타임컷 및 MDD 데이터를 안전하게 동기화 및 퀀트 분석 중입니다..."):
                 try:
-                    end_date = datetime.datetime.today()
-                    start_date = end_date - relativedelta(months=months_input)
+                    end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
+                    start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                     tickers = list(PORTFOLIO_UNIVERSE.values())
                     
-                    # 💡 1. 포트폴리오 종목 주가 다운로드 (안전한 파싱)
-                    raw_close = yf.download(tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), progress=False)
+                    # 💡 1. 포트폴리오 주가 다운로드 (안전한 파싱)
+                    raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, progress=False)
                     if isinstance(raw_close.columns, pd.MultiIndex) and 'Close' in raw_close.columns.levels[0]:
                         close_df = raw_close['Close']
                     elif 'Close' in raw_close.columns:
@@ -569,11 +554,16 @@ else:
                         close_df = close_df.to_frame(name=tickers[0])
 
                     close_df = close_df.dropna(how='all')
+
+                    if close_df.empty:
+                        st.error("❌ 야후 파이낸스에서 선택한 종목의 주가 데이터를 가져오지 못했습니다. 기간을 조정하거나 잠시 후 다시 시도해 주세요.")
+                        st.stop()
+
                     close_df.index = pd.to_datetime(close_df.index).normalize()
 
                     # 💡 2. 배당금 다운로드 (별도 안전 다운로드)
                     try:
-                        raw_actions = yf.download(tickers, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), actions=True, progress=False)
+                        raw_actions = yf.download(tickers, start=start_date_str, end=end_date_str, actions=True, progress=False)
                         if isinstance(raw_actions.columns, pd.MultiIndex) and 'Dividends' in raw_actions.columns.levels[0]:
                             div_df = raw_actions['Dividends']
                         else:
@@ -587,7 +577,7 @@ else:
                     # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 별도 안전 다운로드
                     bench_df = pd.DataFrame()
                     try:
-                        bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), progress=False)
+                        bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, progress=False)
                         if isinstance(bench_raw.columns, pd.MultiIndex) and 'Close' in bench_raw.columns.levels[0]:
                             bench_df = bench_raw['Close']
                         elif 'Close' in bench_raw.columns:
@@ -845,9 +835,11 @@ else:
                     current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
                     if current_drawdown < max_drawdown_pct:
                         max_drawdown_pct = current_drawdown
-                    asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
+                    
+                    # 💡 4. 날짜 문자열 정규화 저장 (x축 시간 깨짐 방지)
+                    asset_history.append({"Date": date.strftime('%Y-%m-%d'), "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
-                    # 💡 4. 벤치마크 지수 정규화 매핑 보정
+                    # 💡 5. 벤치마크 지수 정규화 매핑 보정
                     ks_key = '^KS11' if '^KS11' in bench_df.columns else (bench_df.columns[0] if len(bench_df.columns) > 0 else None)
                     kq_key = '^KQ11' if '^KQ11' in bench_df.columns else (bench_df.columns[1] if len(bench_df.columns) > 1 else ks_key)
 
@@ -855,10 +847,11 @@ else:
                         kospi_base = float(bench_df[ks_key].dropna().iloc[0]) if len(bench_df[ks_key].dropna()) > 0 else 1.0
                         kosdaq_base = float(bench_df[kq_key].dropna().iloc[0]) if len(bench_df[kq_key].dropna()) > 0 else 1.0
                         for i in range(len(asset_history)):
-                            dt = asset_history[i]["Date"]
-                            if dt in bench_df.index:
-                                k_val = bench_df.loc[dt, ks_key]
-                                q_val = bench_df.loc[dt, kq_key]
+                            dt_str = asset_history[i]["Date"]
+                            dt_obj = pd.to_datetime(dt_str)
+                            if dt_obj in bench_df.index:
+                                k_val = bench_df.loc[dt_obj, ks_key]
+                                q_val = bench_df.loc[dt_obj, kq_key]
                                 asset_history[i]["KOSPI"] = (float(k_val) / kospi_base) * total_capital_input if pd.notna(k_val) else (asset_history[i-1]["KOSPI"] if i > 0 else total_capital_input)
                                 asset_history[i]["KOSDAQ"] = (float(q_val) / kosdaq_base) * total_capital_input if pd.notna(q_val) else (asset_history[i-1]["KOSDAQ"] if i > 0 else total_capital_input)
                             else:
@@ -906,7 +899,7 @@ else:
                     """, unsafe_allow_html=True)
 
                     current_query_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    backtest_period_str = f"{start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')} ({period_label})"
+                    backtest_period_str = f"{start_date_str} ~ {end_date_str} ({period_label})"
                     
                     st.markdown(f"""
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
