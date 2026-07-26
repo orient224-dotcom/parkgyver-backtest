@@ -8,13 +8,25 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# --- 1. 페이지 웹 디자인 세팅 (최고급 프리미엄 UX/UI CSS) ---
+# --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 최고급 프리미엄 UI CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V8 Ultra Pro", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
     .stApp {
         background-color: #f8fafc;
+    }
+    /* 스마트폰 모바일 화면 최적화 스타일 */
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 1.3rem !important;
+        }
+        .hero-banner {
+            padding: 16px 18px !important;
+        }
+        div[data-testid="stMetric"] {
+            padding: 12px 14px !important;
+        }
     }
     div[data-testid="stMetric"] {
         background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
@@ -30,12 +42,12 @@ st.markdown("""
     }
     div[data-testid="stMetricLabel"], div[data-testid="stMetricLabel"] * {
         color: #475569 !important;
-        font-size: 0.88rem !important;
+        font-size: 0.85rem !important;
         font-weight: 800 !important;
     }
     div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] * {
         color: #0f172a !important;
-        font-size: 1.35rem !important;
+        font-size: 1.25rem !important;
         font-weight: 900 !important;
     }
     .hero-banner {
@@ -59,20 +71,20 @@ st.markdown("""
         margin-top: 6px;
     }
     .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
+        gap: 8px;
         background-color: #e2e8f0;
-        padding: 10px 14px;
+        padding: 8px 10px;
         border-radius: 14px;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
         margin-bottom: 20px;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 48px;
+        height: 44px;
         background-color: #ffffff;
         border-radius: 10px;
-        padding: 0 22px;
+        padding: 0 16px;
         font-weight: 800;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         color: #334155;
         border: 1px solid #cbd5e1;
         box-shadow: 0 2px 6px rgba(0,0,0,0.03);
@@ -408,7 +420,7 @@ else:
     use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="주가가 200일 이평선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
     use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=True, help="익절/손절선에 도달하지 않더라도 지정된 날짜가 지나면 종가에 정리하여 자금 묶임 현상을 방지합니다.")
-    max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 20, 5) if use_time_cut else 9999
+    max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 30, 5) if use_time_cut else 9999
 
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
     valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
@@ -445,7 +457,6 @@ else:
     tax_pct = (st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100) if use_fee else 0.0
     slippage_pct = (st.sidebar.number_input("체결 오차 (슬리피지) (%)", value=0.10, format="%.2f", help="실제 동시호가 체결 시 일어날 수 있는 체결 오차를 보수적으로 선반영합니다.") / 100) if use_fee else 0.0
 
-    # 🌟 [요청 완벽 반영] 현금 40% + 열매 60% 하이브리드 옵션 추가
     reward_type = st.sidebar.selectbox(
         "🎁 전리품 수령 방식", 
         [
@@ -638,7 +649,7 @@ else:
                                             share_budget = max(0, net_profit) * 0.5
                                             buyable = int(share_budget // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
-                                        elif reward_type == '🌟 현금 40% + 열매 60% (하이브리드)':
+                                        elif reward_type == '🌟 현금 40% + 열매 60% (하이브리드 강화)':
                                             share_budget = max(0, net_profit) * 0.6
                                             buyable = int(share_budget // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
