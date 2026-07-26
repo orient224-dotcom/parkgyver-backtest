@@ -16,7 +16,6 @@ st.markdown("""
     .stApp {
         background-color: #f8fafc;
     }
-    /* 스마트폰 모바일 화면 최적화 스타일 */
     @media (max-width: 768px) {
         .hero-title {
             font-size: 1.3rem !important;
@@ -362,7 +361,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     if st.session_state["selected_stocks"]:
         st.markdown("---")
         st.markdown("#### 💡 자금별 1회 진입금액 최적 추천 가이드")
-        total_budget_input = st.number_input("🏦 내 총 작전 예산(원)을 입력하세요", value=10000000, step=1000000, key="rec_total_budget")
+        total_budget_input = st.number_input("🏦 내 총 작전 예산(원)", value=10000000, step=1000000, key="rec_total_budget")
         rec_std = total_budget_input // 5
         rec_aggr = total_budget_input // 3
         rec_def = total_budget_input // 8
@@ -1126,6 +1125,7 @@ else:
                         if len(active_positions) > 0:
                             active_table = []
                             tot_inv, tot_eval, tot_prof = 0, 0, 0
+                            danger_agents = [] # 🌟 [신규] -10% 이하 위험 요원 리스트 수집
 
                             for p in active_positions:
                                 t_code = p['ticker']
@@ -1140,6 +1140,15 @@ else:
 
                                 day_ret_val = p.get('entry_day_ret', 0)
 
+                                # 🌟 [요청 완벽 반영] 현재 수익률이 -10% 이하인 요원 감지!
+                                if ret <= -10.0:
+                                    danger_agents.append({
+                                        '요원': p['name'],
+                                        '구역명': p['stock_name'],
+                                        '현재수익률': f"{ret:.2f}%",
+                                        '출격일': p['entry_date']
+                                    })
+
                                 active_table.append({
                                     '요원': p['name'], 
                                     '구역명': p['stock_name'], 
@@ -1151,6 +1160,11 @@ else:
                                     '평가 손익': f"{format_pure_number(eval_profit)}원",
                                     '현재수익률': f"{ret:.2f}%"
                                 })
+
+                            # 🌟 [신규 알림 UI] -10% 이하 요원이 감지되면 최상단에 긴급 경고 배너 팝업!
+                            if danger_agents:
+                                danger_msgs = [f"🚨 **[{d['구역명']}] ({d['요원']})**: 현재 수익률 **{d['현재수익률']}** (출격일: {d['출격일']})" for d in danger_agents]
+                                st.error("⚠️ **[현장 긴급 경보] 손절선(-15%) 근접 위험 요원 발생!**\n\n" + "\n".join(danger_msgs) + f"\n\n* **사령관 조치 지침:** 현재 손절 기준(-{stop_loss_input}%)에 근접하여 하락 중인 요원입니다. 종가(동시호가) 시세를 예의주시하시거나 타임 컷 잔여 일을 체크하세요!")
 
                             tot_ret_pct = (tot_prof / tot_inv * 100) if tot_inv > 0 else 0
                             ac1, ac2, ac3 = st.columns(3)
