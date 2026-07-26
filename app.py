@@ -125,7 +125,7 @@ if "sector_db" not in st.session_state:
         },
         "🔋 2차전지 & 에코": {
             "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
-            "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS"
+            "POSCO홀딩с": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS"
         },
         "🚗 자동차 & 대표 제조": {
             "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS"
@@ -193,7 +193,7 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000, ma_period=240):
     if not tickers:
         return pd.DataFrame()
     try:
-        data = yf.download(tickers, period="1y", progress=False)
+        data = yf.download(tickers, period="1y", interval="1d", progress=False)
         close_data = data['Close'] if isinstance(data.columns, pd.MultiIndex) and 'Close' in data.columns.levels[0] else (data['Close'] if 'Close' in data.columns else data)
 
         for name, code in stock_dict.items():
@@ -509,7 +509,7 @@ else:
         st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
         try:
             live_tickers = list(PORTFOLIO_UNIVERSE.values())
-            live_raw = yf.download(live_tickers, period="5d", progress=False)
+            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
             live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
             
             buy_signals = []
@@ -541,8 +541,8 @@ else:
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                     tickers = list(PORTFOLIO_UNIVERSE.values())
                     
-                    # 💡 1. 포트폴리오 주가 다운로드 (안전한 파싱)
-                    raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, progress=False)
+                    # 💡 1. 포트폴리오 주가 다운로드 (일간 데이터 interval="1d" 강제)
+                    raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", progress=False)
                     if isinstance(raw_close.columns, pd.MultiIndex) and 'Close' in raw_close.columns.levels[0]:
                         close_df = raw_close['Close']
                     elif 'Close' in raw_close.columns:
@@ -563,7 +563,7 @@ else:
 
                     # 💡 2. 배당금 다운로드 (별도 안전 다운로드)
                     try:
-                        raw_actions = yf.download(tickers, start=start_date_str, end=end_date_str, actions=True, progress=False)
+                        raw_actions = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", actions=True, progress=False)
                         if isinstance(raw_actions.columns, pd.MultiIndex) and 'Dividends' in raw_actions.columns.levels[0]:
                             div_df = raw_actions['Dividends']
                         else:
@@ -574,10 +574,10 @@ else:
                     div_df.index = pd.to_datetime(div_df.index).normalize()
                     div_df = div_df.reindex(close_df.index).fillna(0)
 
-                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 별도 안전 다운로드
+                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 안전 다운로드
                     bench_df = pd.DataFrame()
                     try:
-                        bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, progress=False)
+                        bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, interval="1d", progress=False)
                         if isinstance(bench_raw.columns, pd.MultiIndex) and 'Close' in bench_raw.columns.levels[0]:
                             bench_df = bench_raw['Close']
                         elif 'Close' in bench_raw.columns:
@@ -836,31 +836,29 @@ else:
                     if current_drawdown < max_drawdown_pct:
                         max_drawdown_pct = current_drawdown
                     
-                    # 💡 4. 날짜 문자열 정규화 저장 (x축 시간 깨짐 방지)
-                    asset_history.append({"Date": date.strftime('%Y-%m-%d'), "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
+                    asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
-                    # 💡 5. 벤치마크 지수 정규화 매핑 보정
-                    ks_key = '^KS11' if '^KS11' in bench_df.columns else (bench_df.columns[0] if len(bench_df.columns) > 0 else None)
-                    kq_key = '^KQ11' if '^KQ11' in bench_df.columns else (bench_df.columns[1] if len(bench_df.columns) > 1 else ks_key)
+                    # 💡 6. 판다스 기반 완벽하고 견고한 벤치마크 지수 정렬 및 매핑
+                    asset_df = pd.DataFrame(asset_history)
+                    asset_df['Date'] = pd.to_datetime(asset_df['Date']).dt.normalize()
+                    asset_df = asset_df.set_index('Date')
 
-                    if not bench_df.empty and ks_key in bench_df.columns:
-                        kospi_base = float(bench_df[ks_key].dropna().iloc[0]) if len(bench_df[ks_key].dropna()) > 0 else 1.0
-                        kosdaq_base = float(bench_df[kq_key].dropna().iloc[0]) if len(bench_df[kq_key].dropna()) > 0 else 1.0
-                        for i in range(len(asset_history)):
-                            dt_str = asset_history[i]["Date"]
-                            dt_obj = pd.to_datetime(dt_str)
-                            if dt_obj in bench_df.index:
-                                k_val = bench_df.loc[dt_obj, ks_key]
-                                q_val = bench_df.loc[dt_obj, kq_key]
-                                asset_history[i]["KOSPI"] = (float(k_val) / kospi_base) * total_capital_input if pd.notna(k_val) else (asset_history[i-1]["KOSPI"] if i > 0 else total_capital_input)
-                                asset_history[i]["KOSDAQ"] = (float(q_val) / kosdaq_base) * total_capital_input if pd.notna(q_val) else (asset_history[i-1]["KOSDAQ"] if i > 0 else total_capital_input)
-                            else:
-                                asset_history[i]["KOSPI"] = asset_history[i-1]["KOSPI"] if i > 0 else total_capital_input
-                                asset_history[i]["KOSDAQ"] = asset_history[i-1]["KOSDAQ"] if i > 0 else total_capital_input
+                    if not bench_df.empty:
+                        bench_df.index = pd.to_datetime(bench_df.index).normalize()
+                        bench_aligned = bench_df.reindex(asset_df.index).ffill().bfill()
+                        ks_key = '^KS11' if '^KS11' in bench_aligned.columns else bench_aligned.columns[0]
+                        kq_key = '^KQ11' if '^KQ11' in bench_aligned.columns else (bench_aligned.columns[1] if len(bench_aligned.columns) > 1 else ks_key)
+                        
+                        ks_base = float(bench_aligned[ks_key].iloc[0]) if len(bench_aligned[ks_key].dropna()) > 0 else 1.0
+                        kq_base = float(bench_aligned[kq_key].iloc[0]) if len(bench_aligned[kq_key].dropna()) > 0 else 1.0
+                        
+                        asset_df['KOSPI'] = (bench_aligned[ks_key] / ks_base) * total_capital_input
+                        asset_df['KOSDAQ'] = (bench_aligned[kq_key] / kq_base) * total_capital_input
                     else:
-                        for i in range(len(asset_history)):
-                            asset_history[i]["KOSPI"] = total_capital_input
-                            asset_history[i]["KOSDAQ"] = total_capital_input
+                        asset_df['KOSPI'] = total_capital_input
+                        asset_df['KOSDAQ'] = total_capital_input
+
+                    asset_df = asset_df.reset_index()
 
                     last_row = close_df.iloc[-1]
                     active_eval_value = sum([p['invest_amount'] * (float(last_row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in last_row and not pd.isna(last_row[p['ticker']])])
@@ -997,7 +995,6 @@ else:
 
                     with tab1:
                         st.write("### 📈 백테스트 기간 자산 성장 & 벤치마크 & MDD 차트")
-                        asset_df = pd.DataFrame(asset_history)
                         
                         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 ({ma_period_choice}선 우산 적용)", "계좌 최대 낙폭 (MDD Underwater)"))
 
