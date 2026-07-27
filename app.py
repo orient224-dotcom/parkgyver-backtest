@@ -18,13 +18,13 @@ st.markdown("""
     }
     @media (max-width: 768px) {
         .hero-title {
-            font-size: 1.3rem !important;
+            font-size: 1.2rem !important;
         }
         .hero-banner {
-            padding: 16px 18px !important;
+            padding: 14px 16px !important;
         }
         div[data-testid="stMetric"] {
-            padding: 12px 14px !important;
+            padding: 10px 12px !important;
         }
     }
     div[data-testid="stMetric"] {
@@ -51,21 +51,21 @@ st.markdown("""
     }
     .hero-banner {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 24px 28px;
+        padding: 22px 24px;
         border-radius: 16px;
         color: #ffffff;
         border-left: 8px solid #38bdf8;
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
     .hero-title {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         font-weight: 900;
         margin: 0;
         color: #f8fafc;
     }
     .hero-subtitle {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         color: #94a3b8;
         margin-top: 6px;
     }
@@ -140,7 +140,7 @@ if "custom_stocks" not in st.session_state:
 
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
-    "현대힘ส": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
+    "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
     "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
     "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
@@ -363,7 +363,7 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
     if st.session_state["selected_stocks"]:
         st.markdown("---")
         st.markdown("#### 💡 자금별 1회 진입금액 최적 추천 가이드")
-        total_budget_input = st.number_input("🏦 내 총 작전 예산(원)을 입력하세요", value=10000000, step=1000000, key="rec_total_budget")
+        total_budget_input = st.number_input("🏦 내 총 작전 예산(원)", value=10000000, step=1000000, key="rec_total_budget")
         rec_std = total_budget_input // 5
         rec_aggr = total_budget_input // 3
         rec_def = total_budget_input // 8
@@ -391,16 +391,17 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
             st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실]을 누르세요!")
 
 # =====================================================================
-# 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V8 Ultra Pro)
+# 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V8 Ultra Pro) - 모바일 퍼스트 재배치
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🛡️ 박가이버표 실전 작전 통제실 V8 Ultra</div>
-        <div class="hero-subtitle">직장인 동시호가(종가) 매매 최적화 | 2단 연동 차트, 타임컷 알고리즘, 섹터 쏠림 경보, MDD 멘탈 분석 플랫폼</div>
+        <div class="hero-subtitle">직장인 동시호가(종가) 매매 최적화 | 모바일 퍼스트 실전 레이더 및 퀀트 백테스트 플랫폼</div>
     </div>
     """, unsafe_allow_html=True)
 
+    # 📱 [모바일 퍼스트 UX] 스마트폰에서 접속 시 스크롤 내릴 필요 없이 최상단에 배치되는 실시간 레이더 터미널!
     st.sidebar.subheader("💡 [추천] AI 시대 1,000만 원 황금 조합")
     if st.sidebar.button("🤖 AI시대 1,000만 원 추천 조합 자동 세팅", type="primary"):
         st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
@@ -428,7 +429,6 @@ else:
         help="120일선(반기 추세, 민첩함) 또는 240일선(1년 풀사이클, 묵직함) 중 선택하세요."
     )
 
-    # 💡 [신규 추가] 이동평균선 위에서만 거래 허용하는 엄격한 추세 필터 옵션
     use_strict_ma_filter = st.sidebar.checkbox(
         "📈 장기 이평선 위에서만 출격 (추세 필터)", 
         value=False, 
@@ -486,34 +486,9 @@ else:
     
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
 
-    with st.expander("📖 [당귀다TV] 박가이버 사령부 V8 초간단 실전 사용 설명서 (이렇게 해보세요!)", expanded=False):
-        st.markdown("""
-        ### 🛡️ 직장인을 위한 '하루 1분 동시호가 매매법' 핵심 수칙
-        1. **👔 업무 수호 (장중 감시 금지):** 장중 주가창을 열어보며 조바심을 내지 않습니다. 본업에 온전히 집중하세요!
-        2. **🕒 오후 3시 20분 동시호가 체크:** 퇴근 전 3시 20분, 이 앱을 열어 하단의 **`🚨 오늘의 실전 출격 명령서`**를 확인합니다.
-        3. **🛒 원클릭 종가 매수:** 포착된 종목이 있다면, 증권사 앱(MTS/HTS)을 열고 **'종가(동시호가)'**로 회당 지정된 진입금액만큼 매수 주문을 넣습니다.
-        4. **🎯 자동 목표가 예약 주문:** 매수한 다음 날 아침, 증권사 앱의 **'GTC 예약 매도(자동 매도)'** 기능을 이용해 목표가(+5%~+7%)와 손절가(-12%~-15%)를 걸어두면 매매 끝!
-        5. **📦 하이브리드 결실 수확:** 수익이 나면 현금 실탄으로 차곡차곡 쌓이고, 공짜 주식(열매)으로 내 금고에 평생 모여 배당금 꿀 수입을 가져다줍니다.
-        """)
-
-    if len(PORTFOLIO_UNIVERSE) >= 3:
-        sector_counts = {}
-        for code in PORTFOLIO_UNIVERSE.values():
-            sec = TICKER_TO_SECTOR.get(code, "기타 우량주")
-            sector_counts[sec] = sector_counts.get(sec, 0) + 1
-        
-        top_sec_name = max(sector_counts, key=sector_counts.get)
-        top_sec_cnt = sector_counts[top_sec_name]
-        top_sec_pct = (top_sec_cnt / len(PORTFOLIO_UNIVERSE)) * 100
-
-        if top_sec_pct >= 60.0:
-            st.warning(f"""
-            🚨 **[포트폴리오 섹터 쏠림 경보]** 현재 감시 종목 중 **{top_sec_pct:.0f}% ({top_sec_cnt}/{len(PORTFOLIO_UNIVERSE)}개)**가 **[{top_sec_name}]** 업종에 치우쳐 있습니다!
-            * **사령관 처방:** 특정 업종 동반 폭락 시 MDD가 깊어질 수 있으니, 사이드바에서 **`🤹‍♂️ 동일 섹터 몰빵 방지 캡`**을 켜시거나 타 업종 우량주(조선, 바이오, 방산 등)를 다변화하시는 것을 강력 추천합니다.
-            """)
-
+    # 📱 [모바일 최적화 포인트] 메인 화면 최상단에 오늘 실전 출격 명령서 배치!
+    st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
     if len(PORTFOLIO_UNIVERSE) > 0:
-        st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
         try:
             live_tickers = list(PORTFOLIO_UNIVERSE.values())
             live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
@@ -536,8 +511,37 @@ else:
                 st.success("✅ **현재 감시 구역 내 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
         except Exception:
             st.info("💡 실시간 시세를 동기화하는 중입니다.")
+    else:
+        st.warning("⚠️ 감시 종목이 선택되지 않았습니다. 사이드바에서 감시 종목을 선택해 주세요.")
+
+    if len(PORTFOLIO_UNIVERSE) >= 3:
+        sector_counts = {}
+        for code in PORTFOLIO_UNIVERSE.values():
+            sec = TICKER_TO_SECTOR.get(code, "기타 우량주")
+            sector_counts[sec] = sector_counts.get(sec, 0) + 1
+        
+        top_sec_name = max(sector_counts, key=sector_counts.get)
+        top_sec_cnt = sector_counts[top_sec_name]
+        top_sec_pct = (top_sec_cnt / len(PORTFOLIO_UNIVERSE)) * 100
+
+        if top_sec_pct >= 60.0:
+            st.warning(f"""
+            🚨 **[포트폴리오 섹터 쏠림 경보]** 현재 감시 종목 중 **{top_sec_pct:.0f}% ({top_sec_cnt}/{len(PORTFOLIO_UNIVERSE)}개)**가 **[{top_sec_name}]** 업종에 치우쳐 있습니다!
+            * **사령관 처방:** 특정 업종 동반 폭락 시 MDD가 깊어질 수 있으니, 사이드바에서 **`🤹‍♂️ 동일 섹터 몰빵 방지 캡`**을 켜시거나 타 업종 우량주(조선, 바이오, 방산 등)를 다변화하시는 것을 강력 추천합니다.
+            """)
 
     st.markdown("---")
+
+    with st.expander("📖 [당귀다TV] 박가이버 사령부 V8 초간단 실전 사용 설명서 (이렇게 해보세요!)", expanded=False):
+        st.markdown("""
+        ### 🛡️ 직장인을 위한 '하루 1분 동시호가 매매법' 핵심 수칙
+        1. **👔 업무 수호 (장중 감시 금지):** 장중 주가창을 열어보며 조바심을 내지 않습니다. 본업에 온전히 집중하세요!
+        2. **🕒 오후 3시 20분 동시호가 체크:** 퇴근 전 3시 20분, 이 앱을 열어 상단의 **`🚨 오늘의 실전 출격 명령서`**를 확인합니다.
+        3. **🛒 원클릭 종가 매수:** 포착된 종목이 있다면, 증권사 앱(MTS/HTS)을 열고 **'종가(동시호가)'**로 회당 지정된 진입금액만큼 매수 주문을 넣습니다.
+        4. **🎯 자동 목표가 예약 주문:** 매수한 다음 날 아침, 증권사 앱의 **'GTC 예약 매도(자동 매도)'** 기능을 이용해 목표가(+5%~+7%)와 손절가(-12%~-15%)를 걸어두면 매매 끝!
+        5. **📦 하이브리드 결실 수확:** 수익이 나면 현금 실탄으로 차곡차곡 쌓이고, 공짜 주식(열매)으로 내 금고에 평생 모여 배당금 꿀 수입을 가져다줍니다.
+        """)
+
     if run_btn:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 선택된 종목이 없습니다. 1개 이상 선택해 주세요.")
@@ -771,15 +775,12 @@ else:
                                     ret_val = float(day_returns[t_code])
                                     target_buy_cond = buy_cond
                                     
-                                    # 💡 [추세 필터 적용] 장기 이평선(120/240선) 위에 있을 때만 진입 허용 옵션 체크
                                     if t_code in sma_df.columns and date in sma_df.index:
                                         sma_val = sma_df.loc[date, t_code]
                                         curr_p = row[t_code]
                                         if pd.notna(sma_val) and pd.notna(curr_p):
                                             if use_strict_ma_filter and curr_p < sma_val:
-                                                # 이평선 아래(역배열)면 진입 자체를 금지함
                                                 continue
-
                                             if use_market_filter and curr_p < sma_val:
                                                 target_buy_cond = buy_cond * 1.4
 
