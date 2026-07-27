@@ -243,7 +243,7 @@ menu_choice = st.sidebar.radio(
         "🚨 2. 오늘의 실전 매매 레이더", 
         "🛡️ 3. 과거 5년 백테스트 연구소"
     ],
-    index=1
+    index=2
 )
 st.sidebar.markdown("---")
 
@@ -424,6 +424,15 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
+    # 📡 [신규 추가] 백테스트 연구소 전광판: 현재 세팅된 감시 종목 확인
+    valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
+    PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
+
+    if valid_watch_stocks:
+        st.success(f"🎯 **[백테스트 연구소 감시 전광판] 현재 장전된 감시 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
+    else:
+        st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 왼쪽 메뉴 **[🔎 1. 나만의 종목 세팅]**에서 종목을 먼저 골라주세요.")
+
     st.sidebar.subheader("⚙️ 백테스트 전략 조건 설정")
     use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True)
     ma_period_choice = st.sidebar.radio("📏 하락장 우산 기준선 선택", [120, 240], index=1, horizontal=True)
@@ -431,9 +440,6 @@ else:
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True)
     use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=True)
     max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 30, 5) if use_time_cut else 9999
-
-    valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
-    PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
     st.sidebar.markdown("---")
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000, key="bt_capital")
@@ -884,15 +890,26 @@ else:
 
                     with tab2:
                         st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
-                        st.warning(f"📊 기간 중 최대 동시 출격 수: **총 {global_max_deployed}개 종목**")
+                        st.warning(f"📊 기간 중 최대 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개)")
+                        if daily_deployment_snapshots:
+                            snap_df = pd.DataFrame(daily_deployment_snapshots)
+                            peak_df = snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자'])
+                            st.write("▼ **역대 최고 자금 몰림(피크) 발생 일자 및 출격 목록:**")
+                            st.dataframe(peak_df, use_container_width=True, hide_index=True)
+
+                        st.markdown("---")
+                        st.write("### 🚫 현금/슬롯/섹터 제한으로 놓쳐버린 출격 타점 추적기")
                         if missed_opportunities:
-                            st.error(f"🚨 현금/슬롯 제한으로 놓친 기회: 총 {len(missed_opportunities)}회")
+                            st.error(f"🚨 하락 타점이 맞았으나 제한으로 놓친 기회: 총 {len(missed_opportunities)}회")
                             st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
+                        else:
+                            st.success("🎉 단 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다!")
 
                     with tab3:
                         st.write("### 📊 종목 및 연도별 정밀 성적표")
                         c_col1, c_col2 = st.columns([1.2, 1])
                         with c_col1:
+                            st.write("#### 🗓️ 연도별 익절 vs 손절 건수 그래프")
                             yearly_chart_data = []
                             for y, val in yearly_stats.items():
                                 yearly_chart_data.append({"연도": str(y), "구분": "🎯 익절", "건수": val['success']})
@@ -900,6 +917,7 @@ else:
                             fig_bar = px.bar(pd.DataFrame(yearly_chart_data), x="연도", y="건수", color="구분", barmode="group", color_discrete_map={"🎯 익절": "#22c55e", "🚨 손절": "#ef4444"})
                             st.plotly_chart(fig_bar, use_container_width=True)
                         with c_col2:
+                            st.write("#### 🗓️ 연도별 정산 종합표")
                             yearly_summary_list = []
                             for y, val in sorted(yearly_stats.items()):
                                 yearly_summary_list.append({"연도": str(y), "🎯 익절": f"{val['success']}회", "🚨 손절": f"{val['stop']}회", "📦 획득 열매": f"{int(val['shares'])}주", "💵 현금수익": format_money(val['cash'])})
