@@ -5,8 +5,10 @@ import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-# --- 0. 날짜 정규화 안전 함수 ---
+# --- 0. 타임존(Timezone) 및 날짜 안전 정규화 함수 ---
 def clean_date_index(obj):
     if isinstance(obj, pd.Series):
         s = pd.to_datetime(obj)
@@ -57,7 +59,7 @@ st.markdown("""
         color: #ffffff;
         border-left: 8px solid #38bdf8;
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
-        margin-bottom: 20px;
+        margin-bottom: 25px;
     }
     .hero-title {
         font-size: 1.6rem;
@@ -66,7 +68,7 @@ st.markdown("""
         color: #f8fafc;
     }
     .hero-subtitle {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         color: #94a3b8;
         margin-top: 6px;
     }
@@ -94,7 +96,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 동적 데이터베이스 세션 초기화 ---
+# --- 2. 동적 데이터베이스 및 종목 마스터 세션 초기화 ---
 if "sector_db" not in st.session_state:
     st.session_state["sector_db"] = {
         "⚡ 반도체 & HBM / 칩렛": {
@@ -389,7 +391,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # 📌 1. 사이드바 변수 설정 영역 (최우선 선언)
+    # 📌 1. 사이드바 변수 선언
     st.sidebar.subheader("💡 [추천] AI 시대 1,000만 원 황금 조합")
     if st.sidebar.button("🤖 AI시대 1,000만 원 추천 조합 자동 세팅", type="primary"):
         st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
@@ -420,7 +422,7 @@ else:
     use_strict_ma_filter = st.sidebar.checkbox(
         "📈 장기 이평선 위에서만 출격 (추세 필터)", 
         value=False, 
-        help="켜시면 주가가 선택하신 기준선(120일 또는 240일선) 위에 있을 때만 매수 진입을 허용하고, 아래에 있으면 역배열로 판단하여 출격을 차단합니다."
+        help="켜하시면 주가가 선택하신 기준선(120일 또는 240일선) 위에 있을 때만 매수 진입을 허용하고, 아래에 있으면 역배열로 판단하여 출격을 차단합니다."
     )
 
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
@@ -576,7 +578,7 @@ else:
                     div_df.index = clean_date_index(div_df.index)
                     div_df = div_df.reindex(close_df.index).fillna(0)
 
-                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 안전 다운로드
+                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 안전 다운로드 (지수 실패 시에도 안심)
                     bench_df = pd.DataFrame()
                     try:
                         bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, interval="1d", progress=False)
@@ -615,6 +617,7 @@ else:
                     peak_asset_value = float(total_capital_input)
                     max_drawdown_pct = 0.0
 
+                    # 💡 4. 5년(1,200일) 매일매일 자금 시뮬레이션 및 일간 자산 기록
                     for date, row in close_df.iterrows():
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
@@ -833,30 +836,37 @@ else:
                                 "출격 종목 리스트": ", ".join([p['stock_name'] for p in active_positions])
                             })
 
-                    eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
-                    today_total_asset = current_cash + eval_pos
-                    
-                    if today_total_asset > peak_asset_value:
-                        peak_asset_value = today_total_asset
-                    current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
-                    if current_drawdown < max_drawdown_pct:
-                        max_drawdown_pct = current_drawdown
-                    
-                    asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
+                        eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
+                        today_total_asset = current_cash + eval_pos
+                        
+                        if today_total_asset > peak_asset_value:
+                            peak_asset_value = today_total_asset
+                        current_drawdown = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
+                        if current_drawdown < max_drawdown_pct:
+                            max_drawdown_pct = current_drawdown
+                        
+                        # 💡 핵심 수정: 매일매일 자금을 백테스트 리스트(asset_history)에 차곡차곡 기록!
+                        asset_history.append({
+                            "Date": date_str, 
+                            "Total_Asset": today_total_asset, 
+                            "Drawdown": current_drawdown
+                        })
 
-                    # 💡 4. 모바일 퍼스트 자산 데이터프레임 구축
+                    # 💡 5. 완벽한 시계열 데이터프레임 구축
                     asset_df = pd.DataFrame(asset_history)
-                    asset_df['Date'] = clean_date_index(asset_df['Date'])
-                    asset_df = asset_df.set_index('Date')
-
+                    
                     kospi_ret_pct, kosdaq_ret_pct = 0.0, 0.0
                     bench_synced = False
 
                     if not bench_df.empty:
                         try:
-                            bench_aligned = bench_df.reindex(asset_df.index).ffill().bfill()
-                            ks_key = '^KS11' if '^KS11' in bench_aligned.columns else bench_aligned.columns[0]
-                            kq_key = '^KQ11' if '^KQ11' in bench_aligned.columns else (bench_aligned.columns[1] if len(bench_aligned.columns) > 1 else ks_key)
+                            bench_df_clean = bench_df.copy()
+                            bench_df_clean.index = [d.strftime('%Y-%m-%d') for d in bench_df_clean.index]
+                            
+                            ks_key = '^KS11' if '^KS11' in bench_df_clean.columns else bench_df_clean.columns[0]
+                            kq_key = '^KQ11' if '^KQ11' in bench_df_clean.columns else (bench_df_clean.columns[1] if len(bench_df_clean.columns) > 1 else ks_key)
+                            
+                            bench_aligned = bench_df_clean.reindex(asset_df['Date']).ffill().bfill()
                             
                             ks_start = float(bench_aligned[ks_key].dropna().iloc[0])
                             ks_end = float(bench_aligned[ks_key].dropna().iloc[-1])
@@ -866,8 +876,8 @@ else:
                             kospi_ret_pct = ((ks_end - ks_start) / ks_start) * 100 if ks_start > 0 else 0.0
                             kosdaq_ret_pct = ((kq_end - kq_start) / kq_start) * 100 if kq_start > 0 else 0.0
 
-                            asset_df['KOSPI (지수)'] = (bench_aligned[ks_key] / ks_start) * total_capital_input
-                            asset_df['KOSDAQ (지수)'] = (bench_aligned[kq_key] / kq_start) * total_capital_input
+                            asset_df['KOSPI (지수)'] = (bench_aligned[ks_key].values / ks_start) * total_capital_input
+                            asset_df['KOSDAQ (지수)'] = (bench_aligned[kq_key].values / kq_start) * total_capital_input
                             bench_synced = True
                         except Exception:
                             pass
@@ -941,7 +951,6 @@ else:
                     m6.metric("📦 수확한 열매 평가액", format_money(total_free_shares_value), delta=f"총 {total_free_shares_count}주")
                     m7.metric("🍯 누적 배당금 (보너스)", format_money(total_dividend_profit), delta="달콤한 배당 꿀")
 
-                    # 💡 [대안 2] 직관적인 시장 지수 초과 성과 대시보드 카드
                     st.markdown("---")
                     st.markdown("### 📊 벤치마크 시장 지수 대비 수익률 초과 달성 리포트")
                     
@@ -1017,24 +1026,54 @@ else:
                     st.markdown("---")
 
                     tab1, tab2, tab3, tab4 = st.tabs([
-                        "📊 1. 모바일 초경량 자산 & MDD 차트", 
+                        "📊 1. 5년 실전 자산 성장 & MDD 차트", 
                         "🔍 2. 자금 회전율 & 미출격 진단", 
                         "📈 3. 종목/연도별 손익분석", 
                         "📜 4. 현장 대기요원 & 매매장부"
                     ])
 
                     with tab1:
-                        st.write("### 📈 총자산 증식 & 시장 지수 비교 (모바일 가벼운 차트)")
+                        st.write("### 📈 백테스트 기간 자산 증식 추이 (Plotly 초고화질 차트)")
                         
-                        # 💡 [대안 1] 모바일 웹에서 0.1초 만에 가볍게 뜨는 스트림릿 네이티브 초경량 차트
-                        chart_cols = ['내 총자산']
-                        if bench_synced:
-                            chart_cols.extend(['KOSPI (지수)', 'KOSDAQ (지수)'])
-                            
-                        st.line_chart(asset_df[chart_cols])
+                        # 💡 6. 100% 안전하고 화려한 Plotly 차트 복원!
+                        fig = make_subplots(
+                            rows=2, cols=1, 
+                            shared_xaxes=True, 
+                            vertical_spacing=0.1, 
+                            row_heights=[0.7, 0.3], 
+                            subplot_titles=(f"총자산 증식 추이 ({ma_period_choice}선 우산 적용)", "계좌 최대 낙폭 (MDD Underwater)")
+                        )
 
-                        st.write("### 🌊 계좌 최대 낙폭 (MDD Underwater)")
-                        st.area_chart(asset_df[['Drawdown']])
+                        # 내 총자산 곡선 (5년 전체 1,200일 선명하게 출력)
+                        fig.add_trace(go.Scatter(
+                            x=asset_df['Date'], y=asset_df['Total_Asset'], 
+                            mode='lines', name='내 총자산 (박가이버 전략)', 
+                            line=dict(color='#2563eb', width=3), 
+                            fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'
+                        ), row=1, col=1)
+
+                        if bench_synced:
+                            fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSPI (지수)'], mode='lines', name='KOSPI 지수 (단순 보유)', line=dict(color='#94a3b8', width=1.5, dash='dash')), row=1, col=1)
+                            fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSDAQ (지수)'], mode='lines', name='KOSDAQ 지수 (단순 보유)', line=dict(color='#cbd5e1', width=1.5, dash='dot')), row=1, col=1)
+
+                        fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
+
+                        # MDD 차트
+                        fig.add_trace(go.Scatter(
+                            x=asset_df['Date'], y=asset_df['Drawdown'], 
+                            mode='lines', name='낙폭(MDD %)', 
+                            line=dict(color='#dc2626', width=1.5), 
+                            fill='tozeroy', fillcolor='rgba(220, 38, 38, 0.15)'
+                        ), row=2, col=1)
+
+                        fig.update_layout(
+                            height=650, 
+                            template="plotly_white", 
+                            margin=dict(l=10, r=10, t=40, b=10), 
+                            hovermode="x unified", 
+                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
 
                     with tab2:
                         st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
