@@ -424,7 +424,6 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # 📡 [신규 추가] 백테스트 연구소 전광판: 현재 세팅된 감시 종목 확인
     valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
@@ -924,7 +923,7 @@ else:
                             st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
 
                         st.markdown("---")
-                        st.write("#### 📦 종목별 누적 열매 수확 총합계 리포트")
+                        st.write("### 📦 종목별 누적 열매 수확 총합계 리포트")
                         total_stock_fruit_summary = []
                         for s_name in PORTFOLIO_UNIVERSE.keys():
                             total_shares = free_shares_dict.get(s_name, 0)
@@ -940,6 +939,39 @@ else:
                         st.dataframe(pd.DataFrame(total_stock_fruit_summary), use_container_width=True, hide_index=True)
 
                     with tab4:
+                        st.write("### ⚔️ 현재 현장 투입 요원 현황")
+                        if len(active_positions) > 0:
+                            active_table = []
+                            tot_inv, tot_eval, tot_prof = 0, 0, 0
+                            for p in active_positions:
+                                t_code = p['ticker']
+                                curr_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else p['entry_price']
+                                eval_val = p['invest_amount'] * (curr_price / p['entry_price'])
+                                eval_profit = eval_val - p['invest_amount']
+                                ret = ((curr_price - p['entry_price']) / p['entry_price']) * 100
+                                tot_inv += p['invest_amount']
+                                tot_eval += eval_val
+                                tot_prof += eval_profit
+
+                                active_table.append({
+                                    '요원': p['name'], '구역명': p['stock_name'], '출격일': p['entry_date'],
+                                    '출격 당시 주가': format_exact_price(p['entry_price']),
+                                    '진입금액': f"{format_pure_number(p['invest_amount'])}원",
+                                    '현재 평가금액': f"{format_pure_number(eval_val)}원",
+                                    '평가 손익': f"{format_pure_number(eval_profit)}원",
+                                    '현재수익률': f"{ret:.2f}%"
+                                })
+
+                            st.success(f"⚔️ **현재 현장 교전(투입) 중인 요원: 총 {len(active_positions)}명**")
+                            ac1, ac2, ac3 = st.columns(3)
+                            ac1.metric("💰 투입 원금 합계", f"{format_pure_number(tot_inv)}원")
+                            ac2.metric("📊 현재 평가금액 합계", f"{format_pure_number(tot_eval)}원")
+                            ac3.metric("📈 평가 손익 합계", f"{format_pure_number(tot_prof)}원")
+                            st.dataframe(pd.DataFrame(active_table), use_container_width=True, hide_index=True)
+                        else:
+                            st.success("🎉 현재 현장에 대기 중인 요원이 없습니다! (100% 현금 회수 완료 상태)")
+
+                        st.markdown("---")
                         st.write("### 📜 전체 매매 장부")
                         if trade_logs:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
