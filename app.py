@@ -5,10 +5,8 @@ import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
-# --- 0. 타임존(Timezone) 및 날짜 타입 완벽 안전 정규화 함수 (100% 에러 차단) ---
+# --- 0. 날짜 정규화 안전 함수 ---
 def clean_date_index(obj):
     if isinstance(obj, pd.Series):
         s = pd.to_datetime(obj)
@@ -26,7 +24,7 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 최고급 프리미엄 UI CSS) ---
+# --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V8 Ultra Pro", page_icon="🛡️", layout="wide")
 
 st.markdown("""
@@ -36,13 +34,13 @@ st.markdown("""
     }
     @media (max-width: 768px) {
         .hero-title {
-            font-size: 1.3rem !important;
+            font-size: 1.2rem !important;
         }
         .hero-banner {
-            padding: 16px 18px !important;
+            padding: 14px 16px !important;
         }
         div[data-testid="stMetric"] {
-            padding: 12px 14px !important;
+            padding: 10px 12px !important;
         }
     }
     div[data-testid="stMetric"] {
@@ -51,39 +49,24 @@ st.markdown("""
         border-radius: 14px !important;
         border: 1px solid #cbd5e1 !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
-        transition: transform 0.2s ease;
-    }
-    div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08) !important;
-    }
-    div[data-testid="stMetricLabel"], div[data-testid="stMetricLabel"] * {
-        color: #475569 !important;
-        font-size: 0.85rem !important;
-        font-weight: 800 !important;
-    }
-    div[data-testid="stMetricValue"], div[data-testid="stMetricValue"] * {
-        color: #0f172a !important;
-        font-size: 1.25rem !important;
-        font-weight: 900 !important;
     }
     .hero-banner {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 24px 28px;
+        padding: 22px 24px;
         border-radius: 16px;
         color: #ffffff;
         border-left: 8px solid #38bdf8;
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
-        margin-bottom: 25px;
+        margin-bottom: 20px;
     }
     .hero-title {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         font-weight: 900;
         margin: 0;
         color: #f8fafc;
     }
     .hero-subtitle {
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         color: #94a3b8;
         margin-top: 6px;
     }
@@ -92,7 +75,6 @@ st.markdown("""
         background-color: #e2e8f0;
         padding: 8px 10px;
         border-radius: 14px;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
         margin-bottom: 20px;
     }
     .stTabs [data-baseweb="tab"] {
@@ -104,27 +86,15 @@ st.markdown("""
         font-size: 0.9rem;
         color: #334155;
         border: 1px solid #cbd5e1;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: #eff6ff;
-        color: #2563eb;
-        border-color: #93c5fd;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
     }
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
         color: #ffffff !important;
-        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35) !important;
-        border-color: #1d4ed8 !important;
-        transform: translateY(-1px);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 동적 데이터베이스 및 종목 마스터 세션 초기화 ---
+# --- 2. 동적 데이터베이스 세션 초기화 ---
 if "sector_db" not in st.session_state:
     st.session_state["sector_db"] = {
         "⚡ 반도체 & HBM / 칩렛": {
@@ -419,9 +389,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # =====================================================================
-    # 📌 1. 사이드바 변수 할당 (최우선 실행 영역)
-    # =====================================================================
+    # 📌 1. 사이드바 변수 설정 영역 (최우선 선언)
     st.sidebar.subheader("💡 [추천] AI 시대 1,000만 원 황금 조합")
     if st.sidebar.button("🤖 AI시대 1,000만 원 추천 조합 자동 세팅", type="primary"):
         st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
@@ -452,7 +420,7 @@ else:
     use_strict_ma_filter = st.sidebar.checkbox(
         "📈 장기 이평선 위에서만 출격 (추세 필터)", 
         value=False, 
-        help="켜하시면 주가가 선택하신 기준선(120일 또는 240일선) 위에 있을 때만 매수 진입을 허용하고, 아래에 있으면 역배열로 판단하여 출격을 차단합니다."
+        help="켜시면 주가가 선택하신 기준선(120일 또는 240일선) 위에 있을 때만 매수 진입을 허용하고, 아래에 있으면 역배열로 판단하여 출격을 차단합니다."
     )
 
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
@@ -506,9 +474,7 @@ else:
     
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
 
-    # =====================================================================
-    # 📱 2. 메인 화면 출력 (모바일 최적화 레이더 상단 배치)
-    # =====================================================================
+    # 📱 2. 메인 화면 출력 (모바일 상단 레이더)
     st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
     if len(PORTFOLIO_UNIVERSE) > 0:
         try:
@@ -610,7 +576,7 @@ else:
                     div_df.index = clean_date_index(div_df.index)
                     div_df = div_df.reindex(close_df.index).fillna(0)
 
-                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 다운로드
+                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 안전 다운로드
                     bench_df = pd.DataFrame()
                     try:
                         bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, interval="1d", progress=False)
@@ -620,7 +586,8 @@ else:
                             bench_df = bench_raw[['Close']]
                         else:
                             bench_df = bench_raw
-                        bench_df.index = clean_date_index(bench_df.index)
+                        if not bench_df.empty:
+                            bench_df.index = clean_date_index(bench_df.index)
                     except Exception:
                         pass
 
@@ -877,29 +844,35 @@ else:
                     
                     asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
-                    # 💡 4. 완벽한 타임존 프리(Timezone-Free) 시계열 데이터프레임 병합 
+                    # 💡 4. 모바일 퍼스트 자산 데이터프레임 구축
                     asset_df = pd.DataFrame(asset_history)
                     asset_df['Date'] = clean_date_index(asset_df['Date'])
                     asset_df = asset_df.set_index('Date')
 
-                    if not bench_df.empty:
-                        bench_aligned = bench_df.reindex(asset_df.index).ffill().bfill()
-                        ks_key = '^KS11' if '^KS11' in bench_aligned.columns else bench_aligned.columns[0]
-                        kq_key = '^KQ11' if '^KQ11' in bench_aligned.columns else (bench_aligned.columns[1] if len(bench_aligned.columns) > 1 else ks_key)
-                        
-                        ks_base = float(bench_aligned[ks_key].iloc[0]) if len(bench_aligned[ks_key].dropna()) > 0 else 1.0
-                        kq_base = float(bench_aligned[kq_key].iloc[0]) if len(bench_aligned[kq_key].dropna()) > 0 else 1.0
-                        
-                        if ks_base == 0: ks_base = 1.0
-                        if kq_base == 0: kq_base = 1.0
-                        
-                        asset_df['KOSPI'] = (bench_aligned[ks_key] / ks_base) * total_capital_input
-                        asset_df['KOSDAQ'] = (bench_aligned[kq_key] / kq_base) * total_capital_input
-                    else:
-                        asset_df['KOSPI'] = total_capital_input
-                        asset_df['KOSDAQ'] = total_capital_input
+                    kospi_ret_pct, kosdaq_ret_pct = 0.0, 0.0
+                    bench_synced = False
 
-                    asset_df = asset_df.reset_index()
+                    if not bench_df.empty:
+                        try:
+                            bench_aligned = bench_df.reindex(asset_df.index).ffill().bfill()
+                            ks_key = '^KS11' if '^KS11' in bench_aligned.columns else bench_aligned.columns[0]
+                            kq_key = '^KQ11' if '^KQ11' in bench_aligned.columns else (bench_aligned.columns[1] if len(bench_aligned.columns) > 1 else ks_key)
+                            
+                            ks_start = float(bench_aligned[ks_key].dropna().iloc[0])
+                            ks_end = float(bench_aligned[ks_key].dropna().iloc[-1])
+                            kq_start = float(bench_aligned[kq_key].dropna().iloc[0])
+                            kq_end = float(bench_aligned[kq_key].dropna().iloc[-1])
+
+                            kospi_ret_pct = ((ks_end - ks_start) / ks_start) * 100 if ks_start > 0 else 0.0
+                            kosdaq_ret_pct = ((kq_end - kq_start) / kq_start) * 100 if kq_start > 0 else 0.0
+
+                            asset_df['KOSPI (지수)'] = (bench_aligned[ks_key] / ks_start) * total_capital_input
+                            asset_df['KOSDAQ (지수)'] = (bench_aligned[kq_key] / kq_start) * total_capital_input
+                            bench_synced = True
+                        except Exception:
+                            pass
+
+                    asset_df['내 총자산'] = asset_df['Total_Asset']
 
                     last_row = close_df.iloc[-1]
                     active_eval_value = sum([p['invest_amount'] * (float(last_row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in last_row and not pd.isna(last_row[p['ticker']])])
@@ -968,6 +941,22 @@ else:
                     m6.metric("📦 수확한 열매 평가액", format_money(total_free_shares_value), delta=f"총 {total_free_shares_count}주")
                     m7.metric("🍯 누적 배당금 (보너스)", format_money(total_dividend_profit), delta="달콤한 배당 꿀")
 
+                    # 💡 [대안 2] 직관적인 시장 지수 초과 성과 대시보드 카드
+                    st.markdown("---")
+                    st.markdown("### 📊 벤치마크 시장 지수 대비 수익률 초과 달성 리포트")
+                    
+                    b_col1, b_col2, b_col3 = st.columns(3)
+                    b_col1.metric("🛡️ 내 박가이버 작전 수익률", f"{total_return_pct:+.2f}%", delta="최종 총자산 증식률")
+                    
+                    if bench_synced:
+                        kospi_diff = total_return_pct - kospi_ret_pct
+                        kosdaq_diff = total_return_pct - kosdaq_ret_pct
+                        b_col2.metric("📉 KOSPI 지수 (단순 보유)", f"{kospi_ret_pct:+.2f}%", delta=f"지수 대비 {kospi_diff:+.2f}%p 초과 달성")
+                        b_col3.metric("📉 KOSDAQ 지수 (단순 보유)", f"{kosdaq_ret_pct:+.2f}%", delta=f"지수 대비 {kosdaq_diff:+.2f}%p 초과 달성")
+                    else:
+                        b_col2.metric("📉 KOSPI 지수", "동기화 대기 중", delta="야후 파이낸스 해외 서버 제한")
+                        b_col3.metric("📉 KOSDAQ 지수", "동기화 대기 중", delta="야후 파이낸스 해외 서버 제한")
+
                     if total_free_shares_count > 0:
                         st.markdown(f"""
                         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 18px 22px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
@@ -1028,25 +1017,24 @@ else:
                     st.markdown("---")
 
                     tab1, tab2, tab3, tab4 = st.tabs([
-                        "📊 1. 2단 연동 퀀트 차트 (자산 & MDD)", 
+                        "📊 1. 모바일 초경량 자산 & MDD 차트", 
                         "🔍 2. 자금 회전율 & 미출격 진단", 
                         "📈 3. 종목/연도별 손익분석", 
                         "📜 4. 현장 대기요원 & 매매장부"
                     ])
 
                     with tab1:
-                        st.write("### 📈 백테스트 기간 자산 성장 & 벤치마크 & MDD 차트")
+                        st.write("### 📈 총자산 증식 & 시장 지수 비교 (모바일 가벼운 차트)")
                         
-                        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 ({ma_period_choice}선 우산 적용)", "계좌 최대 낙폭 (MDD Underwater)"))
+                        # 💡 [대안 1] 모바일 웹에서 0.1초 만에 가볍게 뜨는 스트림릿 네이티브 초경량 차트
+                        chart_cols = ['내 총자산']
+                        if bench_synced:
+                            chart_cols.extend(['KOSPI (지수)', 'KOSDAQ (지수)'])
+                            
+                        st.line_chart(asset_df[chart_cols])
 
-                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='내 총자산 (박가이버 전략)', line=dict(color='#2563eb', width=3), fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'), row=1, col=1)
-                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSPI'], mode='lines', name='KOSPI 지수 (단순 보유 시)', line=dict(color='#94a3b8', width=1.5, dash='dash')), row=1, col=1)
-                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSDAQ'], mode='lines', name='KOSDAQ 지수 (단순 보유 시)', line=dict(color='#cbd5e1', width=1.5, dash='dot')), row=1, col=1)
-                        fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
-                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='낙폭(MDD)', line=dict(color='#dc2626', width=1.5), fill='tozeroy', fillcolor='rgba(220, 38, 38, 0.15)'), row=2, col=1)
-
-                        fig.update_layout(height=650, autosize=True, template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.write("### 🌊 계좌 최대 낙폭 (MDD Underwater)")
+                        st.area_chart(asset_df[['Drawdown']])
 
                     with tab2:
                         st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
