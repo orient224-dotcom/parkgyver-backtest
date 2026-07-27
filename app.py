@@ -404,38 +404,14 @@ else:
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🛡️ 박가이버표 실전 작전 통제실 V8 Ultra</div>
-        <div class="hero-subtitle">직장인 동시호가(종가) 매매 최적화 | 2단 연동 차트, 타임컷 알고리즘, 섹터 쏠림 경보, MDD 멘탈 분석 플랫폼</div>
+        <div class="hero-subtitle">직장인 동시호가(종가) 매매 최적화 | 모바일 퍼스트 실전 레이더 및 퀀트 백테스트 플랫폼</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 📱 [모바일 최적화 포인트] 메인 화면 최상단에 오늘 실전 출격 명령서 배치!
-    st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
-    if len(PORTFOLIO_UNIVERSE) > 0:
-        try:
-            live_tickers = list(PORTFOLIO_UNIVERSE.values())
-            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
-            live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
-            
-            buy_signals = []
-            for name, code in PORTFOLIO_UNIVERSE.items():
-                s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
-                if len(s_data) >= 2:
-                    today_p = float(s_data.iloc[-1])
-                    yester_p = float(s_data.iloc[-2])
-                    change_pct = ((today_p - yester_p) / yester_p) * 100
-                    
-                    if change_pct <= -float(buy_cond_input):
-                        buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** (진입 타점 포착! 오늘 3시 20분 동시호가 출격 시그널)")
-            
-            if buy_signals:
-                st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
-            else:
-                st.success("✅ **현재 감시 구역 내 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
-        except Exception:
-            st.info("💡 실시간 시세를 동기화하는 중입니다.")
-    else:
-        st.warning("⚠️ 감시 종목이 선택되지 않았습니다. 사이드바에서 감시 종목을 선택해 주세요.")
-
+    # =====================================================================
+    # 📌 1. 사이드바 변수 할당 (최우선 실행 영역)
+    # 파이썬 에러 방지를 위해 변수들을 먼저 메모리에 확실히 세팅합니다.
+    # =====================================================================
     st.sidebar.subheader("💡 [추천] AI 시대 1,000만 원 황금 조합")
     if st.sidebar.button("🤖 AI시대 1,000만 원 추천 조합 자동 세팅", type="primary"):
         st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
@@ -519,6 +495,36 @@ else:
     )
     
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
+
+    # =====================================================================
+    # 📱 2. 메인 화면 출력 (모바일 최적화 레이더 상단 배치)
+    # =====================================================================
+    st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
+    if len(PORTFOLIO_UNIVERSE) > 0:
+        try:
+            live_tickers = list(PORTFOLIO_UNIVERSE.values())
+            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
+            live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
+            
+            buy_signals = []
+            for name, code in PORTFOLIO_UNIVERSE.items():
+                s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
+                if len(s_data) >= 2:
+                    today_p = float(s_data.iloc[-1])
+                    yester_p = float(s_data.iloc[-2])
+                    change_pct = ((today_p - yester_p) / yester_p) * 100
+                    
+                    if change_pct <= -float(buy_cond_input):
+                        buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** (진입 타점 포착! 오늘 3시 20분 동시호가 출격 시그널)")
+            
+            if buy_signals:
+                st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
+            else:
+                st.success("✅ **현재 감시 구역 내 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
+        except Exception:
+            st.info("💡 실시간 시세를 동기화하는 중입니다.")
+    else:
+        st.warning("⚠️ 감시 종목이 선택되지 않았습니다. 사이드바에서 감시 종목을 선택해 주세요.")
 
     if len(PORTFOLIO_UNIVERSE) >= 3:
         sector_counts = {}
@@ -867,7 +873,6 @@ else:
                     asset_df = asset_df.set_index('Date')
 
                     if not bench_df.empty:
-                        # reindex 시 에러 원천 차단을 위해 시간대가 모두 제거된 상태에서 병합
                         bench_aligned = bench_df.reindex(asset_df.index).ffill().bfill()
                         ks_key = '^KS11' if '^KS11' in bench_aligned.columns else bench_aligned.columns[0]
                         kq_key = '^KQ11' if '^KQ11' in bench_aligned.columns else (bench_aligned.columns[1] if len(bench_aligned.columns) > 1 else ks_key)
