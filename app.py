@@ -115,7 +115,7 @@ if "sector_db" not in st.session_state:
         },
         "🔋 2차전지 & 에코": {
             "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
-            "POSCO홀딩с": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS"
+            "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS"
         },
         "🚗 자동차 & 대표 제조": {
             "현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS"
@@ -366,7 +366,6 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     </div>
     """, unsafe_allow_html=True)
 
-    # 사이드바 실전 조종간
     st.sidebar.subheader("⚙️ 실전 매매 조건 설정")
     buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1, key="live_buy_cond")
     
@@ -425,7 +424,6 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # 사이드바 백테스트 조종간
     st.sidebar.subheader("⚙️ 백테스트 전략 조건 설정")
     use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True)
     ma_period_choice = st.sidebar.radio("📏 하락장 우산 기준선 선택", [120, 240], index=1, horizontal=True)
@@ -470,7 +468,6 @@ else:
     st.sidebar.markdown("---")
     run_btn = st.sidebar.button("🚀 백테스트 타임머신 가동!", type="primary", use_container_width=True)
 
-    # ⚖️ 법적 면책 고지 사이드바 하단 배치
     st.sidebar.markdown("---")
     with st.sidebar.expander("⚖️ 법적 책임 면책 고지문", expanded=False):
         st.caption("""
@@ -846,6 +843,27 @@ else:
                         b_col2.metric("📉 KOSPI 지수", "동기화 대기중")
                         b_col3.metric("📉 KOSDAQ 지수", "동기화 대기중")
 
+                    if total_free_shares_count > 0:
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 18px 22px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+                            <h4 style="margin-top: 0; color: #166534; font-size: 1.15rem; margin-bottom: 10px;">📦 내 열매(무료 주식) 금고 상세 현황</h4>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        fruit_list = []
+                        for s_name, count in free_shares_dict.items():
+                            if count > 0:
+                                t_code = PORTFOLIO_UNIVERSE[s_name]
+                                c_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else 0
+                                eval_val = count * c_price
+                                fruit_list.append({
+                                    "작전 구역 (종목명)": s_name,
+                                    "보유 수량": f"{count}주",
+                                    "현재 1주 단가": format_exact_price(c_price),
+                                    "현재 평가액": format_money(eval_val)
+                                })
+                        st.dataframe(pd.DataFrame(fruit_list), use_container_width=True, hide_index=True)
+
                     tab1, tab2, tab3, tab4 = st.tabs([
                         "📊 1. 자산 성장 & MDD 차트", 
                         "🔍 2. 자금 회전율 & 미출격 진단", 
@@ -873,10 +891,35 @@ else:
 
                     with tab3:
                         st.write("### 📊 종목 및 연도별 정밀 성적표")
-                        yearly_summary_list = []
-                        for y, val in sorted(yearly_stats.items()):
-                            yearly_summary_list.append({"연도": str(y), "🎯 익절": f"{val['success']}회", "🚨 손절": f"{val['stop']}회", "💵 현금수익": format_money(val['cash'])})
-                        st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
+                        c_col1, c_col2 = st.columns([1.2, 1])
+                        with c_col1:
+                            yearly_chart_data = []
+                            for y, val in yearly_stats.items():
+                                yearly_chart_data.append({"연도": str(y), "구분": "🎯 익절", "건수": val['success']})
+                                yearly_chart_data.append({"연도": str(y), "구분": "🚨 손절", "건수": val['stop']})
+                            fig_bar = px.bar(pd.DataFrame(yearly_chart_data), x="연도", y="건수", color="구분", barmode="group", color_discrete_map={"🎯 익절": "#22c55e", "🚨 손절": "#ef4444"})
+                            st.plotly_chart(fig_bar, use_container_width=True)
+                        with c_col2:
+                            yearly_summary_list = []
+                            for y, val in sorted(yearly_stats.items()):
+                                yearly_summary_list.append({"연도": str(y), "🎯 익절": f"{val['success']}회", "🚨 손절": f"{val['stop']}회", "📦 획득 열매": f"{int(val['shares'])}주", "💵 현금수익": format_money(val['cash'])})
+                            st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
+
+                        st.markdown("---")
+                        st.write("#### 📦 종목별 누적 열매 수확 총합계 리포트")
+                        total_stock_fruit_summary = []
+                        for s_name in PORTFOLIO_UNIVERSE.keys():
+                            total_shares = free_shares_dict.get(s_name, 0)
+                            t_code = PORTFOLIO_UNIVERSE[s_name]
+                            c_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else 0
+                            eval_val = total_shares * c_price
+                            total_stock_fruit_summary.append({
+                                "작전 구역 (종목명)": s_name,
+                                "총 수확한 열매(주식) 수": f"{total_shares}주",
+                                "현재 1주 단가": format_exact_price(c_price),
+                                "현재 열매 총 평가액": format_money(eval_val)
+                            })
+                        st.dataframe(pd.DataFrame(total_stock_fruit_summary), use_container_width=True, hide_index=True)
 
                     with tab4:
                         st.write("### 📜 전체 매매 장부")
