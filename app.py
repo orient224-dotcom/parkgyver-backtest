@@ -8,12 +8,23 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# --- 0. 타임존(Timezone) 충돌 방지 강력 정규화 함수 ---
-def remove_timezone(dt_index):
-    dt_index = pd.to_datetime(dt_index)
-    if getattr(dt_index, 'tz', None) is not None:
-        dt_index = dt_index.tz_convert(None)
-    return dt_index.normalize()
+# --- 0. 타임존(Timezone) 및 날짜 타입 완벽 안전 정규화 함수 (100% 에러 차단) ---
+def clean_date_index(obj):
+    if isinstance(obj, pd.Series):
+        s = pd.to_datetime(obj)
+        if s.dt.tz is not None:
+            s = s.dt.tz_convert(None)
+        return s.dt.normalize()
+    elif isinstance(obj, (pd.DatetimeIndex, pd.Index)):
+        idx = pd.to_datetime(obj)
+        if getattr(idx, 'tz', None) is not None:
+            idx = idx.tz_convert(None)
+        return idx.normalize()
+    else:
+        dt = pd.to_datetime(obj)
+        if getattr(dt, 'tz', None) is not None:
+            dt = dt.tz_convert(None)
+        return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 최고급 프리미엄 UI CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V8 Ultra Pro", page_icon="🛡️", layout="wide")
@@ -410,7 +421,6 @@ else:
 
     # =====================================================================
     # 📌 1. 사이드바 변수 할당 (최우선 실행 영역)
-    # 파이썬 에러 방지를 위해 변수들을 먼저 메모리에 확실히 세팅합니다.
     # =====================================================================
     st.sidebar.subheader("💡 [추천] AI 시대 1,000만 원 황금 조합")
     if st.sidebar.button("🤖 AI시대 1,000만 원 추천 조합 자동 세팅", type="primary"):
@@ -442,7 +452,7 @@ else:
     use_strict_ma_filter = st.sidebar.checkbox(
         "📈 장기 이평선 위에서만 출격 (추세 필터)", 
         value=False, 
-        help="켜시면 주가가 선택하신 기준선(120일 또는 240일선) 위에 있을 때만 매수 진입을 허용하고, 아래에 있으면 역배열로 판단하여 출격을 차단합니다."
+        help="켜하시면 주가가 선택하신 기준선(120일 또는 240일선) 위에 있을 때만 매수 진입을 허용하고, 아래에 있으면 역배열로 판단하여 출격을 차단합니다."
     )
 
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
@@ -564,7 +574,7 @@ else:
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                     tickers = list(PORTFOLIO_UNIVERSE.values())
                     
-                    # 💡 1. 포트폴리오 주가 다운로드 (일간 데이터 강제 및 정규화)
+                    # 💡 1. 포트폴리오 주가 다운로드
                     raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", progress=False)
                     if isinstance(raw_close.columns, pd.MultiIndex):
                         if 'Close' in raw_close.columns.levels[0]:
@@ -585,7 +595,7 @@ else:
                         st.error("❌ 야후 파이낸스에서 선택한 종목의 주가 데이터를 가져오지 못했습니다. 기간을 조정하거나 잠시 후 다시 시도해 주세요.")
                         st.stop()
 
-                    close_df.index = remove_timezone(close_df.index)
+                    close_df.index = clean_date_index(close_df.index)
 
                     # 💡 2. 배당금 다운로드 
                     try:
@@ -597,7 +607,7 @@ else:
                     except Exception:
                         div_df = pd.DataFrame(0, index=close_df.index, columns=tickers)
                     
-                    div_df.index = remove_timezone(div_df.index)
+                    div_df.index = clean_date_index(div_df.index)
                     div_df = div_df.reindex(close_df.index).fillna(0)
 
                     # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 다운로드
@@ -610,7 +620,7 @@ else:
                             bench_df = bench_raw[['Close']]
                         else:
                             bench_df = bench_raw
-                        bench_df.index = remove_timezone(bench_df.index)
+                        bench_df.index = clean_date_index(bench_df.index)
                     except Exception:
                         pass
 
@@ -869,7 +879,7 @@ else:
 
                     # 💡 4. 완벽한 타임존 프리(Timezone-Free) 시계열 데이터프레임 병합 
                     asset_df = pd.DataFrame(asset_history)
-                    asset_df['Date'] = remove_timezone(asset_df['Date'])
+                    asset_df['Date'] = clean_date_index(asset_df['Date'])
                     asset_df = asset_df.set_index('Date')
 
                     if not bench_df.empty:
@@ -1027,7 +1037,6 @@ else:
                     with tab1:
                         st.write("### 📈 백테스트 기간 자산 성장 & 벤치마크 & MDD 차트")
                         
-                        # 💡 5. 차트 사이즈 및 렌더링 최적화 
                         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 ({ma_period_choice}선 우산 적용)", "계좌 최대 낙폭 (MDD Underwater)"))
 
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='내 총자산 (박가이버 전략)', line=dict(color='#2563eb', width=3), fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'), row=1, col=1)
