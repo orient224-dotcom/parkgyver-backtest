@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import datetime
-import json
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
 import plotly.graph_objects as go
@@ -27,7 +26,7 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI) ---
+# --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V8 Ultra Pro", page_icon="🛡️", layout="wide")
 
 st.markdown("""
@@ -239,26 +238,44 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000, ma_period=240):
 st.sidebar.title("🎛️ 박가이버 사령부 V8 Pro")
 menu_choice = st.sidebar.radio(
     "모드 선택",
-    ["🔎 1. 작전 구역(섹터) 탐색기", "🛡️ 2. 실전 작전 통제실 (백테스트)"],
+    ["🔎 1. 나만의 작전 바구니 세팅기", "🛡️ 2. 실전 작전 통제실 (백테스트)"],
     index=1
 )
 st.sidebar.markdown("---")
 
 # =====================================================================
-# 🔎 모드 1: 작전 구역(섹터) 탐색기
+# 🔎 모드 1: 나만의 작전 바구니 세팅기
 # =====================================================================
-if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
+if menu_choice == "🔎 1. 나만의 작전 바구니 세팅기":
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🔎 작전 구역 및 영구 종목 탐색기</div>
-        <div class="hero-subtitle">종목 이름(예: 한국콜마, RFHIC) 또는 6자리 종목코드를 입력하시면 바구니에 100% 영구 등록됩니다.</div>
+        <div class="hero-title">🔎 나만의 작전 바구니(포트폴리오) 세팅기</div>
+        <div class="hero-subtitle">원터치 추천 조합을 누르시거나 원하는 종목을 검색해 나만의 감시 바구니를 간편하게 세팅하세요!</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 🔍 1. 대한민국 전종목 스마트 등록 (이름 & 코드 겸용)")
-    st.info("💡 종목명(예: **한국콜마**, **RFHIC**, **뉴파워프라즈마**)을 입력하시거나 6자리 숫자 코드를 입력해 바구니에 담으세요!")
+    st.markdown("### 💡 1. 스마트폰 원터치 추천 포트폴리오 세팅")
+    p_col1, p_col2, p_col3 = st.columns(3)
+    
+    if p_col1.button("🤖 AI/반도체 황금 5선", type="primary", use_container_width=True):
+        st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
+        st.toast("🎉 [SK하이닉스, 한미반도체, 테크윙, HD현대일렉트릭, HPSP] 담기 완료!")
+        st.rerun()
 
-    search_tab1, search_tab2 = st.tabs(["⚡ 스마트 종목/코드 직접 등록 (영구 저장)", "🔎 내장 장부에서 바로 고르기"])
+    if p_col2.button("🛡️ 방산/조선 주도주 4선", use_container_width=True):
+        st.session_state["selected_stocks"] = ["한화오션", "HD한국조선해양", "LIG넥스원", "현대로템"]
+        st.toast("🎉 [한화오션, HD한국조선해양, LIG넥스원, 현대로템] 담기 완료!")
+        st.rerun()
+
+    if p_col3.button("🧬 바이오/화장품 4선", use_container_width=True):
+        st.session_state["selected_stocks"] = ["한국콜마", "코스맥스", "알테오젠", "셀트리온"]
+        st.toast("🎉 [한국콜마, 코스맥스, 알테오젠, 셀트리온] 담기 완료!")
+        st.rerun()
+
+    st.markdown("---")
+
+    st.markdown("### 🔍 2. 종목 직접 검색 및 신규 등록")
+    search_tab1, search_tab2 = st.tabs(["⚡ 이름/코드로 스마트 등록", "🔎 내장 장부에서 바로 고르기"])
 
     with search_tab1:
         c_col1, c_col2, c_col3, c_col4 = st.columns([2, 1.5, 1, 1])
@@ -266,11 +283,10 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
         input_code = c_col2.text_input("6자리 코드 (선택)", placeholder="예: 161890, 218410", key="custom_code_input")
         input_market = c_col3.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="custom_market_select")
         
-        if c_col4.button("➕ 바구니에 담기", type="primary", key="btn_add_custom_stock"):
+        if c_col4.button("➕ 바구니 추가", type="primary", key="btn_add_custom_stock"):
             name_q = input_name.strip()
             code_q = input_code.strip()
-            resolved_name = None
-            resolved_code = None
+            resolved_name, resolved_code = None, None
 
             if name_q in MASTER_STOCK_DICT:
                 resolved_name = name_q
@@ -293,93 +309,47 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
                 TICKER_TO_SECTOR[resolved_code] = "커스텀 종목"
                 if resolved_name not in st.session_state["selected_stocks"]:
                     st.session_state["selected_stocks"].append(resolved_name)
-                st.success(f"🎉 [{resolved_name} ({resolved_code})] 종목이 바구니에 완벽하게 추가되었습니다!")
+                st.success(f"🎉 [{resolved_name} ({resolved_code})] 바구니 추가 완료!")
                 st.rerun()
             else:
-                st.error("⚠️ 사전에서 종목명을 찾지 못했습니다. 종목명과 함께 **'6자리 숫자 코드(예: 161890)'**를 정확히 작성해 주세요!")
+                st.error("⚠️ 종목명이나 6자리 코드를 정확히 입력해 주세요!")
 
     with search_tab2:
         all_stock_names = sorted(list(MASTER_STOCK_DICT.keys()))
-        selected_from_dropdown = st.selectbox(
-            "사령부에 내장된 종목 이름 중에서 고르세요:",
-            options=[""] + all_stock_names,
-            key="dropdown_stock_select_final"
-        )
-        if st.button("🛒 선택 종목 [백테스트 바구니] 추가", type="secondary", key="btn_dropdown_add_final"):
+        selected_from_dropdown = st.selectbox("내장 종목 리스트에서 선택:", options=[""] + all_stock_names, key="dropdown_stock_select_final")
+        if st.button("🛒 선택 종목 바구니 추가", type="secondary", key="btn_dropdown_add_final"):
             if selected_from_dropdown and selected_from_dropdown in MASTER_STOCK_DICT:
-                code = MASTER_STOCK_DICT[selected_from_dropdown]
                 if selected_from_dropdown not in st.session_state["selected_stocks"]:
                     st.session_state["selected_stocks"].append(selected_from_dropdown)
-                    st.success(f"🎉 [{selected_from_dropdown} ({code})] 종목이 바구니에 성공적으로 담겼습니다!")
+                    st.success(f"🎉 [{selected_from_dropdown}] 추가 완료!")
                     st.rerun()
-                else:
-                    st.info(f"💡 '{selected_from_dropdown}' 종목은 이미 바구니에 담겨 있습니다.")
 
     st.markdown("---")
 
-    st.markdown("### 🎯 2. 테마/섹터별 둘러보기")
-    col_sec1, col_sec2 = st.columns([1, 2])
-    with col_sec1:
-        selected_sector = st.selectbox("📂 탐색할 섹터 선택", list(st.session_state["sector_db"].keys()))
-    
-    sector_stocks_dict = st.session_state["sector_db"][selected_sector]
-    
-    with col_sec2:
-        st.write(f"▼ **[{selected_sector}] 주요 감시 종목 목록**")
-        sector_target_list = st.multiselect(
-            "바구니로 전송할 종목 선택:",
-            options=list(sector_stocks_dict.keys()),
-            default=list(sector_stocks_dict.keys()),
-            key=f"sec_select_{selected_sector}"
-        )
-        if st.button(f"🛒 선택 종목 [백테스트 바구니] 추가", type="secondary"):
-            added_count = 0
-            for s_name in sector_target_list:
-                if s_name not in st.session_state["selected_stocks"]:
-                    st.session_state["selected_stocks"].append(s_name)
-                    added_count += 1
-            st.toast(f"🎉 {added_count}개 종목이 바구니에 담겼습니다!")
-
-    st.markdown("---")
-
-    st.markdown("### 🛒 3. 작전 통제실로 전송할 종목 바구니 담기")
-
+    st.markdown("### 🛒 3. 내 전용 작전 바구니 최종 확인")
     valid_selected_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
     st.session_state["selected_stocks"] = st.multiselect(
-        "백테스트 검증을 진행할 종목들을 선택해 주세요 (1개~10개 권장):",
+        "현재 내 바구니에 담긴 감시 종목 리스트 (자유롭게 추가/삭제 가능):",
         options=list(MASTER_STOCK_DICT.keys()),
         default=valid_selected_stocks
     )
 
     if st.session_state["selected_stocks"]:
         st.markdown("---")
-        st.markdown("#### 💡 자금별 1회 진입금액 최적 추천 가이드")
+        st.markdown("#### 🎯 내 바구니 종목 작전 적합도 & 단가 검진 리포트")
         total_budget_input = st.number_input("🏦 내 총 작전 예산(원)", value=10000000, step=1000000, key="rec_total_budget")
         rec_std = total_budget_input // 5
-        rec_aggr = total_budget_input // 3
-        rec_def = total_budget_input // 8
-
-        r_col1, r_col2, r_col3 = st.columns(3)
-        r_col1.metric("🎯 표준 권장 (5슬롯 균형)", format_money(rec_std), delta="총 예산의 20%")
-        r_col2.metric("⚡ 적극 공격 (3슬롯 회전)", format_money(rec_aggr), delta="총 예산의 33%")
-        r_col3.metric("🛡️ 철벽 방어 (8슬롯 연금)", format_money(rec_def), delta="총 예산의 12.5%")
-
-        st.markdown("---")
-        st.markdown("#### 🎯 바구니 종목 작전 적합도 & 단가 검진 리포트")
-        diag_invest_amount = rec_std
         basket_dict = {name: MASTER_STOCK_DICT[name] for name in st.session_state["selected_stocks"] if name in MASTER_STOCK_DICT}
         
-        with st.spinner("📡 종목별 1주 단가, 자금 비율 및 파동 적합도를 검진 중..."):
-            suitability_df = analyze_stock_suitability(basket_dict, diag_invest_amount, ma_period=240)
+        with st.spinner("📡 종목별 1주 단가 및 적합도를 검진 중..."):
+            suitability_df = analyze_stock_suitability(basket_dict, rec_std, ma_period=240)
         if not suitability_df.empty:
             st.dataframe(suitability_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("💡 종목 정보를 불러오는 중입니다.")
 
         st.markdown("---")
-        if st.button("🚀 선택한 종목들을 [작전 통제실]로 즉시 전송!", type="primary"):
-            st.success(f"🎉 총 {len(st.session_state['selected_stocks'])}개 종목 설정 완료!")
-            st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실]을 누르세요!")
+        if st.button("🚀 나만의 작전 세팅으로 [실전 작전 통제실] 출격!", type="primary", use_container_width=True):
+            st.success(f"🎉 총 {len(st.session_state['selected_stocks'])}개 종목 세팅 완료!")
+            st.info("👈 왼쪽 사이드바 메뉴에서 **[🛡️ 2. 실전 작전 통제실]**을 누르시면 오늘 출격 시그널을 확인하실 수 있습니다!")
 
 # =====================================================================
 # 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V8 Ultra Pro)
@@ -392,84 +362,43 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-    # =====================================================================
-    # 📱 2안 신규 탑재: 나만의 작전 세팅 (저장 및 불러오기 파일 컨트롤러)
-    # =====================================================================
-    st.sidebar.subheader("💾 나만의 작전 세팅 (저장/불러오기)")
-    uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", type=["json"], help="스마트폰에 저장해 둔 나만의 설정 파일(.json)을 올리면 즉시 세팅이 복원됩니다.")
-    
-    if uploaded_cfg is not None:
-        try:
-            cfg_data = json.load(uploaded_cfg)
-            if "selected_stocks" in cfg_data:
-                st.session_state["selected_stocks"] = cfg_data["selected_stocks"]
-            if "total_capital" in cfg_data:
-                st.session_state["cfg_total_capital"] = cfg_data["total_capital"]
-            if "invest_amount" in cfg_data:
-                st.session_state["cfg_invest_amount"] = cfg_data["invest_amount"]
-            if "buy_cond" in cfg_data:
-                st.session_state["cfg_buy_cond"] = cfg_data["buy_cond"]
-            if "sell_target" in cfg_data:
-                st.session_state["cfg_sell_target"] = cfg_data["sell_target"]
-            if "stop_loss" in cfg_data:
-                st.session_state["cfg_stop_loss"] = cfg_data["stop_loss"]
-            if "ma_period" in cfg_data:
-                st.session_state["cfg_ma_period"] = cfg_data["ma_period"]
-            if "use_strict_ma_filter" in cfg_data:
-                st.session_state["cfg_strict_ma"] = cfg_data["use_strict_ma_filter"]
-            if "use_market_filter" in cfg_data:
-                st.session_state["cfg_market_filter"] = cfg_data["use_market_filter"]
-            if "use_sector_limit" in cfg_data:
-                st.session_state["cfg_sector_limit"] = cfg_data["use_sector_limit"]
-            if "use_time_cut" in cfg_data:
-                st.session_state["cfg_time_cut"] = cfg_data["use_time_cut"]
-            if "max_hold_days" in cfg_data:
-                st.session_state["cfg_max_hold_days"] = cfg_data["max_hold_days"]
-            st.sidebar.success("🎉 나만의 작전 세팅 복원 완료!")
-        except Exception:
-            st.sidebar.error("⚠️ 올바른 설정(.json) 파일이 아닙니다.")
-
-    st.sidebar.markdown("---")
-
-    # 📌 1. 사이드바 변수 선언 (세션 상태 적용)
-    st.sidebar.subheader("💡 [추천] AI 시대 1,000만 원 황금 조합")
-    if st.sidebar.button("🤖 AI시대 1,000만 원 추천 조합 자동 세팅", type="primary"):
+    # 📌 1. 사이드바 변수 선언
+    st.sidebar.subheader("💡 빠른 종목 조합 세팅")
+    if st.sidebar.button("🤖 AI 시대 황금 조합 자동 적용", type="primary", use_container_width=True):
         st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
-        st.sidebar.success("🎉 [SK하이닉스, 한미반도체, 테크윙, HD현대일렉트릭, HPSP] 추천 5종목이 세팅되었습니다!")
+        st.sidebar.success("🎉 황금 조합 세팅 완료!")
         st.rerun()
 
     st.sidebar.subheader("⚙️ 빠른 전략 프리셋")
     preset_col1, preset_col2 = st.sidebar.columns(2)
     buy_preset, sell_preset = 5, 5
-    if preset_col1.button("⚡ 적극 공격형"):
+    if preset_col1.button("⚡ 적극 공격"):
         buy_preset, sell_preset = 3, 7
-        st.sidebar.info("적극 공격형 (-3% 진입 / +7% 익절) 설정 완료!")
+        st.sidebar.info("-3% 진입 / +7% 익절")
     if preset_col2.button("🛡️ 안정 스노우볼"):
         buy_preset, sell_preset = 5, 5
-        st.sidebar.info("안정 스노우볼 (-5% 진입 / +5% 익절) 설정 완료!")
+        st.sidebar.info("-5% 진입 / +5% 익절")
 
     st.sidebar.subheader("🛡️ 스마트 방어 스위치")
-    use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=st.session_state.get("cfg_market_filter", True), key="cfg_market_filter", help="지정된 이동평균선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
+    use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True, help="지정된 이동평균선 아래인 하락장에서는 진입 기준을 1.4배 깊게 잡아 손절을 줄입니다.")
     
     ma_period_choice = st.sidebar.radio(
         "📏 하락장 우산 기준선 선택",
         [120, 240],
-        index=0 if st.session_state.get("cfg_ma_period", 240) == 120 else 1,
-        key="cfg_ma_period",
+        index=1,
         horizontal=True,
         help="120일선(반기 추세, 민첩함) 또는 240일선(1년 풀사이클, 묵직함) 중 선택하세요."
     )
 
     use_strict_ma_filter = st.sidebar.checkbox(
         "📈 장기 이평선 위에서만 출격 (추세 필터)", 
-        value=st.session_state.get("cfg_strict_ma", False), 
-        key="cfg_strict_ma",
+        value=False, 
         help="켜하시면 주가가 선택하신 기준선(120일 또는 240일선) 위에 있을 때만 매수 진입을 허용하고, 아래에 있으면 역배열로 판단하여 출격을 차단합니다."
     )
 
-    use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=st.session_state.get("cfg_sector_limit", True), key="cfg_sector_limit", help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
-    use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=st.session_state.get("cfg_time_cut", True), key="cfg_time_cut", help="익절/손절선에 도달하지 않더라도 지정된 날짜가 지나면 종가에 정리하여 자금 묶임 현상을 방지합니다.")
-    max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, st.session_state.get("cfg_max_hold_days", 30), 5, key="cfg_max_hold_days") if use_time_cut else 9999
+    use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True, help="특정 테마(예: 반도체)가 동반 하락할 때 계좌 자금이 한 섹터에만 과도하게 쏠리는 것을 방지합니다.")
+    use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=True, help="익절/손절선에 도달하지 않더라도 지정된 날짜가 지나면 종가에 정리하여 자금 묶임 현상을 방지합니다.")
+    max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 30, 5) if use_time_cut else 9999
 
     st.sidebar.subheader("🎯 감시 작전 구역 선택")
     valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
@@ -477,10 +406,10 @@ else:
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in selected_stock_names if s_name in MASTER_STOCK_DICT}
 
     st.sidebar.markdown("---")
-    total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=st.session_state.get("cfg_total_capital", 10000000), step=1000000, key="cfg_total_capital")
+    total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000)
     rec_default_invest = total_capital_input // 5
     st.sidebar.caption(f"💡 권장 1회 진입금 (5슬롯 표준): **{format_money(rec_default_invest)}**")
-    invest_amount_input = st.sidebar.number_input("💰 회당 초기 진입금액(원)", value=int(st.session_state.get("cfg_invest_amount", rec_default_invest)), step=500000, key="cfg_invest_amount")
+    invest_amount_input = st.sidebar.number_input("💰 회당 초기 진입금액(원)", value=int(rec_default_invest), step=500000)
     max_active_slots = max(1, int(total_capital_input // invest_amount_input))
     st.sidebar.info(f"💡 동원 가능 요원 슬롯: **{max_active_slots}개**")
     max_sector_slots = max(1, max_active_slots // 2)
@@ -496,9 +425,9 @@ else:
         months_input = years_val * 12
         period_label = f"{years_val}년"
 
-    buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, st.session_state.get("cfg_buy_cond", buy_preset), 1, key="cfg_buy_cond")
-    sell_target_input = st.sidebar.slider("🎯 익절 목표 (+%)", 1, 30, st.session_state.get("cfg_sell_target", sell_preset), 1, key="cfg_sell_target")
-    stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, st.session_state.get("cfg_stop_loss", 15), 1, key="cfg_stop_loss")
+    buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, buy_preset, 1)
+    sell_target_input = st.sidebar.slider("🎯 익절 목표 (+%)", 1, 30, sell_preset, 1)
+    stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1)
 
     st.sidebar.subheader("💸 거래비용 적용")
     use_fee = st.sidebar.checkbox("수수료/거래세 반영", value=True)
@@ -516,33 +445,18 @@ else:
         ]
     )
 
-    # 📱 [현재 설정 다운로드 버튼]
-    cfg_to_save = {
-        "selected_stocks": st.session_state.get("selected_stocks", []),
-        "total_capital": total_capital_input,
-        "invest_amount": invest_amount_input,
-        "buy_cond": buy_cond_input,
-        "sell_target": sell_target_input,
-        "stop_loss": stop_loss_input,
-        "ma_period": ma_period_choice,
-        "use_strict_ma_filter": use_strict_ma_filter,
-        "use_market_filter": use_market_filter,
-        "use_sector_limit": use_sector_limit,
-        "use_time_cut": use_time_cut,
-        "max_hold_days": max_hold_days_input
-    }
-    json_cfg_str = json.dumps(cfg_to_save, ensure_ascii=False, indent=2)
-
-    st.sidebar.download_button(
-        label="📥 현재 작전 세팅 휴대폰에 저장 (.json)",
-        data=json_cfg_str,
-        file_name="dangguida_strategy_config.json",
-        mime="application/json",
-        help="클릭하시면 현재 설정한 종목과 작전 조건들이 스마트폰 파일로 내려받아집니다."
-    )
-    
     st.sidebar.markdown("---")
-    run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
+    run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary", use_container_width=True)
+
+    # ⚖️ [법적 면책 고지 - 사이드바 하단 배치]
+    st.sidebar.markdown("---")
+    with st.sidebar.expander("⚖️ 법적 책임 면책 고지문", expanded=False):
+        st.caption("""
+        **[투자 유의사항 안내]**
+        1. 본 프로그램은 과거 주가 데이터를 기반으로 작동하는 **단순 퀀트 시뮬레이션 및 데이터 참고 도구**이며, 특정 종목의 매수/매도를 권유하거나 자문하는 금융 서비스가 아닙니다.
+        2. 과거의 백테스트 수익률이 미래의 투자 수익을 결코 보장하지 않습니다.
+        3. 주식 시장 특성상 원금 손실 위험이 존재하며, **모든 투자의 최종 결정과 손익 결과에 대한 법적 책임은 투자자 본인**에게 있음을 알려드립니다.
+        """)
 
     # 📱 2. 메인 화면 출력 (모바일 상단 레이더)
     st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
@@ -1102,7 +1016,6 @@ else:
                     with tab1:
                         st.write("### 📈 백테스트 기간 자산 증식 추이 (Plotly 초고화질 차트)")
                         
-                        # 💡 6. 100% 안전하고 화려한 Plotly 차트
                         fig = make_subplots(
                             rows=2, cols=1, 
                             shared_xaxes=True, 
@@ -1111,7 +1024,6 @@ else:
                             subplot_titles=(f"총자산 증식 추이 ({ma_period_choice}선 우산 적용)", "계좌 최대 낙폭 (MDD Underwater)")
                         )
 
-                        # 내 총자산 곡선 (5년 전체 1,200일 선명하게 출력)
                         fig.add_trace(go.Scatter(
                             x=asset_df['Date'], y=asset_df['Total_Asset'], 
                             mode='lines', name='내 총자산 (박가이버 전략)', 
@@ -1125,7 +1037,6 @@ else:
 
                         fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
 
-                        # MDD 차트
                         fig.add_trace(go.Scatter(
                             x=asset_df['Date'], y=asset_df['Drawdown'], 
                             mode='lines', name='낙폭(MDD %)', 
