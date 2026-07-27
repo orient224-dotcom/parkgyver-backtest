@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import datetime
+import json
 from dateutil.relativedelta import relativedelta
 import plotly.express as px
 import plotly.graph_objects as go
@@ -27,7 +28,7 @@ def clean_date_index(obj):
         return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V9 Personal DB", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10 Local DB", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -128,7 +129,6 @@ if "sector_db" not in st.session_state:
 if "custom_stocks" not in st.session_state:
     st.session_state["custom_stocks"] = {}
 
-# 💡 [초개인화 DB 세션] 실전 보유 종목 vs 관심 종목 영구 관리
 if "my_holdings" not in st.session_state:
     st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
 
@@ -143,7 +143,7 @@ KOREAN_STOCK_MASTER = {
     "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
     "이수화학": "005950.KS", "이수스페셜티케미컬": "457190.KS", "마녀공장": "439090.KQ",
     "뉴파워프라즈마": "144960.KQ", "두산에너빌리티": "034020.KS", "하나마이크론": "084370.KQ",
-    "동진쎄미켐": "033640.KQ", "솔브레인": "357780.KQ", "가온칩스": "399500.KQ",
+    "동진쎄미켐": "033640.KQ", "솔브레인": "357780.KQ", "가온칩с": "399500.KQ",
     "두산로보틱스": "454910.KS", "한화에어로스페이스": "012450.KS", "LIG넥스원": "079550.KS",
     "HD현대일렉트릭": "267260.KS", "LS일렉트릭": "010120.KS", "포스코퓨처엠": "003670.KS", "피에스케이": "057030.KQ"
 }
@@ -162,7 +162,6 @@ for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
     TICKER_TO_SECTOR[code] = "커스텀 종목"
 
-# 호환성을 위한 selected_stocks 바인딩
 if "selected_stocks" not in st.session_state:
     st.session_state["selected_stocks"] = st.session_state["my_holdings"]
 
@@ -242,8 +241,27 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000, ma_period=240):
         pass
     return pd.DataFrame(results)
 
-# --- 3. 사이드바 조종간 (3대 메뉴 독립 분리) ---
-st.sidebar.title("🎛️ 박가이버 사령부 V9")
+# --- 3. 사이드바 조종간 (스마트폰 파일 저장/불러오기 기능 탑재) ---
+st.sidebar.title("🎛️ 박가이버 사령부 V10")
+
+# 📱 스마트폰 로컬 세팅 저장 및 불러오기 컨트롤러
+st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
+uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", type=["json"], help="스마트폰에 저장해 둔 설정 파일(.json)을 올리면 내 종목 세팅이 1초 만에 복원됩니다.")
+
+if uploaded_cfg is not None:
+    try:
+        cfg_data = json.load(uploaded_cfg)
+        if "my_holdings" in cfg_data:
+            st.session_state["my_holdings"] = cfg_data["my_holdings"]
+            st.session_state["selected_stocks"] = cfg_data["my_holdings"]
+        if "my_watchlist" in cfg_data:
+            st.session_state["my_watchlist"] = cfg_data["my_watchlist"]
+        st.sidebar.success("🎉 작전 세팅 파일 복원 완료!")
+    except Exception:
+        st.sidebar.error("⚠️ 올바른 설정(.json) 파일이 아닙니다.")
+
+st.sidebar.markdown("---")
+
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     [
@@ -262,16 +280,14 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🗄️ 나만의 투자 영구 DB (마이 포트폴리오)</div>
-        <div class="hero-subtitle">내 증권사 계좌의 실제 보유 종목과 관심 종목을 영구 세팅하세요! 사령부가 기억하고 매일 추적합니다.</div>
+        <div class="hero-subtitle">실전 보유 종목을 세팅하고 스마트폰 파일로 영구 저장해 두세요! 언제든 불러와서 사용하실 수 있습니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
     db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력)", "⭐ 눈여겨보는 관심 종목"])
 
     with db_tab1:
-        st.markdown("### 💼 1. 실전 보유 종목 영구 DB 세팅")
-        st.info("💡 실제 투자 계좌에서 매매 중인 주력 종목들을 세팅해 두세요. 실전 레이더의 1순위 감시 대상이 됩니다.")
-        
+        st.markdown("### 💼 1. 실전 보유 종목 DB 세팅")
         valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
         new_holdings = st.multiselect(
             "실전 보유 종목 편집:",
@@ -282,13 +298,11 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
         if st.button("💾 실전 보유 종목 DB 저장", type="primary", use_container_width=True):
             st.session_state["my_holdings"] = new_holdings
             st.session_state["selected_stocks"] = new_holdings
-            st.success("🎉 실전 보유 종목 DB가 영구 저장 및 동기화되었습니다!")
+            st.success("🎉 실전 보유 종목이 안전하게 저장되었습니다!")
             st.rerun()
 
     with db_tab2:
-        st.markdown("### ⭐ 2. 관심 종목 영구 DB 세팅")
-        st.info("💡 다음에 진입하려고 눈여겨보는 유망 종목들을 담아두는 금고입니다.")
-        
+        st.markdown("### ⭐ 2. 관심 종목 DB 세팅")
         valid_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
         new_watchlist = st.multiselect(
             "관심 종목 편집:",
@@ -298,7 +312,7 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
         )
         if st.button("💾 관심 종목 DB 저장", type="secondary", use_container_width=True):
             st.session_state["my_watchlist"] = new_watchlist
-            st.success("🎉 관심 종목 DB가 안전하게 저장되었습니다!")
+            st.success("🎉 관심 종목이 안전하게 저장되었습니다!")
             st.rerun()
 
     st.markdown("---")
@@ -320,26 +334,22 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
         st.toast("🎉 바이오/화장품 4선 세팅 완료!")
         st.rerun()
 
+    # 📱 [현재 설정 다운로드 버튼]
     st.markdown("---")
-    st.markdown("### 🔍 새로운 종목 직접 등록 (마이 DB 추가)")
-    c_in1, c_in2, c_in3, c_in4 = st.columns([2, 1.5, 1, 1])
-    input_name = c_in1.text_input("종목명", placeholder="예: 뉴파워프라즈마")
-    input_code = c_in2.text_input("6자리 코드", placeholder="예: 144960")
-    input_market = c_in3.selectbox("시장", ["코스피 (.KS)", "코스닥 (.KQ)"])
-    if c_in4.button("➕ DB 추가", type="primary"):
-        n_q = input_name.strip()
-        c_q = input_code.strip()
-        if n_q and len(c_q) == 6:
-            suffix = ".KS" if "코스피" in input_market else ".KQ"
-            full_code = f"{c_q}{suffix}"
-            MASTER_STOCK_DICT[n_q] = full_code
-            if n_q not in st.session_state["my_holdings"]:
-                st.session_state["my_holdings"].append(n_q)
-                st.session_state["selected_stocks"] = st.session_state["my_holdings"]
-            st.success(f"🎉 [{n_q} ({full_code})] 영구 DB 추가 완료!")
-            st.rerun()
-        else:
-            st.error("종목명과 6자리 코드를 정확히 입력해 주세요.")
+    st.markdown("### 💾 나만의 세팅 휴대폰 파일로 백업하기")
+    cfg_to_save = {
+        "my_holdings": st.session_state.get("my_holdings", []),
+        "my_watchlist": st.session_state.get("my_watchlist", [])
+    }
+    json_cfg_str = json.dumps(cfg_to_save, ensure_ascii=False, indent=2)
+    st.download_button(
+        label="📥 내 작전 세팅 휴대폰에 다운로드 (.json)",
+        data=json_cfg_str,
+        file_name="parkgyver_my_strategy.json",
+        mime="application/json",
+        use_container_width=True,
+        help="클릭하시면 내 종목 세팅이 스마트폰 다운로드 폴더에 안전하게 저장됩니다."
+    )
 
 # =====================================================================
 # 🚨 메뉴 2: 오늘의 실전 매매 레이더 (출격 명령서 전용)
@@ -348,14 +358,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🚨 오늘의 실전 매매 레이더 (출격 명령서)</div>
-        <div class="hero-subtitle">매일 오후 3시 20분 종가 기준 | 내 계좌 영구 DB에 담긴 주력 종목들의 실전 매수 타점을 포착합니다.</div>
+        <div class="hero-subtitle">매일 오후 3시 20분 종가 기준 | 내 계좌 DB에 담긴 주력 종목들의 실전 매수 타점을 포착합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
     st.sidebar.subheader("⚙️ 실전 매매 조건 설정")
     buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1, key="live_buy_cond")
     
-    # DB에서 실전 보유 종목 로드
     valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
@@ -948,7 +957,7 @@ else:
                             st.success(f"⚔️ **현재 현장 교전(투입) 중인 요원: 총 {len(active_positions)}명**")
                             ac1, ac2, ac3 = st.columns(3)
                             ac1.metric("💰 투입 원금 합계", f"{format_pure_number(tot_inv)}원")
-                            ac2.metric("📊 현재 평가금액 합계", f"{format_pure_number(eval_val)}원")
+                            ac2.metric("📊 현재 평가금액 합계", f"{format_pure_number(tot_eval)}원")
                             ac3.metric("📈 평가 손익 합계", f"{format_pure_number(tot_prof)}원")
                             st.dataframe(pd.DataFrame(active_table), use_container_width=True, hide_index=True)
                         else:
