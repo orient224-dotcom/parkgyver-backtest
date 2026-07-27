@@ -27,7 +27,7 @@ def clean_date_index(obj):
         return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V8 Ultra Pro", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V9 Personal DB", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -128,6 +128,13 @@ if "sector_db" not in st.session_state:
 if "custom_stocks" not in st.session_state:
     st.session_state["custom_stocks"] = {}
 
+# 💡 [초개인화 DB 세션] 실전 보유 종목 vs 관심 종목 영구 관리
+if "my_holdings" not in st.session_state:
+    st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
+
+if "my_watchlist" not in st.session_state:
+    st.session_state["my_watchlist"] = ["한화오션", "현대로템", "RFHIC", "한국콜마"]
+
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
     "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
@@ -155,8 +162,9 @@ for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
     TICKER_TO_SECTOR[code] = "커스텀 종목"
 
+# 호환성을 위한 selected_stocks 바인딩
 if "selected_stocks" not in st.session_state:
-    st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
+    st.session_state["selected_stocks"] = st.session_state["my_holdings"]
 
 def format_money(num):
     if num is None or pd.isna(num):
@@ -235,125 +243,103 @@ def analyze_stock_suitability(stock_dict, invest_amount=2000000, ma_period=240):
     return pd.DataFrame(results)
 
 # --- 3. 사이드바 조종간 (3대 메뉴 독립 분리) ---
-st.sidebar.title("🎛️ 박가이버 사령부 V8 Pro")
+st.sidebar.title("🎛️ 박가이버 사령부 V9")
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     [
-        "🔎 1. 나만의 종목 세팅 (작전 바구니)", 
+        "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)", 
         "🚨 2. 오늘의 실전 매매 레이더", 
         "🛡️ 3. 과거 5년 백테스트 연구소"
     ],
-    index=2
+    index=1
 )
 st.sidebar.markdown("---")
 
 # =====================================================================
-# 🔎 메뉴 1: 나만의 종목 세팅 (작전 바구니)
+# 🗄️ 메뉴 1: 내 계좌 영구 DB (마이 포트폴리오 세팅 본부)
 # =====================================================================
-if menu_choice == "🔎 1. 나만의 종목 세팅 (작전 바구니)":
+if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🔎 나만의 작전 바구니(포트폴리오) 세팅기</div>
-        <div class="hero-subtitle">원터치 추천 조합을 누르시거나 원하는 종목을 검색해 나만의 감시 바구니를 간편하게 세팅하세요!</div>
+        <div class="hero-title">🗄️ 나만의 투자 영구 DB (마이 포트폴리오)</div>
+        <div class="hero-subtitle">내 증권사 계좌의 실제 보유 종목과 관심 종목을 영구 세팅하세요! 사령부가 기억하고 매일 추적합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("### 💡 1. 스마트폰 원터치 추천 포트폴리오 세팅")
+    db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력)", "⭐ 눈여겨보는 관심 종목"])
+
+    with db_tab1:
+        st.markdown("### 💼 1. 실전 보유 종목 영구 DB 세팅")
+        st.info("💡 실제 투자 계좌에서 매매 중인 주력 종목들을 세팅해 두세요. 실전 레이더의 1순위 감시 대상이 됩니다.")
+        
+        valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
+        new_holdings = st.multiselect(
+            "실전 보유 종목 편집:",
+            options=list(MASTER_STOCK_DICT.keys()),
+            default=valid_holdings,
+            key="holding_multiselect"
+        )
+        if st.button("💾 실전 보유 종목 DB 저장", type="primary", use_container_width=True):
+            st.session_state["my_holdings"] = new_holdings
+            st.session_state["selected_stocks"] = new_holdings
+            st.success("🎉 실전 보유 종목 DB가 영구 저장 및 동기화되었습니다!")
+            st.rerun()
+
+    with db_tab2:
+        st.markdown("### ⭐ 2. 관심 종목 영구 DB 세팅")
+        st.info("💡 다음에 진입하려고 눈여겨보는 유망 종목들을 담아두는 금고입니다.")
+        
+        valid_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
+        new_watchlist = st.multiselect(
+            "관심 종목 편집:",
+            options=list(MASTER_STOCK_DICT.keys()),
+            default=valid_watchlist,
+            key="watchlist_multiselect"
+        )
+        if st.button("💾 관심 종목 DB 저장", type="secondary", use_container_width=True):
+            st.session_state["my_watchlist"] = new_watchlist
+            st.success("🎉 관심 종목 DB가 안전하게 저장되었습니다!")
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("### ⚡ 원터치 추천 포트폴리오 패키지 로드")
     p_col1, p_col2, p_col3 = st.columns(3)
-    
-    if p_col1.button("🤖 AI/반도체 황금 5선", type="primary", use_container_width=True):
-        st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
-        st.toast("🎉 [SK하이닉스, 한미반도체, 테크윙, HD현대일렉트릭, HPSP] 담기 완료!")
+    if p_col1.button("🤖 AI/반도체 황금 5선", use_container_width=True):
+        st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
+        st.session_state["selected_stocks"] = st.session_state["my_holdings"]
+        st.toast("🎉 AI 반도체 5선 세팅 완료!")
         st.rerun()
-
     if p_col2.button("🛡️ 방산/조선 주도주 4선", use_container_width=True):
-        st.session_state["selected_stocks"] = ["한화오션", "HD한국조선해양", "LIG넥스원", "현대로템"]
-        st.toast("🎉 [한화오션, HD한국조선해양, LIG넥스원, 현대로템] 담기 완료!")
+        st.session_state["my_holdings"] = ["한화오션", "HD한국조선해양", "LIG넥스원", "현대로템"]
+        st.session_state["selected_stocks"] = st.session_state["my_holdings"]
+        st.toast("🎉 방산/조선 4선 세팅 완료!")
         st.rerun()
-
     if p_col3.button("🧬 바이오/화장품 4선", use_container_width=True):
-        st.session_state["selected_stocks"] = ["한국콜마", "코스맥스", "알테오젠", "셀트리온"]
-        st.toast("🎉 [한국콜마, 코스맥스, 알테오젠, 셀트리온] 담기 완료!")
+        st.session_state["my_holdings"] = ["한국콜마", "코스맥스", "알테오젠", "셀트리온"]
+        st.session_state["selected_stocks"] = st.session_state["my_holdings"]
+        st.toast("🎉 바이오/화장품 4선 세팅 완료!")
         st.rerun()
 
     st.markdown("---")
-
-    st.markdown("### 🔍 2. 종목 직접 검색 및 신규 등록")
-    search_tab1, search_tab2 = st.tabs(["⚡ 이름/코드로 스마트 등록", "🔎 내장 장부에서 바로 고르기"])
-
-    with search_tab1:
-        c_col1, c_col2, c_col3, c_col4 = st.columns([2, 1.5, 1, 1])
-        input_name = c_col1.text_input("종목명 입력", placeholder="예: 한국콜마, RFHIC", key="custom_name_input")
-        input_code = c_col2.text_input("6자리 코드 (선택)", placeholder="예: 161890, 218410", key="custom_code_input")
-        input_market = c_col3.selectbox("소속 시장", ["코스피 (.KS)", "코스닥 (.KQ)"], key="custom_market_select")
-        
-        if c_col4.button("➕ 바구니 추가", type="primary", key="btn_add_custom_stock"):
-            name_q = input_name.strip()
-            code_q = input_code.strip()
-            resolved_name, resolved_code = None, None
-
-            if name_q in MASTER_STOCK_DICT:
-                resolved_name = name_q
-                resolved_code = MASTER_STOCK_DICT[name_q]
-            elif name_q in KOREAN_STOCK_MASTER:
-                resolved_name = name_q
-                resolved_code = KOREAN_STOCK_MASTER[name_q]
-            elif len(code_q) == 6 and code_q.isdigit():
-                suffix = ".KS" if "코스피" in input_market else ".KQ"
-                resolved_code = f"{code_q}{suffix}"
-                resolved_name = name_q if name_q else f"신규작전주({code_q})"
-            elif len(name_q) == 6 and name_q.isdigit():
-                suffix = ".KS" if "코스피" in input_market else ".KQ"
-                resolved_code = f"{name_q}{suffix}"
-                resolved_name = f"신규작전주({name_q})"
-
-            if resolved_name and resolved_code:
-                st.session_state["custom_stocks"][resolved_name] = resolved_code
-                MASTER_STOCK_DICT[resolved_name] = resolved_code
-                TICKER_TO_SECTOR[resolved_code] = "커스텀 종목"
-                if resolved_name not in st.session_state["selected_stocks"]:
-                    st.session_state["selected_stocks"].append(resolved_name)
-                st.success(f"🎉 [{resolved_name} ({resolved_code})] 바구니 추가 완료!")
-                st.rerun()
-            else:
-                st.error("⚠️ 종목명이나 6자리 코드를 정확히 입력해 주세요!")
-
-    with search_tab2:
-        all_stock_names = sorted(list(MASTER_STOCK_DICT.keys()))
-        selected_from_dropdown = st.selectbox("내장 종목 리스트에서 선택:", options=[""] + all_stock_names, key="dropdown_stock_select_final")
-        if st.button("🛒 선택 종목 바구니 추가", type="secondary", key="btn_dropdown_add_final"):
-            if selected_from_dropdown and selected_from_dropdown in MASTER_STOCK_DICT:
-                if selected_from_dropdown not in st.session_state["selected_stocks"]:
-                    st.session_state["selected_stocks"].append(selected_from_dropdown)
-                    st.success(f"🎉 [{selected_from_dropdown}] 추가 완료!")
-                    st.rerun()
-
-    st.markdown("---")
-
-    st.markdown("### 🛒 3. 내 전용 작전 바구니 최종 확인")
-    valid_selected_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
-    st.session_state["selected_stocks"] = st.multiselect(
-        "현재 내 바구니에 담긴 감시 종목 리스트 (자유롭게 추가/삭제 가능):",
-        options=list(MASTER_STOCK_DICT.keys()),
-        default=valid_selected_stocks
-    )
-
-    if st.session_state["selected_stocks"]:
-        st.markdown("---")
-        st.markdown("#### 🎯 내 바구니 종목 작전 적합도 & 단가 검진 리포트")
-        total_budget_input = st.number_input("🏦 내 총 작전 예산(원)", value=10000000, step=1000000, key="rec_total_budget")
-        rec_std = total_budget_input // 5
-        basket_dict = {name: MASTER_STOCK_DICT[name] for name in st.session_state["selected_stocks"] if name in MASTER_STOCK_DICT}
-        
-        with st.spinner("📡 종목별 1주 단가 및 적합도를 검진 중..."):
-            suitability_df = analyze_stock_suitability(basket_dict, rec_std, ma_period=240)
-        if not suitability_df.empty:
-            st.dataframe(suitability_df, use_container_width=True, hide_index=True)
-
-        st.markdown("---")
-        if st.button("🚀 세팅 완료! [오늘의 실전 매매 레이더]로 이동", type="primary", use_container_width=True):
-            st.success(f"🎉 총 {len(st.session_state['selected_stocks'])}개 종목 세팅 완료!")
-            st.info("👈 왼쪽 사이드바 메뉴에서 **[🚨 2. 오늘의 실전 매매 레이더]**를 누르시면 오늘 출격 시그널을 확인하실 수 있습니다!")
+    st.markdown("### 🔍 새로운 종목 직접 등록 (마이 DB 추가)")
+    c_in1, c_in2, c_in3, c_in4 = st.columns([2, 1.5, 1, 1])
+    input_name = c_in1.text_input("종목명", placeholder="예: 뉴파워프라즈마")
+    input_code = c_in2.text_input("6자리 코드", placeholder="예: 144960")
+    input_market = c_in3.selectbox("시장", ["코스피 (.KS)", "코스닥 (.KQ)"])
+    if c_in4.button("➕ DB 추가", type="primary"):
+        n_q = input_name.strip()
+        c_q = input_code.strip()
+        if n_q and len(c_q) == 6:
+            suffix = ".KS" if "코스피" in input_market else ".KQ"
+            full_code = f"{c_q}{suffix}"
+            MASTER_STOCK_DICT[n_q] = full_code
+            if n_q not in st.session_state["my_holdings"]:
+                st.session_state["my_holdings"].append(n_q)
+                st.session_state["selected_stocks"] = st.session_state["my_holdings"]
+            st.success(f"🎉 [{n_q} ({full_code})] 영구 DB 추가 완료!")
+            st.rerun()
+        else:
+            st.error("종목명과 6자리 코드를 정확히 입력해 주세요.")
 
 # =====================================================================
 # 🚨 메뉴 2: 오늘의 실전 매매 레이더 (출격 명령서 전용)
@@ -362,15 +348,19 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🚨 오늘의 실전 매매 레이더 (출격 명령서)</div>
-        <div class="hero-subtitle">매일 오후 3시 20분 종가 기준 | 내 바구니 종목 중 오늘 당장 매수해야 할 종목을 실시간으로 포착합니다.</div>
+        <div class="hero-subtitle">매일 오후 3시 20분 종가 기준 | 내 계좌 영구 DB에 담긴 주력 종목들의 실전 매수 타점을 포착합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
     st.sidebar.subheader("⚙️ 실전 매매 조건 설정")
     buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1, key="live_buy_cond")
     
-    valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
+    # DB에서 실전 보유 종목 로드
+    valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
+
+    st.markdown(f"🎯 **[실전 감시 전광판] 현재 내 계좌 DB 연동 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
+    st.markdown("---")
 
     st.markdown("### 📡 실시간 출격 시그널 검사 결과")
     if len(PORTFOLIO_UNIVERSE) > 0:
@@ -393,18 +383,11 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
             if buy_signals:
                 st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
             else:
-                st.success("✅ **현재 감시 구역 내 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
+                st.success("✅ **현재 내 계좌 DB 종목 중 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
         except Exception:
             st.info("💡 실시간 시세를 동기화하는 중입니다.")
     else:
-        st.warning("⚠️ 감시 종목이 없습니다. 왼쪽 메뉴 [🔎 1. 나만의 종목 세팅]에서 종목을 먼저 담아주세요!")
-
-    st.markdown("---")
-    st.markdown("### 📋 현재 감시 중인 내 바구니 종목 리스트")
-    if valid_watch_stocks:
-        st.info(f"🎯 현재 감시 중인 종목: **{', '.join(valid_watch_stocks)}** (진입 기준: -{buy_cond_input}%)")
-    else:
-        st.warning("등록된 종목이 없습니다.")
+        st.warning("⚠️ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
 
     with st.expander("📖 [당귀다TV] 실전 출격 명령서 1분 가이드", expanded=True):
         st.markdown("""
@@ -420,17 +403,17 @@ else:
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🛡️ 과거 5년 백테스트 연구소 (성과 검증)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 내 세팅과 방어 스위치가 폭락장에서 어떻게 작동했는지 타임머신으로 검증합니다.</div>
+        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 내 계좌 DB 종목들과 방어 스위치가 폭락장에서 어떻게 작동했는지 검증합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    valid_watch_stocks = [s for s in st.session_state["selected_stocks"] if s in MASTER_STOCK_DICT]
+    valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
     if valid_watch_stocks:
-        st.success(f"🎯 **[백테스트 연구소 감시 전광판] 현재 장전된 감시 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
+        st.success(f"🎯 **[백테스트 연구소 전광판] 내 계좌 DB 연동 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
     else:
-        st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 왼쪽 메뉴 **[🔎 1. 나만의 종목 세팅]**에서 종목을 먼저 골라주세요.")
+        st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 메뉴 **[🗄️ 1. 내 계좌 영구 DB]**에서 종목을 먼저 골라주세요.")
 
     st.sidebar.subheader("⚙️ 백테스트 전략 조건 설정")
     use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True)
@@ -484,7 +467,7 @@ else:
 
     if run_btn:
         if len(PORTFOLIO_UNIVERSE) == 0:
-            st.error("❌ 감시 종목이 없습니다. 메뉴 [🔎 1. 나만의 종목 세팅]에서 종목을 먼저 담아주세요!")
+            st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
             with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 타임컷 및 MDD 데이터를 안전하게 분석 중입니다..."):
                 try:
@@ -873,7 +856,7 @@ else:
                         "📊 1. 자산 성장 & MDD 차트", 
                         "🔍 2. 자금 회전율 & 미출격 진단", 
                         "📈 3. 종목/연도별 손익분석", 
-                        "📜 4. 현장 대기요원 & 매매장부"
+                        "📜 4. 현장 투입요원 & 매매장부"
                     ])
 
                     with tab1:
@@ -923,7 +906,7 @@ else:
                             st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
 
                         st.markdown("---")
-                        st.write("### 📦 종목별 누적 열매 수확 총합계 리포트")
+                        st.write("#### 📦 종목별 누적 열매 수확 총합계 리포트")
                         total_stock_fruit_summary = []
                         for s_name in PORTFOLIO_UNIVERSE.keys():
                             total_shares = free_shares_dict.get(s_name, 0)
@@ -965,7 +948,7 @@ else:
                             st.success(f"⚔️ **현재 현장 교전(투입) 중인 요원: 총 {len(active_positions)}명**")
                             ac1, ac2, ac3 = st.columns(3)
                             ac1.metric("💰 투입 원금 합계", f"{format_pure_number(tot_inv)}원")
-                            ac2.metric("📊 현재 평가금액 합계", f"{format_pure_number(tot_eval)}원")
+                            ac2.metric("📊 현재 평가금액 합계", f"{format_pure_number(eval_val)}원")
                             ac3.metric("📈 평가 손익 합계", f"{format_pure_number(tot_prof)}원")
                             st.dataframe(pd.DataFrame(active_table), use_container_width=True, hide_index=True)
                         else:
