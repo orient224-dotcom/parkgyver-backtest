@@ -8,6 +8,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+# --- 0. 타임존(Timezone) 충돌 방지 강력 정규화 함수 ---
+def remove_timezone(dt_index):
+    dt_index = pd.to_datetime(dt_index)
+    if getattr(dt_index, 'tz', None) is not None:
+        dt_index = dt_index.tz_convert(None)
+    return dt_index.normalize()
+
 # --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 최고급 프리미엄 UI CSS) ---
 st.set_page_config(page_title="박가이버 통합 작전 사령부 V8 Ultra Pro", page_icon="🛡️", layout="wide")
 
@@ -18,13 +25,13 @@ st.markdown("""
     }
     @media (max-width: 768px) {
         .hero-title {
-            font-size: 1.2rem !important;
+            font-size: 1.3rem !important;
         }
         .hero-banner {
-            padding: 14px 16px !important;
+            padding: 16px 18px !important;
         }
         div[data-testid="stMetric"] {
-            padding: 10px 12px !important;
+            padding: 12px 14px !important;
         }
     }
     div[data-testid="stMetric"] {
@@ -51,21 +58,21 @@ st.markdown("""
     }
     .hero-banner {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 22px 24px;
+        padding: 24px 28px;
         border-radius: 16px;
         color: #ffffff;
         border-left: 8px solid #38bdf8;
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
-        margin-bottom: 20px;
+        margin-bottom: 25px;
     }
     .hero-title {
-        font-size: 1.6rem;
+        font-size: 1.8rem;
         font-weight: 900;
         margin: 0;
         color: #f8fafc;
     }
     .hero-subtitle {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         color: #94a3b8;
         margin-top: 6px;
     }
@@ -391,17 +398,44 @@ if menu_choice == "🔎 1. 작전 구역(섹터) 탐색기":
             st.info("👈 왼쪽 사이드바 메뉴에서 [🛡️ 2. 실전 작전 통제실]을 누르세요!")
 
 # =====================================================================
-# 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V8 Ultra Pro) - 모바일 퍼스트 재배치
+# 🛡️ 모드 2: 실전 작전 통제실 (백테스트 대시보드 V8 Ultra Pro)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🛡️ 박가이버표 실전 작전 통제실 V8 Ultra</div>
-        <div class="hero-subtitle">직장인 동시호가(종가) 매매 최적화 | 모바일 퍼스트 실전 레이더 및 퀀트 백테스트 플랫폼</div>
+        <div class="hero-subtitle">직장인 동시호가(종가) 매매 최적화 | 2단 연동 차트, 타임컷 알고리즘, 섹터 쏠림 경보, MDD 멘탈 분석 플랫폼</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 📱 [모바일 퍼스트 UX] 스마트폰에서 접속 시 스크롤 내릴 필요 없이 최상단에 배치되는 실시간 레이더 터미널!
+    # 📱 [모바일 최적화 포인트] 메인 화면 최상단에 오늘 실전 출격 명령서 배치!
+    st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
+    if len(PORTFOLIO_UNIVERSE) > 0:
+        try:
+            live_tickers = list(PORTFOLIO_UNIVERSE.values())
+            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
+            live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
+            
+            buy_signals = []
+            for name, code in PORTFOLIO_UNIVERSE.items():
+                s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
+                if len(s_data) >= 2:
+                    today_p = float(s_data.iloc[-1])
+                    yester_p = float(s_data.iloc[-2])
+                    change_pct = ((today_p - yester_p) / yester_p) * 100
+                    
+                    if change_pct <= -float(buy_cond_input):
+                        buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** (진입 타점 포착! 오늘 3시 20분 동시호가 출격 시그널)")
+            
+            if buy_signals:
+                st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
+            else:
+                st.success("✅ **현재 감시 구역 내 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
+        except Exception:
+            st.info("💡 실시간 시세를 동기화하는 중입니다.")
+    else:
+        st.warning("⚠️ 감시 종목이 선택되지 않았습니다. 사이드바에서 감시 종목을 선택해 주세요.")
+
     st.sidebar.subheader("💡 [추천] AI 시대 1,000만 원 황금 조합")
     if st.sidebar.button("🤖 AI시대 1,000만 원 추천 조합 자동 세팅", type="primary"):
         st.session_state["selected_stocks"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
@@ -486,34 +520,6 @@ else:
     
     run_btn = st.sidebar.button("🚀 1,000만 원 작전 검증 개시!", type="primary")
 
-    # 📱 [모바일 최적화 포인트] 메인 화면 최상단에 오늘 실전 출격 명령서 배치!
-    st.markdown("### 🚨 오늘의 실전 출격 명령서 (실시간 레이더 터미널)")
-    if len(PORTFOLIO_UNIVERSE) > 0:
-        try:
-            live_tickers = list(PORTFOLIO_UNIVERSE.values())
-            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
-            live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
-            
-            buy_signals = []
-            for name, code in PORTFOLIO_UNIVERSE.items():
-                s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
-                if len(s_data) >= 2:
-                    today_p = float(s_data.iloc[-1])
-                    yester_p = float(s_data.iloc[-2])
-                    change_pct = ((today_p - yester_p) / yester_p) * 100
-                    
-                    if change_pct <= -float(buy_cond_input):
-                        buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** (진입 타점 포착! 오늘 3시 20분 동시호가 출격 시그널)")
-            
-            if buy_signals:
-                st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
-            else:
-                st.success("✅ **현재 감시 구역 내 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
-        except Exception:
-            st.info("💡 실시간 시세를 동기화하는 중입니다.")
-    else:
-        st.warning("⚠️ 감시 종목이 선택되지 않았습니다. 사이드바에서 감시 종목을 선택해 주세요.")
-
     if len(PORTFOLIO_UNIVERSE) >= 3:
         sector_counts = {}
         for code in PORTFOLIO_UNIVERSE.values():
@@ -552,10 +558,13 @@ else:
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                     tickers = list(PORTFOLIO_UNIVERSE.values())
                     
-                    # 💡 1. 포트폴리오 주가 다운로드 (일간 데이터 interval="1d" 강제)
+                    # 💡 1. 포트폴리오 주가 다운로드 (일간 데이터 강제 및 정규화)
                     raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", progress=False)
-                    if isinstance(raw_close.columns, pd.MultiIndex) and 'Close' in raw_close.columns.levels[0]:
-                        close_df = raw_close['Close']
+                    if isinstance(raw_close.columns, pd.MultiIndex):
+                        if 'Close' in raw_close.columns.levels[0]:
+                            close_df = raw_close['Close']
+                        else:
+                            close_df = raw_close
                     elif 'Close' in raw_close.columns:
                         close_df = raw_close['Close'].to_frame() if len(tickers) == 1 else raw_close
                     else:
@@ -570,9 +579,9 @@ else:
                         st.error("❌ 야후 파이낸스에서 선택한 종목의 주가 데이터를 가져오지 못했습니다. 기간을 조정하거나 잠시 후 다시 시도해 주세요.")
                         st.stop()
 
-                    close_df.index = pd.to_datetime(close_df.index).normalize()
+                    close_df.index = remove_timezone(close_df.index)
 
-                    # 💡 2. 배당금 다운로드 (별도 안전 다운로드)
+                    # 💡 2. 배당금 다운로드 
                     try:
                         raw_actions = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", actions=True, progress=False)
                         if isinstance(raw_actions.columns, pd.MultiIndex) and 'Dividends' in raw_actions.columns.levels[0]:
@@ -582,10 +591,10 @@ else:
                     except Exception:
                         div_df = pd.DataFrame(0, index=close_df.index, columns=tickers)
                     
-                    div_df.index = pd.to_datetime(div_df.index).normalize()
+                    div_df.index = remove_timezone(div_df.index)
                     div_df = div_df.reindex(close_df.index).fillna(0)
 
-                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 안전 다운로드
+                    # 💡 3. 벤치마크 (^KS11 코스피, ^KQ11 코스닥) 다운로드
                     bench_df = pd.DataFrame()
                     try:
                         bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, interval="1d", progress=False)
@@ -595,7 +604,7 @@ else:
                             bench_df = bench_raw[['Close']]
                         else:
                             bench_df = bench_raw
-                        bench_df.index = pd.to_datetime(bench_df.index).normalize()
+                        bench_df.index = remove_timezone(bench_df.index)
                     except Exception:
                         pass
 
@@ -852,19 +861,22 @@ else:
                     
                     asset_history.append({"Date": date, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
-                    # 💡 7. 판다스 기반 완벽하고 견고한 벤치마크 지수 정렬 및 매핑
+                    # 💡 4. 완벽한 타임존 프리(Timezone-Free) 시계열 데이터프레임 병합 
                     asset_df = pd.DataFrame(asset_history)
-                    asset_df['Date'] = pd.to_datetime(asset_df['Date']).dt.normalize()
+                    asset_df['Date'] = remove_timezone(asset_df['Date'])
                     asset_df = asset_df.set_index('Date')
 
                     if not bench_df.empty:
-                        bench_df.index = pd.to_datetime(bench_df.index).normalize()
+                        # reindex 시 에러 원천 차단을 위해 시간대가 모두 제거된 상태에서 병합
                         bench_aligned = bench_df.reindex(asset_df.index).ffill().bfill()
                         ks_key = '^KS11' if '^KS11' in bench_aligned.columns else bench_aligned.columns[0]
                         kq_key = '^KQ11' if '^KQ11' in bench_aligned.columns else (bench_aligned.columns[1] if len(bench_aligned.columns) > 1 else ks_key)
                         
                         ks_base = float(bench_aligned[ks_key].iloc[0]) if len(bench_aligned[ks_key].dropna()) > 0 else 1.0
                         kq_base = float(bench_aligned[kq_key].iloc[0]) if len(bench_aligned[kq_key].dropna()) > 0 else 1.0
+                        
+                        if ks_base == 0: ks_base = 1.0
+                        if kq_base == 0: kq_base = 1.0
                         
                         asset_df['KOSPI'] = (bench_aligned[ks_key] / ks_base) * total_capital_input
                         asset_df['KOSDAQ'] = (bench_aligned[kq_key] / kq_base) * total_capital_input
@@ -1010,6 +1022,7 @@ else:
                     with tab1:
                         st.write("### 📈 백테스트 기간 자산 성장 & 벤치마크 & MDD 차트")
                         
+                        # 💡 5. 차트 사이즈 및 렌더링 최적화 
                         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, row_heights=[0.7, 0.3], subplot_titles=(f"총자산 증식 추이 ({ma_period_choice}선 우산 적용)", "계좌 최대 낙폭 (MDD Underwater)"))
 
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='내 총자산 (박가이버 전략)', line=dict(color='#2563eb', width=3), fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'), row=1, col=1)
@@ -1018,7 +1031,7 @@ else:
                         fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='낙폭(MDD)', line=dict(color='#dc2626', width=1.5), fill='tozeroy', fillcolor='rgba(220, 38, 38, 0.15)'), row=2, col=1)
 
-                        fig.update_layout(height=650, template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+                        fig.update_layout(height=650, autosize=True, template="plotly_white", margin=dict(l=20, r=20, t=40, b=20), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
                         st.plotly_chart(fig, use_container_width=True)
 
                     with tab2:
@@ -1175,7 +1188,7 @@ else:
                                     solution = f"진입 기준 하락폭(-%)을 현재(-{buy_cond_input}%)보다 더 깊게(-7%~-10%) 잡거나, 폭락장 우산 스위치 및 타임 컷을 켜두하시는 것을 추천합니다."
                                 elif net_p < 0:
                                     cause = f"익절 건수({succs}회) 대비 손절 발생 시({stops}회) 깎여나간 손실폭이 상대적으로 컸습니다."
-                                    solution = f"익절 목표(+{sell_target_input}%)를 상향 조정하거나 손절폭(-{stop_loss_input}%)을 단단하게 죄어 손실을 줄이세요."
+                                    solution = f"익절 목표(+{sell_target_input}%)를 상향 조정하거나 손절폭(-{stop_loss_input}%) 단단하게 죄어 손실을 줄이세요."
                                 else:
                                     cause = f"전체 자산 성장에 대한 기여도가 다소 낮고 승률({w_rate:.1f}%)이 기대에 미치지 못했습니다."
                                     solution = f"해당 종목의 1회 진입금 비중을 낮추거나 주도주 섹터의 신규 종목으로 교체해 보세요."
