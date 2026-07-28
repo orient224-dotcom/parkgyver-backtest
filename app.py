@@ -67,9 +67,9 @@ if "sector_db" not in st.session_state:
     st.session_state["sector_db"] = {
         "⚡ 반도체 & HBM / 칩렛": {"테크윙": "089030.KQ", "한미반도체": "042700.KS", "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", "리노공업": "058470.KQ", "ISC": "095340.KQ", "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "피에스케이": "057030.KQ"},
         "🧬 바이오 & 제약 / 화장품": {"한국콜마": "161890.KS", "코스맥스": "192820.KS", "알테오젠": "196170.KQ", "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS", "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ"},
-        "📡 통신 & 방산 & 조선": {"RFHIC": "218410.KQ", "한화시스템": "272210.KS", "현대로템": "064350.KS", "LIG넥스원": "079550.KS", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "두산에너빌리티": "034020.KS", "HD현대일렉트릭": "267260.KS"},
+        "📡 통신 & 방산 & 조선": {"RFHIC": "218410.KQ", "한화시스템": "272210.KS", "현대로템": "064350.KS", "LIG넥스원": "079550.KS", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "두산에너빌리티": "034020.KS", "HD현대일렉트릭": "267260.KS", "한화에어로스페이스": "012450.KS"},
         "🔋 2차전지 & 에코": {"에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS", "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS"},
-        "🚗 자동차 & 대표 제조": {"현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS"},
+        "🚗 자동차 & 대표 제조": {"현대차": "005380.KS", "기아": "000270.KS", "현대모비스": "012330.KS", "레인보우로보틱스": "277810.KQ", "두산로보틱스": "454910.KS"},
         "💻 IT & 플랫폼": {"NAVER": "035420.KS", "카카오": "035720.KS"}
     }
 
@@ -91,6 +91,9 @@ for name, code in KOREAN_STOCK_MASTER.items():
     if name not in MASTER_STOCK_DICT:
         MASTER_STOCK_DICT[name] = code
         TICKER_TO_SECTOR[code] = "기타 우량주"
+for name, code in st.session_state["custom_stocks"].items():
+    MASTER_STOCK_DICT[name] = code
+    TICKER_TO_SECTOR[code] = "커스텀 직접등록 종목"
 
 def format_money(num):
     if num is None or pd.isna(num): return "-"
@@ -133,32 +136,110 @@ st.sidebar.markdown("---")
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     ["🗄️ 1. 내 계좌 영구 DB (보유 & 관심)", "🚨 2. 오늘의 실전 매매 레이더", "🛡️ 3. 과거 5년 백테스트 연구소"],
-    index=2
+    index=0
 )
 st.sidebar.markdown("---")
 
 # =====================================================================
-# 🗄️ 메뉴 1: 내 계좌 영구 DB
+# 🗄️ 메뉴 1: 내 계좌 영구 DB (검색/직접추가 및 풍성한 추천 로드 복원)
 # =====================================================================
 if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
-    st.markdown("""<div class="hero-banner"><div class="hero-title">🗄️ 나만의 투자 영구 DB (마이 포트폴리오)</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="hero-banner"><div class="hero-title">🗄️ 나만의 투자 영구 DB (마이 포트폴리오)</div><div class="hero-subtitle">실전 보유 종목을 세팅하고 스마트폰 파일로 영구 저장해 두세요!</div></div>""", unsafe_allow_html=True)
     render_subscriber_guide()
     
+    # 🔍 신규 종목 직접 검색 및 추가 UI
+    st.markdown("### 🔍 신규 종목 직접 검색 및 바구니 추가")
+    col_s1, col_s2, col_s3 = st.columns([2, 2, 1])
+    with col_s1:
+        add_name = st.text_input("종목명 입력 (예: 한화에어로스페이스)", key="add_stock_name")
+    with col_s2:
+        add_code = st.text_input("종목코드 6자리 (예: 012450)", key="add_stock_code")
+    with col_s3:
+        market_type = st.selectbox("시장 구분", ["KOSPI (.KS)", "KOSDAQ (.KQ)"], key="add_market_type")
+
+    if st.button("➕ 내 바구니에 종목 즉시 등록", type="primary", use_container_width=True):
+        if add_name and add_code:
+            code_clean = add_code.strip()
+            suffix = ".KS" if "KOSPI" in market_type else ".KQ"
+            full_code = code_clean if (code_clean.endswith(".KS") or code_clean.endswith(".KQ")) else f"{code_clean}{suffix}"
+
+            st.session_state["custom_stocks"][add_name] = full_code
+            if add_name not in st.session_state["my_holdings"]:
+                st.session_state["my_holdings"].append(add_name)
+            
+            st.success(f"🎉 [{add_name}] ({full_code}) 종목이 내 바구니에 성공적으로 등록되었습니다!")
+            st.rerun()
+        else:
+            st.warning("⚠️ 종목명과 종목코드를 모두 입력해 주세요.")
+
+    st.markdown("---")
+
     db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력)", "⭐ 눈여겨보는 관심 종목"])
     with db_tab1:
         valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
-        new_holdings = st.multiselect("실전 보유 종목 편집:", list(MASTER_STOCK_DICT.keys()), default=valid_holdings)
+        new_holdings = st.multiselect("실전 보유 종목 편집:", list(MASTER_STOCK_DICT.keys()), default=valid_holdings, key="holding_multi")
         if st.button("💾 실전 보유 종목 DB 저장", type="primary", use_container_width=True):
             st.session_state["my_holdings"] = new_holdings
             st.success("🎉 실전 보유 종목이 안전하게 저장되었습니다!")
             st.rerun()
+
     with db_tab2:
         valid_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
-        new_watchlist = st.multiselect("관심 종목 편집:", list(MASTER_STOCK_DICT.keys()), default=valid_watchlist)
+        new_watchlist = st.multiselect("관심 종목 편집:", list(MASTER_STOCK_DICT.keys()), default=valid_watchlist, key="watchlist_multi")
         if st.button("💾 관심 종목 DB 저장", use_container_width=True):
             st.session_state["my_watchlist"] = new_watchlist
             st.success("🎉 관심 종목이 안전하게 저장되었습니다!")
             st.rerun()
+
+    st.markdown("---")
+    st.markdown("### ⚡ 원터치 추천 포트폴리오 패키지 로드 (6대 풍성한 테마)")
+    p_col1, p_col2, p_col3 = st.columns(3)
+    p_col4, p_col5, p_col6 = st.columns(3)
+
+    if p_col1.button("🤖 AI/HBM 반도체 황금 5선", use_container_width=True):
+        st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
+        st.toast("🎉 AI/HBM 반도체 5선 세팅 완료!")
+        st.rerun()
+
+    if p_col2.button("🛡️ K-방산 & 척척 조선 5선", use_container_width=True):
+        st.session_state["my_holdings"] = ["한화오션", "HD한국조선해양", "LIG넥스원", "현대로템", "한화에어로스페이스"]
+        st.toast("🎉 K-방산/조선 5선 세팅 완료!")
+        st.rerun()
+
+    if p_col3.button("🧬 바이오 & K-뷰티 5선", use_container_width=True):
+        st.session_state["my_holdings"] = ["한국콜마", "코스맥스", "알테오젠", "셀트리온", "유한양행"]
+        st.toast("🎉 바이오/K-뷰티 5선 세팅 완료!")
+        st.rerun()
+
+    if p_col4.button("🔋 2차전지 & 핵심 소재 5선", use_container_width=True):
+        st.session_state["my_holdings"] = ["LG에너지솔루션", "POSCO홀딩스", "에코프로비엠", "포스코퓨처엠", "엘앤에프"]
+        st.toast("🎉 2차전지/소재 5선 세팅 완료!")
+        st.rerun()
+
+    if p_col5.button("🚗 현대차그룹 & 미래로봇 4선", use_container_width=True):
+        st.session_state["my_holdings"] = ["현대차", "기아", "레인보우로보틱스", "두산로보틱스"]
+        st.toast("🎉 현대차그룹/로봇 4선 세팅 완료!")
+        st.rerun()
+
+    if p_col6.button("💻 IT플랫폼 & 전력/에너지 4선", use_container_width=True):
+        st.session_state["my_holdings"] = ["NAVER", "카카오", "두산에너빌리티", "RFHIC"]
+        st.toast("🎉 IT플랫폼/전력 4선 세팅 완료!")
+        st.rerun()
+
+    st.markdown("---")
+    st.markdown("### 💾 나만의 세팅 휴대폰 파일로 백업하기")
+    cfg_to_save = {
+        "my_holdings": st.session_state.get("my_holdings", []),
+        "my_watchlist": st.session_state.get("my_watchlist", [])
+    }
+    json_cfg_str = json.dumps(cfg_to_save, ensure_ascii=False, indent=2)
+    st.download_button(
+        label="📥 내 작전 세팅 휴대폰에 다운로드 (.json)",
+        data=json_cfg_str,
+        file_name="parkgyver_my_strategy.json",
+        mime="application/json",
+        use_container_width=True
+    )
 
 # =====================================================================
 # 🚨 메뉴 2: 오늘의 실전 매매 레이더
@@ -198,7 +279,7 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
             st.info("💡 실시간 시세를 동기화하는 중입니다.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (복원된 풀 리포트 대시보드)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소
 # =====================================================================
 else:
     st.markdown("""
@@ -253,14 +334,12 @@ else:
                 start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                 tickers = list(PORTFOLIO_UNIVERSE.values())
                 
-                # 데이터 수집
                 raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", progress=False)
                 close_df = raw_close['Close'] if 'Close' in raw_close.columns.levels[0] else raw_close
                 if isinstance(close_df, pd.Series): close_df = close_df.to_frame(name=tickers[0])
                 close_df = close_df.dropna(how='all')
                 close_df.index = clean_date_index(close_df.index)
 
-                # 배당금 수집
                 try:
                     raw_actions = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", actions=True, progress=False)
                     div_df = raw_actions['Dividends'] if 'Dividends' in raw_actions.columns.levels[0] else pd.DataFrame(0, index=close_df.index, columns=tickers)
@@ -269,7 +348,6 @@ else:
                 div_df.index = clean_date_index(div_df.index)
                 div_df = div_df.reindex(close_df.index).fillna(0)
 
-                # 벤치마크 지수 수집
                 bench_df = pd.DataFrame()
                 try:
                     bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, interval="1d", progress=False)
@@ -311,7 +389,6 @@ else:
                     if year not in yearly_stats:
                         yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0}
 
-                    # 🍯 배당금 수금
                     daily_dividend_sum = 0
                     if date in div_df.index:
                         for s_name, count in free_shares_dict.items():
@@ -337,7 +414,6 @@ else:
                             '구분': '🌟 특별 보너스'
                         })
 
-                    # 🎯 전원 동반 탈출 (연쇄 청산)
                     has_winner = False
                     winner_reason = ""
                     for pos in active_positions:
@@ -454,7 +530,6 @@ else:
                                 survived_positions.append(pos)
                         active_positions = survived_positions
 
-                    # 🛒 급락 타점 요원 파견
                     day_returns = return_df.loc[date] if date in return_df.index else None
                     if day_returns is not None and len(active_positions) < max_active_slots:
                         agent_budget = int(base_capital // max_active_slots)
@@ -509,7 +584,6 @@ else:
                     if current_drawdown < max_drawdown_pct: max_drawdown_pct = current_drawdown
                     asset_history.append({"Date": date_str, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
-                # 동기화 및 벤치마크 계산
                 asset_df = pd.DataFrame(asset_history)
                 kospi_ret_pct, kosdaq_ret_pct = 0.0, 0.0
                 bench_synced = False
@@ -542,7 +616,6 @@ else:
                 total_trades = total_success + total_stop_loss
                 win_rate = (total_success / total_trades * 100) if total_trades > 0 else 0
 
-                # --- 🏆 복원된 리포트 UI 대시보드 ---
                 st.markdown(f"""
                 <div style="border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">
                     <h2 style="margin: 0; color: #0f172a; font-weight: 800;">🏆 백테스트 최종 성과 대시보드</h2>
@@ -577,7 +650,6 @@ else:
                     b_col2.metric("📉 KOSPI 지수", "동기화 중")
                     b_col3.metric("📉 KOSDAQ 지수", "동기화 중")
 
-                # 열매 현황표
                 if sum(free_shares_dict.values()) > 0:
                     st.markdown("#### 📦 내 열매(무료 주식) 금고 상세 현황")
                     fruit_list = []
@@ -588,7 +660,6 @@ else:
                             fruit_list.append({"종목명": s_name, "보유 수량": f"{count}주", "현재가": format_exact_price(c_p), "평가액": format_money(count * c_p)})
                     st.dataframe(pd.DataFrame(fruit_list), use_container_width=True, hide_index=True)
 
-                # 복원된 4대 탭
                 tab1, tab2, tab3, tab4 = st.tabs([
                     "📊 1. 자산 성장 & MDD 차트", 
                     "🔍 2. 자금 회전율 & 미출격 진단", 
