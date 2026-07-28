@@ -27,8 +27,8 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.2 Ultimate", page_icon="🛡️", layout="wide")
+# --- 1. 페이지 웹 디자인 세팅 ---
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.2 Master", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -62,7 +62,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 동적 데이터베이스 및 종목 마스터 세션 초기화 ---
+# --- 2. 세션 및 마스터 종목 DB 초기화 ---
 if "sector_db" not in st.session_state:
     st.session_state["sector_db"] = {
         "⚡ 반도체 & HBM / 칩렛": {"테크윙": "089030.KQ", "한미반도체": "042700.KS", "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", "리노공업": "058470.KQ", "ISC": "095340.KQ", "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "피에스케이": "057030.KQ"},
@@ -82,10 +82,15 @@ KOREAN_STOCK_MASTER = {
 }
 
 MASTER_STOCK_DICT = {}
+TICKER_TO_SECTOR = {}
 for sector, stocks in st.session_state["sector_db"].items():
-    for name, code in stocks.items(): MASTER_STOCK_DICT[name] = code
+    for name, code in stocks.items():
+        MASTER_STOCK_DICT[name] = code
+        TICKER_TO_SECTOR[code] = sector
 for name, code in KOREAN_STOCK_MASTER.items():
-    if name not in MASTER_STOCK_DICT: MASTER_STOCK_DICT[name] = code
+    if name not in MASTER_STOCK_DICT:
+        MASTER_STOCK_DICT[name] = code
+        TICKER_TO_SECTOR[code] = "기타 우량주"
 
 def format_money(num):
     if num is None or pd.isna(num): return "-"
@@ -96,32 +101,19 @@ def format_pure_number(num):
     if num is None or pd.isna(num): return "-"
     return f"{int(round(num)):,}"
 
-# --- 3. 센스 있는 구독자 가이드 함수 (펼침기능 UI) ---
+def format_exact_price(num):
+    if num is None or pd.isna(num): return "-"
+    return f"{int(round(num)):,}원"
+
+# --- 3. 구독자 가이드 (펼침 UI) ---
 def render_subscriber_guide():
     with st.expander("📖 [당귀다TV] 박가이버 작전 사령부 V10.2 1분 탑승 가이드 (처음 오신 분 필독!)", expanded=False):
         st.markdown("""
         ### 🛡️ 4050 바쁜 직장인을 위한 '본업 집중형' 퀀트 투자 수칙
-        
-        안녕하세요! **'박가이버 작전 사령부'**는 장중 주가창을 몰래 보며 애태우던 직장인들을 위해 만들어진 **자동화 데이터 전략 도구**입니다. 딱 4가지만 알고 계시면 됩니다!
-
-        ---
-
-        1. **🕒 1분 컷 '순수 종가 매매' (장중 감시 엄금!)**
-           - 근무 시간에는 주식 창을 완전히 봉인하고 본업에 집중하세요.
-           - 매일 **오후 3시 20분(장 마감 10분 전)** 본 프로그램에 접속해 `🚨 오늘의 실전 매매 레이더`를 확인 후 **'동시호가(종가)'**로 원클릭 주문만 넣으면 끝입니다.
-
-        2. **🚁 전원 동반 탈출 ('헬기 복귀' 자금 회전 전술)**
-           - 계좌에 출격한 특수부대 요원(종목) 중 **단 1명이라도 목표가를 터치하면, 대기 중인 모든 부대원이 전원 동반 복귀(청산)**합니다.
-           - 자금이 오랫동안 묶이는 것을 차단하고 **계좌 회전율을 극대화**하는 핵심 전술입니다.
-
-        3. **🧠 지능형 날씨 판독기 (추세 맞춤형 목표가)**
-           - 프로그램이 차트의 이동평균선(20/60/120일)을 보고 현재 시장 날씨를 스스로 판단합니다.
-           - **☀️ 화창한 상승장 (정배열):** **+10%**까지 느긋하게 길게 먹고 탈출!
-           - **🌧️ 태풍 부는 하락장 (역배열):** **+5%**로 욕심을 버리고 짧고 빠르게 튀어 오를 때 잽싸게 철수!
-
-        4. **⛄ 스노우볼 레벨UP (복리 스케일업)**
-           - 수익금이 차곡차곡 쌓여 **총자산이 +10% 불어날 때마다, 1회 출격 예산이 자동으로 10%씩 커집니다.**
-           - 마치 게임 캐릭터가 레벨업해서 더 강력한 무기를 장착하듯, 내 자산이 스노우볼처럼 굴러가는 과정을 눈으로 확인해 보세요.
+        1. **🕒 1분 컷 '순수 종가 매매':** 근무 시간에는 주식 창을 완전히 봉인하고, 매일 오후 3시 20분에 접속해 레이더 신호 확인 후 동시호가 매수!
+        2. **🚁 전원 동반 탈출 ('헬기 복귀'):** 출격 요원 중 단 1명이라도 목표가를 터치하면 전 부대원 동반 청산하여 계좌 회전율 극대화!
+        3. **🧠 지능형 날씨 판독기:** 정배열(상승장)엔 **+10%**, 역배열/박스권엔 **+5%**로 목표가 자동 조절!
+        4. **⛄ 스노우볼 레벨UP:** 자산이 +10% 찰 때마다 1회 출격 예산이 10%씩 커지는 복리의 마법!
         """)
 
 # --- 4. 사이드바 조종간 ---
@@ -152,12 +144,21 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""<div class="hero-banner"><div class="hero-title">🗄️ 나만의 투자 영구 DB (마이 포트폴리오)</div></div>""", unsafe_allow_html=True)
     render_subscriber_guide()
     
-    valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
-    new_holdings = st.multiselect("실전 보유 종목 편집:", list(MASTER_STOCK_DICT.keys()), default=valid_holdings)
-    if st.button("💾 보유 종목 저장", type="primary"):
-        st.session_state["my_holdings"] = new_holdings
-        st.success("🎉 저장되었습니다!")
-        st.rerun()
+    db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력)", "⭐ 눈여겨보는 관심 종목"])
+    with db_tab1:
+        valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
+        new_holdings = st.multiselect("실전 보유 종목 편집:", list(MASTER_STOCK_DICT.keys()), default=valid_holdings)
+        if st.button("💾 실전 보유 종목 DB 저장", type="primary", use_container_width=True):
+            st.session_state["my_holdings"] = new_holdings
+            st.success("🎉 실전 보유 종목이 안전하게 저장되었습니다!")
+            st.rerun()
+    with db_tab2:
+        valid_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
+        new_watchlist = st.multiselect("관심 종목 편집:", list(MASTER_STOCK_DICT.keys()), default=valid_watchlist)
+        if st.button("💾 관심 종목 DB 저장", use_container_width=True):
+            st.session_state["my_watchlist"] = new_watchlist
+            st.success("🎉 관심 종목이 안전하게 저장되었습니다!")
+            st.rerun()
 
 # =====================================================================
 # 🚨 메뉴 2: 오늘의 실전 매매 레이더
@@ -166,16 +167,44 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     st.markdown("""<div class="hero-banner"><div class="hero-title">🚨 오늘의 실전 매매 레이더 (출격 명령서)</div></div>""", unsafe_allow_html=True)
     render_subscriber_guide()
     
-    st.info("🕒 매일 오후 3시 20분! 장 마감 직전 접속하셔서 오늘 줍줍할 종목이 있는지 포착합니다.")
+    buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1)
+    valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
+    PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
+
+    st.markdown(f"🎯 **[실전 감시 전광판] 현재 내 계좌 DB 연동 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
+    st.markdown("---")
+
+    if len(PORTFOLIO_UNIVERSE) > 0:
+        try:
+            live_tickers = list(PORTFOLIO_UNIVERSE.values())
+            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
+            live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
+            
+            buy_signals = []
+            for name, code in PORTFOLIO_UNIVERSE.items():
+                s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
+                if len(s_data) >= 2:
+                    today_p = float(s_data.iloc[-1])
+                    yester_p = float(s_data.iloc[-2])
+                    change_pct = ((today_p - yester_p) / yester_p) * 100
+                    if change_pct <= -float(buy_cond_input):
+                        buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** (진입 타점 포착! 오늘 3시 20분 동시호가 출격 시그널)")
+            
+            if buy_signals:
+                st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
+            else:
+                st.success("✅ **현재 내 계좌 DB 종목 중 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
+        except:
+            st.info("💡 실시간 시세를 동기화하는 중입니다.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (복원된 풀 리포트 대시보드)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ V10.2 과거 5년 백테스트 연구소 (통합 엔진)</div>
-        <div class="hero-subtitle">전원 동반 탈출(연쇄 청산), 지능형 목표가, 스노우볼 레벨업 로직이 완벽하게 탑재되었습니다.</div>
+        <div class="hero-title">🛡️ V10.2 과거 5년 백테스트 연구소 (풀 리포트 복원판)</div>
+        <div class="hero-subtitle">실전 투입 전 과거 검증 | 전원 동반 탈출, 지능형 목표가, 스노우볼, 4대 정밀 분석 리포트 탑재</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -184,24 +213,34 @@ else:
     valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
-    st.sidebar.subheader("⚙️ V10.2 통합 알고리즘 설정")
+    if valid_watch_stocks:
+        st.success(f"🎯 **[백테스트 연구소 전광판] 내 계좌 DB 연동 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
+    else:
+        st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 종목을 먼저 골라주세요.")
+
+    st.sidebar.subheader("⚙️ 백테스트 전략 조건 설정")
     use_smart_target = st.sidebar.checkbox("🧠 지능형 자동 목표가 (날씨에 따른 변환)", value=True)
     sell_target_input = 5.0
     if not use_smart_target:
         sell_target_input = st.sidebar.slider("🎯 고정 익절 목표 (+%)", 1, 30, 5, 1)
     
     use_batch_exit = st.sidebar.checkbox("🚁 전원 동반 탈출 (연쇄 청산 활성화)", value=True)
+    use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True)
+    
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000)
     max_active_slots = st.sidebar.slider("전체 파견 슬롯 (최대 요원 수)", 2, 10, 5)
+    max_sector_slots = max(1, max_active_slots // 2)
+
     use_compounding = st.sidebar.checkbox("🚀 복리 스케일업 (자산 10% 증가 시 레벨업)", value=True)
     buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1)
     stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1)
 
-    st.sidebar.subheader("💸 수수료 및 보상 정산")
+    st.sidebar.subheader("💸 거래비용 적용")
     broker_fee_pct = st.sidebar.number_input("위탁수수료 (%)", value=0.015, format="%.3f") / 100
     tax_pct = st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100
-    reward_type = st.sidebar.selectbox("🎁 전리품 수령 방식", ["🌟 현금 50% + 열매 50% (하이브리드)", "전액 현금으로 챙기기", "열매로 결실 모으기"])
+    slippage_pct = st.sidebar.number_input("체결 오차 슬리피지 (%)", value=0.10, format="%.2f") / 100
 
+    reward_type = st.sidebar.selectbox("🎁 전리품 수령 방식", ["🌟 현금 50% + 열매 50% (하이브리드)", "전액 현금으로 챙기기", "열매로 결실 모으기"])
     years_val = st.sidebar.slider("백테스트 기간(년)", 1, 10, 5, 1)
     months_input = years_val * 12
 
@@ -209,16 +248,35 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 1번 메뉴에서 보유 종목을 골라주세요.")
         else:
-            with st.spinner("📡 V10.2 슈퍼컴퓨터가 동반 청산 및 스노우볼 궤적을 계산 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 동반 청산, 배당금, 지수 벤치마크 및 4대 정밀 리포트를 계산 중입니다..."):
                 end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                 start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                 tickers = list(PORTFOLIO_UNIVERSE.values())
                 
+                # 데이터 수집
                 raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", progress=False)
                 close_df = raw_close['Close'] if 'Close' in raw_close.columns.levels[0] else raw_close
                 if isinstance(close_df, pd.Series): close_df = close_df.to_frame(name=tickers[0])
                 close_df = close_df.dropna(how='all')
                 close_df.index = clean_date_index(close_df.index)
+
+                # 배당금 수집
+                try:
+                    raw_actions = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", actions=True, progress=False)
+                    div_df = raw_actions['Dividends'] if 'Dividends' in raw_actions.columns.levels[0] else pd.DataFrame(0, index=close_df.index, columns=tickers)
+                except:
+                    div_df = pd.DataFrame(0, index=close_df.index, columns=tickers)
+                div_df.index = clean_date_index(div_df.index)
+                div_df = div_df.reindex(close_df.index).fillna(0)
+
+                # 벤치마크 지수 수집
+                bench_df = pd.DataFrame()
+                try:
+                    bench_raw = yf.download(["^KS11", "^KQ11"], start=start_date_str, end=end_date_str, interval="1d", progress=False)
+                    bench_df = bench_raw['Close'] if 'Close' in bench_raw.columns.levels[0] else bench_raw
+                    if not bench_df.empty: bench_df.index = clean_date_index(bench_df.index)
+                except:
+                    pass
 
                 return_df = close_df.pct_change() * 100
                 ma20_df = close_df.rolling(window=20).mean()
@@ -238,61 +296,94 @@ else:
                 agent_counter = 0
                 total_success, total_stop_loss = 0, 0
                 free_shares_dict = {s_name: 0 for s_name in PORTFOLIO_UNIVERSE.keys()}
+                yearly_stats = {}
+                global_max_deployed = 0
+                daily_deployment_snapshots = []
+                missed_opportunities = []
+                total_dividend_profit = 0
+
                 peak_asset_value = base_capital
                 max_drawdown_pct = 0.0
 
-                # 💡 안전하게 정제된 백테스트 메인 순회 루프
                 for date, row in close_df.iterrows():
                     date_str = date.strftime('%Y-%m-%d')
-                    
-                    # 🎯 전원 동반 탈출 (연쇄 청산) 체크
+                    year = date.year
+                    if year not in yearly_stats:
+                        yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0}
+
+                    # 🍯 배당금 수금
+                    daily_dividend_sum = 0
+                    if date in div_df.index:
+                        for s_name, count in free_shares_dict.items():
+                            if count > 0:
+                                t_code = PORTFOLIO_UNIVERSE[s_name]
+                                if t_code in div_df.columns:
+                                    d_val = div_df.loc[date, t_code]
+                                    if pd.notna(d_val) and d_val > 0: daily_dividend_sum += count * d_val
+                        for pos in active_positions:
+                            t_code = pos['ticker']
+                            if t_code in div_df.columns:
+                                d_val = div_df.loc[date, t_code]
+                                if pd.notna(d_val) and d_val > 0:
+                                    pos_shares = pos['invest_amount'] / pos['entry_price']
+                                    daily_dividend_sum += pos_shares * d_val
+
+                    if daily_dividend_sum > 0:
+                        current_cash += daily_dividend_sum
+                        total_dividend_profit += daily_dividend_sum
+                        trade_logs.append({
+                            '요원': '시스템', '작전 구역': '배당금 수금', '출격일': date_str, '진입금액': '-',
+                            '복귀일': date_str, '순수익률': '-', '정산내역': f"🍯 배당수입: +{format_pure_number(daily_dividend_sum)}원",
+                            '구분': '🌟 특별 보너스'
+                        })
+
+                    # 🎯 전원 동반 탈출 (연쇄 청산)
                     has_winner = False
                     winner_reason = ""
-                    
                     for pos in active_positions:
                         t_code = pos['ticker']
                         if t_code in row and not pd.isna(row[t_code]):
                             curr_price = float(row[t_code])
                             gross_ret = ((curr_price - pos['entry_price']) / pos['entry_price']) * 100
-                            
                             if gross_ret >= pos['target_ret']:
                                 has_winner = True
                                 winner_reason = f"🎯 {pos['stock_name']} 목표({pos['target_ret']}%) 달성 ➡️ 전원 동반복귀!"
                                 break
-                    
+
                     batch_net_profit = 0.0
                     batch_invested = 0.0
-                    
+
                     if has_winner and use_batch_exit:
-                        last_processed_stock = ""
-                        last_processed_price = 0.0
-                        
+                        last_stock_name = ""
+                        last_price = 0.0
                         for pos in active_positions:
                             t_code = pos['ticker']
                             curr_price = float(row[t_code]) if t_code in row and not pd.isna(row[t_code]) else pos['entry_price']
-                            sell_gross_val = pos['invest_amount'] * (curr_price / pos['entry_price'])
+                            sell_gross = pos['invest_amount'] * (curr_price / pos['entry_price'])
                             
                             buy_fee = pos['invest_amount'] * broker_fee_pct
-                            sell_fee = sell_gross_val * broker_fee_pct
-                            sell_tax = sell_gross_val * tax_pct
-                            total_trade_cost = buy_fee + sell_fee + sell_tax
+                            sell_fee = sell_gross * broker_fee_pct
+                            sell_tax = sell_gross * tax_pct
+                            slippage = (pos['invest_amount'] + sell_gross) * slippage_pct
+                            total_cost = buy_fee + sell_fee + sell_tax + slippage
                             
-                            net_profit = (sell_gross_val - pos['invest_amount']) - total_trade_cost
+                            net_profit = (sell_gross - pos['invest_amount']) - total_cost
                             batch_net_profit += net_profit
                             batch_invested += pos['invest_amount']
                             
-                            last_processed_stock = pos['stock_name']
-                            last_processed_price = curr_price
+                            last_stock_name = pos['stock_name']
+                            last_price = curr_price
                             
                             trade_logs.append({
                                 '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
                                 '진입금액': f"{format_pure_number(pos['invest_amount'])}원",
                                 '복귀일': date_str, '순수익률': f"{(net_profit / pos['invest_amount']) * 100:.2f}%",
-                                '구분': winner_reason
+                                '정산내역': f"{format_pure_number(net_profit)}원", '구분': winner_reason
                             })
-                        
+
                         total_success += 1
-                        
+                        yearly_stats[year]['success'] += 1
+
                         if batch_net_profit > 0:
                             if reward_type == '🌟 현금 50% + 열매 50% (하이브리드)':
                                 harvest_amt = batch_net_profit * 0.5
@@ -303,16 +394,15 @@ else:
                             else:
                                 harvest_amt = 0
                                 cash_amt = batch_net_profit
-                                
-                            buyable_shares = int(harvest_amt // last_processed_price) if (harvest_amt > 0 and last_processed_price > 0) else 0
-                            leftover = harvest_amt - (buyable_shares * last_processed_price)
+
+                            buyable = int(harvest_amt // last_price) if last_price > 0 else 0
+                            leftover = harvest_amt - (buyable * last_price)
                             
-                            if buyable_shares > 0 and last_processed_stock in free_shares_dict:
-                                free_shares_dict[last_processed_stock] += buyable_shares
-                                
+                            if buyable > 0: free_shares_dict[last_stock_name] += buyable
                             current_cash += (batch_invested + cash_amt + leftover)
-                            
-                            # 🚀 스노우볼 레벨UP
+                            yearly_stats[year]['shares'] += buyable
+                            yearly_stats[year]['cash'] += cash_amt + leftover
+
                             if use_compounding:
                                 step_progress += (cash_amt + leftover)
                                 threshold = base_capital * 0.10
@@ -322,48 +412,52 @@ else:
                                     step_progress -= threshold
                         else:
                             current_cash += (batch_invested + batch_net_profit)
-                            
+
                         active_positions = []
-                        
+
                     else:
                         survived_positions = []
                         for pos in active_positions:
                             t_code = pos['ticker']
                             is_exit = False
                             curr_price = pos['entry_price']
-                            
                             if t_code in row and not pd.isna(row[t_code]):
                                 curr_price = float(row[t_code])
                                 gross_ret = ((curr_price - pos['entry_price']) / pos['entry_price']) * 100
-                                
                                 if stop_loss_limit is not None and gross_ret <= stop_loss_limit:
                                     is_exit = True
                                     exit_reason = f"🚨 강제 철수({stop_loss_limit}%)"
                                 elif not use_batch_exit and gross_ret >= pos['target_ret']:
                                     is_exit = True
                                     exit_reason = f"🎯 개별 익절({pos['target_ret']}%)"
-                                    
+
                             if is_exit:
                                 sell_gross = pos['invest_amount'] * (curr_price / pos['entry_price'])
-                                cost = (pos['invest_amount'] * broker_fee_pct) + (sell_gross * (broker_fee_pct + tax_pct))
+                                cost = (pos['invest_amount'] * broker_fee_pct) + (sell_gross * (broker_fee_pct + tax_pct)) + ((pos['invest_amount'] + sell_gross) * slippage_pct)
                                 net_profit = (sell_gross - pos['invest_amount']) - cost
                                 current_cash += (pos['invest_amount'] + net_profit)
-                                total_stop_loss += 1 if net_profit < 0 else 0
+                                
+                                if net_profit < 0:
+                                    total_stop_loss += 1
+                                    yearly_stats[year]['stop'] += 1
+                                else:
+                                    total_success += 1
+                                    yearly_stats[year]['success'] += 1
+                                    
                                 trade_logs.append({
                                     '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
                                     '진입금액': f"{format_pure_number(pos['invest_amount'])}원",
                                     '복귀일': date_str, '순수익률': f"{(net_profit / pos['invest_amount']) * 100:.2f}%",
-                                    '구분': exit_reason
+                                    '정산내역': f"{format_pure_number(net_profit)}원", '구분': exit_reason
                                 })
                             else:
                                 survived_positions.append(pos)
                         active_positions = survived_positions
 
-                    # 🛒 급락 타점 시 요원 파견
+                    # 🛒 급락 타점 요원 파견
                     day_returns = return_df.loc[date] if date in return_df.index else None
                     if day_returns is not None and len(active_positions) < max_active_slots:
                         agent_budget = int(base_capital // max_active_slots)
-                        
                         candidates = []
                         for s_name, t_code in PORTFOLIO_UNIVERSE.items():
                             if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
@@ -374,41 +468,39 @@ else:
                         candidates.sort(key=lambda x: x[2])
                         
                         for cand in candidates:
-                            if len(active_positions) >= max_active_slots: break
-                            if current_cash < agent_budget: break
-                            
                             s_name, t_code, ret_val, c_price = cand
+                            if use_sector_limit:
+                                c_sector = TICKER_TO_SECTOR.get(t_code, "기타")
+                                if sum(1 for p in active_positions if TICKER_TO_SECTOR.get(p['ticker'], "기타") == c_sector) >= max_sector_slots:
+                                    missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": f"섹터({c_sector}) 쏠림 방지 캡"})
+                                    continue
                             
-                            target_ret = sell_target_input if not use_smart_target else 5.0
-                            regime_desc = "고정목표"
-                            
-                            if use_smart_target:
-                                if t_code in ma20_df.columns and t_code in ma60_df.columns and t_code in ma120_df.columns:
-                                    m20 = ma20_df.loc[date, t_code]
-                                    m60 = ma60_df.loc[date, t_code]
-                                    m120 = ma120_df.loc[date, t_code]
-                                    
+                            if len(active_positions) >= max_active_slots:
+                                missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": "요원 슬롯 풀가동"})
+                            elif current_cash < agent_budget:
+                                missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": "가용 현금 부족"})
+                            else:
+                                target_ret = sell_target_input if not use_smart_target else 5.0
+                                regime_desc = "고정목표"
+                                if use_smart_target and t_code in ma20_df.columns and t_code in ma60_df.columns and t_code in ma120_df.columns:
+                                    m20, m60, m120 = ma20_df.loc[date, t_code], ma60_df.loc[date, t_code], ma120_df.loc[date, t_code]
                                     if pd.notna(m20) and pd.notna(m60) and pd.notna(m120):
-                                        is_super_bull = (c_price > m20) and (m20 > m60) and (m60 > m120)
-                                        is_mid_bull = (m20 > m60) or (c_price > m60 > m120)
-                                        
-                                        if is_super_bull:
-                                            target_ret = 10.0
-                                            regime_desc = "🔥 완전정배열(+10%)"
-                                        elif is_mid_bull:
-                                            target_ret = 8.0
-                                            regime_desc = "📈 중기정배열(+8%)"
-                                        else:
-                                            target_ret = 5.0
-                                            regime_desc = "🌧️ 역배열/박스권(+5%)"
-                                            
-                            agent_counter += 1
-                            current_cash -= agent_budget
-                            active_positions.append({
-                                'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
-                                'entry_price': c_price, 'entry_date': date_str, 'invest_amount': agent_budget,
-                                'target_ret': target_ret, 'regime_desc': regime_desc
-                            })
+                                        if (c_price > m20) and (m20 > m60) and (m60 > m120): target_ret = 10.0
+                                        elif (m20 > m60) or (c_price > m60 > m120): target_ret = 8.0
+                                        else: target_ret = 5.0
+                                
+                                agent_counter += 1
+                                current_cash -= agent_budget
+                                active_positions.append({
+                                    'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
+                                    'entry_price': c_price, 'entry_date': date_str, 'invest_amount': agent_budget,
+                                    'target_ret': target_ret
+                                })
+
+                    curr_count = len(active_positions)
+                    if curr_count > global_max_deployed: global_max_deployed = curr_count
+                    if curr_count > 0:
+                        daily_deployment_snapshots.append({"발생 일자": date_str, "동시 출격 수": curr_count, "출격 종목 리스트": ", ".join([p['stock_name'] for p in active_positions])})
 
                     eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
                     today_total_asset = current_cash + eval_pos
@@ -417,44 +509,166 @@ else:
                     if current_drawdown < max_drawdown_pct: max_drawdown_pct = current_drawdown
                     asset_history.append({"Date": date_str, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
 
+                # 동기화 및 벤치마크 계산
+                asset_df = pd.DataFrame(asset_history)
+                kospi_ret_pct, kosdaq_ret_pct = 0.0, 0.0
+                bench_synced = False
+                if not bench_df.empty:
+                    try:
+                        bench_clean = bench_df.copy()
+                        bench_clean.index = [d.strftime('%Y-%m-%d') for d in bench_clean.index]
+                        ks_key = '^KS11' if '^KS11' in bench_clean.columns else bench_clean.columns[0]
+                        kq_key = '^KQ11' if '^KQ11' in bench_clean.columns else (bench_clean.columns[1] if len(bench_clean.columns)>1 else ks_key)
+                        bench_aligned = bench_clean.reindex(asset_df['Date']).ffill().bfill()
+                        
+                        ks_start, ks_end = float(bench_aligned[ks_key].iloc[0]), float(bench_aligned[ks_key].iloc[-1])
+                        kq_start, kq_end = float(bench_aligned[kq_key].iloc[0]), float(bench_aligned[kq_key].iloc[-1])
+                        
+                        kospi_ret_pct = ((ks_end - ks_start) / ks_start) * 100
+                        kosdaq_ret_pct = ((kq_end - kq_start) / kq_start) * 100
+                        
+                        asset_df['KOSPI'] = (bench_aligned[ks_key].values / ks_start) * total_capital_input
+                        asset_df['KOSDAQ'] = (bench_aligned[kq_key].values / kq_start) * total_capital_input
+                        bench_synced = True
+                    except: pass
+
                 last_row = close_df.iloc[-1]
                 active_eval = sum([p['invest_amount'] * (float(last_row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in last_row and not pd.isna(last_row[p['ticker']])])
                 fruit_eval = sum([count * float(last_row[PORTFOLIO_UNIVERSE[s_name]]) for s_name, count in free_shares_dict.items() if count > 0 and PORTFOLIO_UNIVERSE[s_name] in last_row and not pd.isna(last_row[PORTFOLIO_UNIVERSE[s_name]])])
                 
                 final_total = current_cash + active_eval + fruit_eval
-                total_return_pct = ((final_total - total_capital_input) / total_capital_input) * 100
-                
+                total_net_profit = final_total - total_capital_input
+                total_return_pct = (total_net_profit / total_capital_input) * 100
+                total_trades = total_success + total_stop_loss
+                win_rate = (total_success / total_trades * 100) if total_trades > 0 else 0
+
+                # --- 🏆 복원된 리포트 UI 대시보드 ---
                 st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-                    <div>
-                        <h2 style="margin: 0; color: #0f172a; font-weight: 800;">🏆 V10.2 최종 성과 대시보드</h2>
-                        <p style="margin: 4px 0 0 0; font-size: 0.95rem; color: #475569; font-weight: 700;">
-                            🚀 스노우볼 레벨UP 달성: <b style="color: #ef4444; font-size: 1.1rem;">총 {level_up_count}회</b> (예산 증액 성공!)
-                        </p>
-                    </div>
+                <div style="border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">
+                    <h2 style="margin: 0; color: #0f172a; font-weight: 800;">🏆 백테스트 최종 성과 대시보드</h2>
+                    <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #475569; font-weight: 700;">
+                        📅 검증 기간: <b>{start_date_str} ~ {end_date_str} ({years_val}년)</b> | 
+                        🚀 스노우볼 레벨UP: <b style="color: #ef4444;">총 {level_up_count}회 달성</b>
+                    </p>
                 </div>
                 """, unsafe_allow_html=True)
 
                 m0, m1, m2, m3 = st.columns(4)
-                m0.metric("🏁 원금 예산", format_money(total_capital_input))
-                m1.metric(f"✨ 최종 총자산", format_money(final_total), delta=f"{total_return_pct:.2f}%")
-                m2.metric("🌊 최대 낙폭 (MDD)", f"{max_drawdown_pct:.1f}%")
-                m3.metric("📦 무료 주식(열매) 평가액", format_money(fruit_eval))
-                
+                m0.metric("💵 가용 현금 잔고", format_money(current_cash))
+                m1.metric("🏁 원금 예산", format_money(total_capital_input))
+                m2.metric("✨ 최종 총자산", format_money(final_total))
+                m3.metric("📈 총 순수익금", format_money(total_net_profit), delta=f"{total_return_pct:.2f}%")
+
+                st.write("")
+                m4, m5, m6, m7 = st.columns(4)
+                m4.metric("🎯 작전 승률", f"{win_rate:.1f}%", delta=f"{total_trades}전 {total_success}승 {total_stop_loss}패")
+                m5.metric("🌊 최대 낙폭 (MDD)", f"{max_drawdown_pct:.1f}%")
+                m6.metric("📦 수확한 열매 평가액", format_money(fruit_eval))
+                m7.metric("🍯 누적 배당금", format_money(total_dividend_profit))
+
                 st.markdown("---")
-                tab1, tab2 = st.tabs(["📊 자산 성장 차트", "📜 교전 일지 (매매장부)"])
-                
+                st.markdown("### 📊 벤치마크 시장 지수 대비 수익률 초과 달성 리포트")
+                b_col1, b_col2, b_col3 = st.columns(3)
+                b_col1.metric("🛡️ 내 박가이버 작전 수익률", f"{total_return_pct:+.2f}%")
+                if bench_synced:
+                    b_col2.metric("📉 KOSPI 지수", f"{kospi_ret_pct:+.2f}%", delta=f"지수 대비 {(total_return_pct - kospi_ret_pct):+.2f}%p 초과")
+                    b_col3.metric("📉 KOSDAQ 지수", f"{kosdaq_ret_pct:+.2f}%", delta=f"지수 대비 {(total_return_pct - kosdaq_ret_pct):+.2f}%p 초과")
+                else:
+                    b_col2.metric("📉 KOSPI 지수", "동기화 중")
+                    b_col3.metric("📉 KOSDAQ 지수", "동기화 중")
+
+                # 열매 현황표
+                if sum(free_shares_dict.values()) > 0:
+                    st.markdown("#### 📦 내 열매(무료 주식) 금고 상세 현황")
+                    fruit_list = []
+                    for s_name, count in free_shares_dict.items():
+                        if count > 0:
+                            t_code = PORTFOLIO_UNIVERSE[s_name]
+                            c_p = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else 0
+                            fruit_list.append({"종목명": s_name, "보유 수량": f"{count}주", "현재가": format_exact_price(c_p), "평가액": format_money(count * c_p)})
+                    st.dataframe(pd.DataFrame(fruit_list), use_container_width=True, hide_index=True)
+
+                # 복원된 4대 탭
+                tab1, tab2, tab3, tab4 = st.tabs([
+                    "📊 1. 자산 성장 & MDD 차트", 
+                    "🔍 2. 자금 회전율 & 미출격 진단", 
+                    "📈 3. 종목/연도별 손익분석", 
+                    "📜 4. 현장 투입요원 & 매매장부"
+                ])
+
                 with tab1:
-                    asset_df = pd.DataFrame(asset_history)
-                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, row_heights=[0.7, 0.3])
-                    fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='총자산', line=dict(color='#2563eb', width=3), fill='tozeroy'), row=1, col=1)
-                    fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
-                    fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='MDD', line=dict(color='#dc2626', width=1.5), fill='tozeroy'), row=2, col=1)
-                    fig.update_layout(height=600, template="plotly_white")
+                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, row_heights=[0.7, 0.3], subplot_titles=("총자산 증식 추이", "계좌 최대 낙폭 (MDD)"))
+                    fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='내 총자산', line=dict(color='#2563eb', width=3), fill='tozeroy'), row=1, col=1)
+                    if bench_synced:
+                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSPI'], mode='lines', name='KOSPI 지수', line=dict(color='#94a3b8', width=1.5, dash='dash')), row=1, col=1)
+                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSDAQ'], mode='lines', name='KOSDAQ 지수', line=dict(color='#cbd5e1', width=1.5, dash='dot')), row=1, col=1)
+                    fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="원금", row=1, col=1)
+                    fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='낙폭(MDD)', line=dict(color='#dc2626', width=1.5), fill='tozeroy'), row=2, col=1)
+                    fig.update_layout(height=650, template="plotly_white", margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified")
                     st.plotly_chart(fig, use_container_width=True)
-                    
+
                 with tab2:
-                    if trade_logs:
-                        st.dataframe(pd.DataFrame(list(reversed(trade_logs))), use_container_width=True)
+                    st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
+                    st.warning(f"📊 기간 중 최대 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개)")
+                    if daily_deployment_snapshots:
+                        snap_df = pd.DataFrame(daily_deployment_snapshots)
+                        st.write("▼ **역대 최고 자금 몰림(피크) 발생 일자 및 출격 목록:**")
+                        st.dataframe(snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자']), use_container_width=True, hide_index=True)
+                    st.markdown("---")
+                    st.write("### 🚫 현금/슬롯/섹터 제한으로 놓쳐버린 출격 타점 추적기")
+                    if missed_opportunities:
+                        st.error(f"🚨 타점이 맞았으나 제한으로 놓친 기회: 총 {len(missed_opportunities)}회")
+                        st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
                     else:
-                        st.info("거래 내역이 없습니다.")
+                        st.success("🎉 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다!")
+
+                with tab3:
+                    st.write("### 📊 연도별 및 종목별 성적표")
+                    c_col1, c_col2 = st.columns([1.2, 1])
+                    with c_col1:
+                        yearly_chart_data = []
+                        for y, val in yearly_stats.items():
+                            yearly_chart_data.append({"연도": str(y), "구분": "🎯 익절", "건수": val['success']})
+                            yearly_chart_data.append({"연도": str(y), "구분": "🚨 손절", "건수": val['stop']})
+                        fig_bar = px.bar(pd.DataFrame(yearly_chart_data), x="연도", y="건수", color="구분", barmode="group", color_discrete_map={"🎯 익절": "#22c55e", "🚨 손절": "#ef4444"})
+                        st.plotly_chart(fig_bar, use_container_width=True)
+                    with c_col2:
+                        yearly_summary_list = []
+                        for y, val in sorted(yearly_stats.items()):
+                            yearly_summary_list.append({"연도": str(y), "🎯 익절": f"{val['success']}회", "🚨 손절": f"{val['stop']}회", "📦 획득 열매": f"{int(val['shares'])}주", "💵 현금수익": format_money(val['cash'])})
+                        st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
+
+                with tab4:
+                    st.write("### ⚔️ 현재 현장 투입 요원 현황")
+                    if len(active_positions) > 0:
+                        active_table = []
+                        for p in active_positions:
+                            t_code = p['ticker']
+                            c_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else p['entry_price']
+                            eval_val = p['invest_amount'] * (c_price / p['entry_price'])
+                            ret = ((c_price - p['entry_price']) / p['entry_price']) * 100
+                            active_table.append({
+                                '요원': p['name'], '구역명': p['stock_name'], '출격일': p['entry_date'],
+                                '진입단가': format_exact_price(p['entry_price']),
+                                '진입금액': f"{format_pure_number(p['invest_amount'])}원",
+                                '현재 평가금액': f"{format_pure_number(eval_val)}원",
+                                '현재수익률': f"{ret:.2f}%"
+                            })
+                        st.dataframe(pd.DataFrame(active_table), use_container_width=True, hide_index=True)
+                    else:
+                        st.success("🎉 현재 현장에 대기 중인 요원이 없습니다! (100% 현금 회수 완료)")
+
+                    st.markdown("---")
+                    st.write("### 📜 전체 매매 장부")
+                    if trade_logs:
+                        logs_df = pd.DataFrame(list(reversed(trade_logs)))
+                        st.dataframe(logs_df, use_container_width=True)
+                        
+                        csv_data = logs_df.to_csv(index=False).encode('utf-8-sig')
+                        st.download_button(
+                            label="📥 엑셀(CSV) 매매장부 다운로드",
+                            data=csv_data,
+                            file_name=f"당귀다TV_매매장부_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
