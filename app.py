@@ -28,7 +28,7 @@ def clean_date_index(obj):
         return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.2 Master", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.3 Typhoon Defense", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -110,17 +110,18 @@ def format_exact_price(num):
 
 # --- 3. 구독자 가이드 (펼침 UI) ---
 def render_subscriber_guide():
-    with st.expander("📖 [당귀다TV] 박가이버 작전 사령부 V10.2 1분 탑승 가이드 (처음 오신 분 필독!)", expanded=False):
+    with st.expander("📖 [당귀다TV] 박가이버 작전 사령부 V10.3 1분 탑승 가이드 (필독!)", expanded=False):
         st.markdown("""
         ### 🛡️ 4050 바쁜 직장인을 위한 '본업 집중형' 퀀트 투자 수칙
         1. **🕒 1분 컷 '순수 종가 매매':** 근무 시간에는 주식 창을 완전히 봉인하고, 매일 오후 3시 20분에 접속해 레이더 신호 확인 후 동시호가 매수!
         2. **🚁 전원 동반 탈출 ('헬기 복귀'):** 출격 요원 중 단 1명이라도 목표가를 터치하면 전 부대원 동반 청산하여 계좌 회전율 극대화!
         3. **🧠 지능형 날씨 판독기:** 정배열(상승장)엔 **+10%**, 역배열/박스권엔 **+5%**로 목표가 자동 조절!
-        4. **⛄ 스노우볼 레벨UP:** 자산이 +10% 찰 때마다 1회 출격 예산이 10%씩 커지는 복리의 마법!
+        4. **🌊 기상청 태풍 경보 시스템:** *"우리 배가 아무리 튼튼해도, 바다 전체에 '초대형 태풍 주의보'가 발령되면 배를 항구에 묶어두고 출항하지 않는다!"* 코스피/코스닥이 200일선 아래로 무너지면 신규 출격을 전면 차단하고 현금을 지킵니다!
+        5. **⛄ 스노우볼 레벨UP:** 자산이 +10% 찰 때마다 1회 출격 예산이 10%씩 커지는 복리의 마법!
         """)
 
 # --- 4. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.2")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.3")
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", type=["json"])
 if uploaded_cfg:
@@ -141,13 +142,12 @@ menu_choice = st.sidebar.radio(
 st.sidebar.markdown("---")
 
 # =====================================================================
-# 🗄️ 메뉴 1: 내 계좌 영구 DB (검색/직접추가 및 풍성한 추천 로드 복원)
+# 🗄️ 메뉴 1: 내 계좌 영구 DB
 # =====================================================================
 if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""<div class="hero-banner"><div class="hero-title">🗄️ 나만의 투자 영구 DB (마이 포트폴리오)</div><div class="hero-subtitle">실전 보유 종목을 세팅하고 스마트폰 파일로 영구 저장해 두세요!</div></div>""", unsafe_allow_html=True)
     render_subscriber_guide()
     
-    # 🔍 신규 종목 직접 검색 및 추가 UI
     st.markdown("### 🔍 신규 종목 직접 검색 및 바구니 추가")
     col_s1, col_s2, col_s3 = st.columns([2, 2, 1])
     with col_s1:
@@ -279,13 +279,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
             st.info("💡 실시간 시세를 동기화하는 중입니다.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (기상청 태풍 경보 시스템 탑재)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ V10.2 과거 5년 백테스트 연구소 (풀 리포트 복원판)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 검증 | 전원 동반 탈출, 지능형 목표가, 스노우볼, 4대 정밀 분석 리포트 탑재</div>
+        <div class="hero-title">🛡️ V10.3 과거 5년 백테스트 연구소 (태풍 경보 방어 시스템 탑재)</div>
+        <div class="hero-subtitle">실전 검증 | 🌊 기상청 태풍 경보 시스템(코스피 200일선 방어), 전원 동반 탈출, 지능형 목표가, 스노우볼 탑재</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -300,6 +300,8 @@ else:
         st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 종목을 먼저 골라주세요.")
 
     st.sidebar.subheader("⚙️ 백테스트 전략 조건 설정")
+    use_typhoon_warning = st.sidebar.checkbox("🚨 KOSPI/KOSDAQ '기상청 태풍 경보 시스템'", value=True, help="시장 전체(코스피)가 200일선 아래로 내려앉아 '태풍 주의보'가 발령되면 신규 출격을 전면 차단하고 항구(현금)에 대피합니다!")
+    
     use_smart_target = st.sidebar.checkbox("🧠 지능형 자동 목표가 (날씨에 따른 변환)", value=True)
     sell_target_input = 5.0
     if not use_smart_target:
@@ -325,11 +327,11 @@ else:
     years_val = st.sidebar.slider("백테스트 기간(년)", 1, 10, 5, 1)
     months_input = years_val * 12
 
-    if st.sidebar.button("🚀 V10.2 타임머신 가동!", type="primary", use_container_width=True):
+    if st.sidebar.button("🚀 V10.3 태풍 방어 타임머신 가동!", type="primary", use_container_width=True):
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 1번 메뉴에서 보유 종목을 골라주세요.")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 동반 청산, 배당금, 지수 벤치마크 및 4대 정밀 리포트를 계산 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 태풍 경보 시스템(코스피 200일선), 동반 청산 및 4대 정밀 리포트를 계산 중입니다..."):
                 end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                 start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                 tickers = list(PORTFOLIO_UNIVERSE.values())
@@ -356,6 +358,13 @@ else:
                 except:
                     pass
 
+                # Calculate KOSPI 200 MA for Typhoon Warning System
+                kospi_series = pd.Series(dtype=float)
+                if not bench_df.empty:
+                    ks_col = '^KS11' if '^KS11' in bench_df.columns else bench_df.columns[0]
+                    kospi_series = bench_df[ks_col].reindex(close_df.index).ffill().bfill()
+                kospi_ma200 = kospi_series.rolling(window=200).mean()
+
                 return_df = close_df.pct_change() * 100
                 ma20_df = close_df.rolling(window=20).mean()
                 ma60_df = close_df.rolling(window=60).mean()
@@ -379,6 +388,7 @@ else:
                 daily_deployment_snapshots = []
                 missed_opportunities = []
                 total_dividend_profit = 0
+                typhoon_blocked_count = 0
 
                 peak_asset_value = base_capital
                 max_drawdown_pct = 0.0
@@ -388,6 +398,14 @@ else:
                     year = date.year
                     if year not in yearly_stats:
                         yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0}
+
+                    # Check Typhoon Warning Status for today
+                    is_typhoon_warning = False
+                    if use_typhoon_warning and not kospi_series.empty and date in kospi_series.index and date in kospi_ma200.index:
+                        k_val = kospi_series.loc[date]
+                        m_val = kospi_ma200.loc[date]
+                        if pd.notna(k_val) and pd.notna(m_val) and k_val < m_val:
+                            is_typhoon_warning = True
 
                     daily_dividend_sum = 0
                     if date in div_df.index:
@@ -532,45 +550,47 @@ else:
 
                     day_returns = return_df.loc[date] if date in return_df.index else None
                     if day_returns is not None and len(active_positions) < max_active_slots:
-                        agent_budget = int(base_capital // max_active_slots)
-                        candidates = []
-                        for s_name, t_code in PORTFOLIO_UNIVERSE.items():
-                            if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
-                                ret_val = float(day_returns[t_code])
-                                if ret_val <= buy_cond:
-                                    candidates.append((s_name, t_code, ret_val, float(row[t_code])))
-                        
-                        candidates.sort(key=lambda x: x[2])
-                        
-                        for cand in candidates:
-                            s_name, t_code, ret_val, c_price = cand
-                            if use_sector_limit:
-                                c_sector = TICKER_TO_SECTOR.get(t_code, "기타")
-                                if sum(1 for p in active_positions if TICKER_TO_SECTOR.get(p['ticker'], "기타") == c_sector) >= max_sector_slots:
-                                    missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": f"섹터({c_sector}) 쏠림 방지 캡"})
-                                    continue
+                        if is_typhoon_warning:
+                            typhoon_blocked_count += 1
+                        else:
+                            agent_budget = int(base_capital // max_active_slots)
+                            candidates = []
+                            for s_name, t_code in PORTFOLIO_UNIVERSE.items():
+                                if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
+                                    ret_val = float(day_returns[t_code])
+                                    if ret_val <= buy_cond:
+                                        candidates.append((s_name, t_code, ret_val, float(row[t_code])))
                             
-                            if len(active_positions) >= max_active_slots:
-                                missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": "요원 슬롯 풀가동"})
-                            elif current_cash < agent_budget:
-                                missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": "가용 현금 부족"})
-                            else:
-                                target_ret = sell_target_input if not use_smart_target else 5.0
-                                regime_desc = "고정목표"
-                                if use_smart_target and t_code in ma20_df.columns and t_code in ma60_df.columns and t_code in ma120_df.columns:
-                                    m20, m60, m120 = ma20_df.loc[date, t_code], ma60_df.loc[date, t_code], ma120_df.loc[date, t_code]
-                                    if pd.notna(m20) and pd.notna(m60) and pd.notna(m120):
-                                        if (c_price > m20) and (m20 > m60) and (m60 > m120): target_ret = 10.0
-                                        elif (m20 > m60) or (c_price > m60 > m120): target_ret = 8.0
-                                        else: target_ret = 5.0
+                            candidates.sort(key=lambda x: x[2])
+                            
+                            for cand in candidates:
+                                s_name, t_code, ret_val, c_price = cand
+                                if use_sector_limit:
+                                    c_sector = TICKER_TO_SECTOR.get(t_code, "기타")
+                                    if sum(1 for p in active_positions if TICKER_TO_SECTOR.get(p['ticker'], "기타") == c_sector) >= max_sector_slots:
+                                        missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": f"섹터({c_sector}) 쏠림 방지 캡"})
+                                        continue
                                 
-                                agent_counter += 1
-                                current_cash -= agent_budget
-                                active_positions.append({
-                                    'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
-                                    'entry_price': c_price, 'entry_date': date_str, 'invest_amount': agent_budget,
-                                    'target_ret': target_ret
-                                })
+                                if len(active_positions) >= max_active_slots:
+                                    missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": "요원 슬롯 풀가동"})
+                                elif current_cash < agent_budget:
+                                    missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": "가용 현금 부족"})
+                                else:
+                                    target_ret = sell_target_input if not use_smart_target else 5.0
+                                    if use_smart_target and t_code in ma20_df.columns and t_code in ma60_df.columns and t_code in ma120_df.columns:
+                                        m20, m60, m120 = ma20_df.loc[date, t_code], ma60_df.loc[date, t_code], ma120_df.loc[date, t_code]
+                                        if pd.notna(m20) and pd.notna(m60) and pd.notna(m120):
+                                            if (c_price > m20) and (m20 > m60) and (m60 > m120): target_ret = 10.0
+                                            elif (m20 > m60) or (c_price > m60 > m120): target_ret = 8.0
+                                            else: target_ret = 5.0
+                                    
+                                    agent_counter += 1
+                                    current_cash -= agent_budget
+                                    active_positions.append({
+                                        'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
+                                        'entry_price': c_price, 'entry_date': date_str, 'invest_amount': agent_budget,
+                                        'target_ret': target_ret
+                                    })
 
                     curr_count = len(active_positions)
                     if curr_count > global_max_deployed: global_max_deployed = curr_count
@@ -621,7 +641,8 @@ else:
                     <h2 style="margin: 0; color: #0f172a; font-weight: 800;">🏆 백테스트 최종 성과 대시보드</h2>
                     <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #475569; font-weight: 700;">
                         📅 검증 기간: <b>{start_date_str} ~ {end_date_str} ({years_val}년)</b> | 
-                        🚀 스노우볼 레벨UP: <b style="color: #ef4444;">총 {level_up_count}회 달성</b>
+                        🚀 스노우볼 레벨UP: <b style="color: #ef4444;">총 {level_up_count}회 달성</b> |
+                        🚨 태풍 경보로 출격 차단: <b style="color: #dc2626;">총 {typhoon_blocked_count}일 방어</b>
                     </p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -680,13 +701,13 @@ else:
 
                 with tab2:
                     st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
-                    st.warning(f"📊 기간 중 최대 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개)")
+                    st.warning(f"📊 기간 중 최대 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개) | 🚨 태풍 경보 방어 차단: 총 {typhoon_blocked_count}일")
                     if daily_deployment_snapshots:
                         snap_df = pd.DataFrame(daily_deployment_snapshots)
                         st.write("▼ **역대 최고 자금 몰림(피크) 발생 일자 및 출격 목록:**")
                         st.dataframe(snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자']), use_container_width=True, hide_index=True)
                     st.markdown("---")
-                    st.write("### 🚫 현금/슬롯/섹터 제한으로 놓쳐버린 출격 타점 추적기")
+                    st.write("### 🚫 현금/슬롯/섹터/태풍 경보로 놓쳐버린 출격 타점 추적기")
                     if missed_opportunities:
                         st.error(f"🚨 타점이 맞았으나 제한으로 놓친 기회: 총 {len(missed_opportunities)}회")
                         st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
