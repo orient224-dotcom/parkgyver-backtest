@@ -28,13 +28,11 @@ def clean_date_index(obj):
         return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.1.1", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.1.2", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
-    .stApp {
-        background-color: #f8fafc;
-    }
+    .stApp { background-color: #f8fafc; }
     @media (max-width: 768px) {
         .hero-title { font-size: 1.2rem !important; }
         .hero-banner { padding: 14px 16px !important; }
@@ -160,7 +158,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.1.1")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.1.2")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", type=["json"], help="스마트폰에 저장해 둔 설정 파일(.json)을 올리면 내 종목 세팅이 1초 만에 복원됩니다.")
@@ -186,7 +184,7 @@ menu_choice = st.sidebar.radio(
         "🚨 2. 오늘의 실전 매매 레이더", 
         "🛡️ 3. 과거 5년 백테스트 연구소"
     ],
-    index=1
+    index=2
 )
 st.sidebar.markdown("---")
 
@@ -350,8 +348,8 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 5년 백테스트 연구소 (성과 검증)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 내 계좌 DB 종목들과 방어 스위치가 폭락장에서 어떻게 작동했는지 검증합니다.</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (하이브리드 & 기상청 에디션)</div>
+        <div class="hero-subtitle">가장 안정적인 V10.1 원본 로직에 [하이브리드 추세연장 스위치]와 [태풍 사이렌 시각화]를 성공적으로 탑재했습니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -370,6 +368,10 @@ else:
     use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True)
     use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=True)
     max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 30, 5) if use_time_cut else 9999
+    
+    st.sidebar.markdown("---")
+    # 🌟 [신규 장착] 하이브리드 추세연장 체크박스 옵션
+    use_hybrid_trailing = st.sidebar.checkbox("🔥 하이브리드 추세연장 (목표가 달성 시 추세 홀딩)", value=True, help="목표가에 도달했을 때 5일선이 20일선 위에 있으면 팔지 않고 추세가 꺾일 때까지 수익을 극대화합니다.")
 
     st.sidebar.markdown("---")
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000, key="bt_capital")
@@ -408,7 +410,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 타임컷 및 MDD 데이터를 안전하게 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 하이브리드 엔진을 안전하게 분석 중입니다..."):
                 try:
                     end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
@@ -422,7 +424,9 @@ else:
                     else:
                         close_df = raw_close
 
-                    if isinstance(close_df, pd.Series): close_df = close_df.to_frame(name=tickers[0])
+                    if isinstance(close_df, pd.Series):
+                        close_df = close_df.to_frame(name=tickers[0])
+
                     close_df = close_df.dropna(how='all')
 
                     if close_df.empty:
@@ -453,6 +457,10 @@ else:
 
                     return_df = close_df.pct_change() * 100
                     sma_df = close_df.rolling(window=int(ma_period_choice)).mean()
+                    
+                    # 🌟 [하이브리드 옵션용 추가 이동평균선 계산]
+                    ma5_df = close_df.rolling(window=5).mean()
+                    ma20_df = close_df.rolling(window=20).mean()
 
                     buy_cond = -float(buy_cond_input)
                     sell_target = float(sell_target_input)
@@ -521,12 +529,32 @@ else:
                                 exit_dt = pd.to_datetime(date_str)
                                 days_taken = (exit_dt - entry_dt).days
 
-                                if gross_ret >= sell_target:
-                                    is_exit, exit_reason = True, f"🎯 정상 복귀(+{sell_target_input}%)"
-                                elif stop_loss_limit is not None and gross_ret <= stop_loss_limit:
-                                    is_exit, exit_reason = True, f"🚨 강제 철수(-{stop_loss_input}%)"
-                                elif use_time_cut and days_taken >= max_hold_days_input:
-                                    is_exit, exit_reason = True, f"⏳ 타임 컷 ({max_hold_days_input}일 초과)"
+                                # 🌟 [하이브리드 옵션 연동 로직 적용] 🌟
+                                ma5_val = ma5_df.loc[date, t_code] if t_code in ma5_df.columns and date in ma5_df.index else None
+                                ma20_val = ma20_df.loc[date, t_code] if t_code in ma20_df.columns and date in ma20_df.index else None
+
+                                if use_hybrid_trailing:
+                                    if pos.get('trailing', False):
+                                        if pd.notna(ma5_val) and pd.notna(ma20_val) and (curr_price < ma5_val or ma5_val < ma20_val):
+                                            is_exit, exit_reason = True, "🔥 하이브리드 추세연장 익절"
+                                    else:
+                                        if gross_ret >= sell_target:
+                                            if pd.notna(ma5_val) and pd.notna(ma20_val) and (ma5_val > ma20_val) and (curr_price >= ma5_val):
+                                                pos['trailing'] = True # 목표 달성했으나 추세가 살아있으므로 팔지 않고 킵!
+                                            else:
+                                                is_exit, exit_reason = True, f"🎯 정상 복귀(+{sell_target_input}%)"
+                                        elif stop_loss_limit is not None and gross_ret <= stop_loss_limit:
+                                            is_exit, exit_reason = True, f"🚨 강제 철수(-{stop_loss_input}%)"
+                                        elif use_time_cut and days_taken >= max_hold_days_input:
+                                            is_exit, exit_reason = True, f"⏳ 타임 컷 ({max_hold_days_input}일 초과)"
+                                else:
+                                    # 옵션이 꺼져있을 땐 기존 V10.1 기계적 매도 로직 작동
+                                    if gross_ret >= sell_target:
+                                        is_exit, exit_reason = True, f"🎯 정상 복귀(+{sell_target_input}%)"
+                                    elif stop_loss_limit is not None and gross_ret <= stop_loss_limit:
+                                        is_exit, exit_reason = True, f"🚨 강제 철수(-{stop_loss_input}%)"
+                                    elif use_time_cut and days_taken >= max_hold_days_input:
+                                        is_exit, exit_reason = True, f"⏳ 타임 컷 ({max_hold_days_input}일 초과)"
 
                                 if is_exit:
                                     sell_gross_val = pos['invest_amount'] * (curr_price / pos['entry_price'])
@@ -668,7 +696,8 @@ else:
                                     current_cash -= actual_invest
                                     active_positions.append({
                                         'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
-                                        'entry_price': c_price, 'entry_date': date_str, 'invest_amount': actual_invest, 'entry_day_ret': ret_val 
+                                        'entry_price': c_price, 'entry_date': date_str, 'invest_amount': actual_invest, 'entry_day_ret': ret_val,
+                                        'trailing': False # 🌟 하이브리드 옵션용 초기화
                                     })
 
                         curr_count = len(active_positions)
@@ -909,6 +938,9 @@ else:
                                 tot_inv += p['invest_amount']
                                 tot_eval += eval_val
                                 tot_prof += eval_profit
+                                
+                                # 🌟 현재 요원이 하이브리드 추세연장 모드에 진입했는지 상태 표시 추가
+                                status_str = "🔥 추세 홀딩 중" if p.get('trailing', False) else "⚔️ 대기중"
 
                                 active_table.append({
                                     '요원': p['name'], '구역명': p['stock_name'], '출격일': p['entry_date'],
@@ -916,7 +948,8 @@ else:
                                     '진입금액': f"{format_pure_number(p['invest_amount'])}원",
                                     '현재 평가금액': f"{format_pure_number(eval_val)}원",
                                     '평가 손익': f"{format_pure_number(eval_profit)}원",
-                                    '현재수익률': f"{ret:.2f}%"
+                                    '현재수익률': f"{ret:.2f}%",
+                                    '상태': status_str
                                 })
 
                             st.success(f"⚔️ **현재 현장 교전(투입) 중인 요원: 총 {len(active_positions)}명**")
