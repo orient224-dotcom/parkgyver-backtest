@@ -28,7 +28,7 @@ def clean_date_index(obj):
         return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.1 (사이렌 에디션)", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.1.1", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -36,15 +36,9 @@ st.markdown("""
         background-color: #f8fafc;
     }
     @media (max-width: 768px) {
-        .hero-title {
-            font-size: 1.2rem !important;
-        }
-        .hero-banner {
-            padding: 14px 16px !important;
-        }
-        div[data-testid="stMetric"] {
-            padding: 10px 12px !important;
-        }
+        .hero-title { font-size: 1.2rem !important; }
+        .hero-banner { padding: 14px 16px !important; }
+        div[data-testid="stMetric"] { padding: 10px 12px !important; }
     }
     div[data-testid="stMetric"] {
         background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
@@ -62,47 +56,29 @@ st.markdown("""
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
         margin-bottom: 25px;
     }
-    .hero-title {
-        font-size: 1.6rem;
-        font-weight: 900;
-        margin: 0;
-        color: #f8fafc;
-    }
-    .hero-subtitle {
-        font-size: 0.95rem;
-        color: #94a3b8;
-        margin-top: 6px;
-    }
+    .hero-title { font-size: 1.6rem; font-weight: 900; margin: 0; color: #f8fafc; }
+    .hero-subtitle { font-size: 0.95rem; color: #94a3b8; margin-top: 6px; }
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #e2e8f0;
-        padding: 8px 10px;
-        border-radius: 14px;
-        margin-bottom: 20px;
+        gap: 8px; background-color: #e2e8f0; padding: 8px 10px; border-radius: 14px; margin-bottom: 20px;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 44px;
-        background-color: #ffffff;
-        border-radius: 10px;
-        padding: 0 16px;
-        font-weight: 800;
-        font-size: 0.9rem;
-        color: #334155;
-        border: 1px solid #cbd5e1;
+        height: 44px; background-color: #ffffff; border-radius: 10px; padding: 0 16px; 
+        font-weight: 800; font-size: 0.9rem; color: #334155; border: 1px solid #cbd5e1;
     }
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-        color: #ffffff !important;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: #ffffff !important;
     }
-    /* 🌟 사이렌 및 맑음 박스 CSS 추가 */
+    /* 🌟 기상청 사이렌 및 맑음 박스 CSS */
     @keyframes blinker { 50% { opacity: 0.6; } }
     .siren-box {
         background-color: #ffebee; border: 2px solid #e74c3c; border-left: 10px solid #c0392b; 
         border-radius: 8px; padding: 18px 24px; margin-bottom: 20px; animation: blinker 1.5s linear infinite;
+        box-shadow: 0 4px 6px rgba(231, 76, 60, 0.15);
     }
     .clear-box {
         background-color: #e8f8f5; border: 1px solid #2ecc71; border-left: 10px solid #27ae60; 
         border-radius: 8px; padding: 18px 24px; margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(46, 204, 113, 0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -136,14 +112,9 @@ if "sector_db" not in st.session_state:
         }
     }
 
-if "custom_stocks" not in st.session_state:
-    st.session_state["custom_stocks"] = {}
-
-if "my_holdings" not in st.session_state:
-    st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
-
-if "my_watchlist" not in st.session_state:
-    st.session_state["my_watchlist"] = ["한화오션", "현대로템", "RFHIC", "한국콜마"]
+if "custom_stocks" not in st.session_state: st.session_state["custom_stocks"] = {}
+if "my_holdings" not in st.session_state: st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
+if "my_watchlist" not in st.session_state: st.session_state["my_watchlist"] = ["한화오션", "현대로템", "RFHIC", "한국콜마"]
 
 KOREAN_STOCK_MASTER = {
     "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
@@ -172,87 +143,24 @@ for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
     TICKER_TO_SECTOR[code] = "커스텀 종목"
 
-if "selected_stocks" not in st.session_state:
-    st.session_state["selected_stocks"] = st.session_state["my_holdings"]
+if "selected_stocks" not in st.session_state: st.session_state["selected_stocks"] = st.session_state["my_holdings"]
 
 def format_money(num):
-    if num is None or pd.isna(num):
-        return "-"
+    if num is None or pd.isna(num): return "-"
     num_int = int(round(num))
     sign = "-" if num_int < 0 else ""
     return f"{sign}{abs(num_int):,}원"
 
 def format_pure_number(num):
-    if num is None or pd.isna(num):
-        return "-"
-    num_int = int(round(num))
-    return f"{num_int:,}"
+    if num is None or pd.isna(num): return "-"
+    return f"{int(round(num)):,}"
 
 def format_exact_price(num):
-    if num is None or pd.isna(num):
-        return "-"
+    if num is None or pd.isna(num): return "-"
     return f"{int(round(num)):,}원"
 
-@st.cache_data(ttl=3600)
-def analyze_stock_suitability(stock_dict, invest_amount=2000000, ma_period=240):
-    results = []
-    tickers = list(stock_dict.values())
-    if not tickers:
-        return pd.DataFrame()
-    try:
-        data = yf.download(tickers, period="1y", interval="1d", progress=False)
-        close_data = data['Close'] if isinstance(data.columns, pd.MultiIndex) and 'Close' in data.columns.levels[0] else (data['Close'] if 'Close' in data.columns else data)
-
-        for name, code in stock_dict.items():
-            s_data = close_data[code].dropna() if isinstance(close_data, pd.DataFrame) and code in close_data.columns else (close_data.dropna() if isinstance(close_data, pd.Series) else pd.Series())
-            if len(s_data) > 10:
-                curr_price = float(s_data.iloc[-1])
-                if curr_price > invest_amount:
-                    total_score = 0
-                    fit_grade = "🚫 출격 불가 (단가 초과)"
-                    reason = f"1주 가격({format_pure_number(curr_price)}원)이 진입 예산({format_pure_number(invest_amount)}원)보다 비쌉니다!"
-                    buyable_qty = 0
-                else:
-                    buyable_qty = int(invest_amount // curr_price)
-                    daily_change = s_data.pct_change().abs() * 100
-                    avg_volatility = daily_change.mean()
-                    sma_val_eval = s_data.rolling(min(ma_period, len(s_data))).mean().iloc[-1]
-                    trend_score = 35 if curr_price >= sma_val_eval else 20
-                    if 1.5 <= avg_volatility <= 4.0:
-                        vol_score = 45
-                    elif avg_volatility > 4.0:
-                        vol_score = 30
-                    else:
-                        vol_score = 15
-                    total_score = vol_score + trend_score + 20
-                    if buyable_qty < 3:
-                        total_score = max(30, total_score - 20)
-                        fit_grade = "⚠️ 주의 (단가 부담)"
-                        reason = f"1주 가격({format_pure_number(curr_price)}원)이 높아 진입 시 {buyable_qty}주밖에 못 사 자금 효율이 낮습니다."
-                    elif total_score >= 80:
-                        fit_grade = "🥇 최적합 (강력 추천)"
-                        reason = f"파동(±{avg_volatility:.1f}%)이 훌륭하며, 1회 진입 시 약 {buyable_qty}주씩 분할 매수 가능합니다."
-                    elif total_score >= 65:
-                        fit_grade = "🥈 적합 (무난)"
-                        reason = f"스노우볼 작전에 무난하게 적합합니다. (진입 시 약 {buyable_qty}주 매수 가능)"
-                    else:
-                        fit_grade = "⚠️ 주의 (파동 부족/하락세)"
-                        reason = f"변동폭이 너무 적거나 하락세가 지속되어 진입 타점이 더디게 올 수 있습니다."
-                results.append({
-                    "종목명": name,
-                    "티커": code,
-                    "현재가(1주)": f"{format_pure_number(curr_price)}원",
-                    "1회 진입 가능 수량": f"{buyable_qty}주",
-                    "적합도 점수": f"{total_score}점",
-                    "적합도 판정": fit_grade,
-                    "사령관 정밀 진단 소견": reason
-                })
-    except Exception:
-        pass
-    return pd.DataFrame(results)
-
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.1")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.1.1")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", type=["json"], help="스마트폰에 저장해 둔 설정 파일(.json)을 올리면 내 종목 세팅이 1초 만에 복원됩니다.")
@@ -278,7 +186,7 @@ menu_choice = st.sidebar.radio(
         "🚨 2. 오늘의 실전 매매 레이더", 
         "🛡️ 3. 과거 5년 백테스트 연구소"
     ],
-    index=2
+    index=1
 )
 st.sidebar.markdown("---")
 
@@ -298,12 +206,7 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     with db_tab1:
         st.markdown("### 💼 1. 실전 보유 종목 DB 세팅")
         valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
-        new_holdings = st.multiselect(
-            "실전 보유 종목 편집:",
-            options=list(MASTER_STOCK_DICT.keys()),
-            default=valid_holdings,
-            key="holding_multiselect"
-        )
+        new_holdings = st.multiselect("실전 보유 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=valid_holdings)
         if st.button("💾 실전 보유 종목 DB 저장", type="primary", use_container_width=True):
             st.session_state["my_holdings"] = new_holdings
             st.session_state["selected_stocks"] = new_holdings
@@ -313,12 +216,7 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     with db_tab2:
         st.markdown("### ⭐ 2. 관심 종목 DB 세팅")
         valid_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
-        new_watchlist = st.multiselect(
-            "관심 종목 편집:",
-            options=list(MASTER_STOCK_DICT.keys()),
-            default=valid_watchlist,
-            key="watchlist_multiselect"
-        )
+        new_watchlist = st.multiselect("관심 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=valid_watchlist)
         if st.button("💾 관심 종목 DB 저장", type="secondary", use_container_width=True):
             st.session_state["my_watchlist"] = new_watchlist
             st.success("🎉 관심 종목이 안전하게 저장되었습니다!")
@@ -329,35 +227,13 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     p_col1, p_col2, p_col3 = st.columns(3)
     if p_col1.button("🤖 AI/반도체 황금 5선", use_container_width=True):
         st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
-        st.session_state["selected_stocks"] = st.session_state["my_holdings"]
-        st.toast("🎉 AI 반도체 5선 세팅 완료!")
         st.rerun()
     if p_col2.button("🛡️ 방산/조선 주도주 4선", use_container_width=True):
         st.session_state["my_holdings"] = ["한화오션", "HD한국조선해양", "LIG넥스원", "현대로템"]
-        st.session_state["selected_stocks"] = st.session_state["my_holdings"]
-        st.toast("🎉 방산/조선 4선 세팅 완료!")
         st.rerun()
     if p_col3.button("🧬 바이오/화장품 4선", use_container_width=True):
         st.session_state["my_holdings"] = ["한국콜마", "코스맥스", "알테오젠", "셀트리온"]
-        st.session_state["selected_stocks"] = st.session_state["my_holdings"]
-        st.toast("🎉 바이오/화장품 4선 세팅 완료!")
         st.rerun()
-
-    st.markdown("---")
-    st.markdown("### 💾 나만의 세팅 휴대폰 파일로 백업하기")
-    cfg_to_save = {
-        "my_holdings": st.session_state.get("my_holdings", []),
-        "my_watchlist": st.session_state.get("my_watchlist", [])
-    }
-    json_cfg_str = json.dumps(cfg_to_save, ensure_ascii=False, indent=2)
-    st.download_button(
-        label="📥 내 작전 세팅 휴대폰에 다운로드 (.json)",
-        data=json_cfg_str,
-        file_name="parkgyver_my_strategy.json",
-        mime="application/json",
-        use_container_width=True,
-        help="클릭하시면 내 종목 세팅이 스마트폰 다운로드 폴더에 안전하게 저장됩니다."
-    )
 
 # =====================================================================
 # 🚨 메뉴 2: 오늘의 실전 매매 레이더 (출격 명령서 전용)
@@ -379,32 +255,85 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     st.markdown(f"🎯 **[실전 감시 전광판] 현재 내 계좌 DB 연동 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
     st.markdown("---")
 
-    st.markdown("### 📡 실시간 출격 시그널 검사 결과")
-    if len(PORTFOLIO_UNIVERSE) > 0:
+    with st.spinner("📡 대한민국 증시 기상청 및 실시간 시세를 동기화 중입니다..."):
+        # 🌟 1. 실시간 양대 지수 기상청 파악 및 사이렌 렌더링
+        last_ks_c, last_ks_ma, last_kq_c, last_kq_ma = None, None, None, None
         try:
-            live_tickers = list(PORTFOLIO_UNIVERSE.values())
-            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
-            live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
+            live_bench = yf.download(["^KS11", "^KQ11"], period="2mo", interval="1d", progress=False)
+            bench_close = live_bench['Close'] if isinstance(live_bench.columns, pd.MultiIndex) and 'Close' in live_bench.columns.levels[0] else live_bench
             
-            buy_signals = []
-            for name, code in PORTFOLIO_UNIVERSE.items():
-                s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
-                if len(s_data) >= 2:
-                    today_p = float(s_data.iloc[-1])
-                    yester_p = float(s_data.iloc[-2])
-                    change_pct = ((today_p - yester_p) / yester_p) * 100
-                    
-                    if change_pct <= -float(buy_cond_input):
-                        buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** (진입 타점 포착! 오늘 3시 20분 동시호가 출격 시그널)")
-            
-            if buy_signals:
-                st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
-            else:
-                st.success("✅ **현재 내 계좌 DB 종목 중 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
+            ks_key = '^KS11' if '^KS11' in bench_close.columns else bench_close.columns[0]
+            kq_key = '^KQ11' if '^KQ11' in bench_close.columns else (bench_close.columns[1] if len(bench_close.columns) > 1 else ks_key)
+
+            ks_series = bench_close[ks_key].ffill()
+            kq_series = bench_close[kq_key].ffill()
+            ks_ma20 = ks_series.rolling(window=20).mean()
+            kq_ma20 = kq_series.rolling(window=20).mean()
+
+            last_ks_c = float(ks_series.dropna().iloc[-1])
+            last_ks_ma = float(ks_ma20.dropna().iloc[-1])
+            last_kq_c = float(kq_series.dropna().iloc[-1])
+            last_kq_ma = float(kq_ma20.dropna().iloc[-1])
+
+            siren_html = f"""
+            <div style="display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap;">
+                <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
+                <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 5px 0;">
+                    {'🚨 KOSPI 태풍 경보 발령 중' if last_ks_c < last_ks_ma else '☀️ KOSPI 시장 날씨 맑음'}
+                </h3>
+                <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
+                    현재 코스피 지수 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
+                </p>
+                </div>
+                <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
+                <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 5px 0;">
+                    {'🚨 KOSDAQ 태풍 경보 발령 중' if last_kq_c < last_kq_ma else '☀️ KOSDAQ 시장 날씨 맑음'}
+                </h3>
+                <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
+                    현재 코스닥 지수 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
+                </p>
+                </div>
+            </div>
+            """
+            st.markdown(siren_html, unsafe_allow_html=True)
         except Exception:
-            st.info("💡 실시간 시세를 동기화하는 중입니다.")
-    else:
-        st.warning("⚠️ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
+            pass # 일시적 통신 오류 시 패스
+
+        st.markdown("### 📡 실시간 출격 시그널 검사 결과")
+        if len(PORTFOLIO_UNIVERSE) > 0:
+            try:
+                live_tickers = list(PORTFOLIO_UNIVERSE.values())
+                live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
+                live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
+                
+                buy_signals = []
+                for name, code in PORTFOLIO_UNIVERSE.items():
+                    s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
+                    if len(s_data) >= 2:
+                        today_p = float(s_data.iloc[-1])
+                        yester_p = float(s_data.iloc[-2])
+                        change_pct = ((today_p - yester_p) / yester_p) * 100
+                        
+                        if change_pct <= -float(buy_cond_input):
+                            # 종목 소속 시장에 따른 경고등 판별
+                            is_kq = code.endswith('.KQ')
+                            is_stormy = False
+                            if is_kq and last_kq_c is not None and last_kq_ma is not None:
+                                is_stormy = last_kq_c < last_kq_ma
+                            elif not is_kq and last_ks_c is not None and last_ks_ma is not None:
+                                is_stormy = last_ks_c < last_ks_ma
+                                
+                            warning_tag = "<span style='color:#e74c3c; font-weight:bold;'>(⚠️소속 시장 태풍! 출격 보류 권장)</span>" if is_stormy else "<span style='color:#27ae60; font-weight:bold;'>(✅시장 순풍! 출격 가능)</span>"
+                            buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** ➔ 오늘 3시 20분 타점 포착! {warning_tag}")
+                
+                if buy_signals:
+                    st.markdown("<div style='padding:15px; border-radius:8px; border:2px solid #e74c3c; background-color:#fef9e7;'>⚡ <b>오늘 실전 진입 타점에 포착된 종목이 있습니다!</b><br><br>" + "<br><br>".join(buy_signals) + "</div>", unsafe_allow_html=True)
+                else:
+                    st.success("✅ **현재 내 계좌 DB 종목 중 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
+            except Exception:
+                st.info("💡 실시간 시세를 동기화하는 중입니다.")
+        else:
+            st.warning("⚠️ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
 
     with st.expander("📖 [당귀다TV] 실전 출격 명령서 1분 가이드 (순수 종가 매매법)", expanded=True):
         st.markdown("""
@@ -421,8 +350,8 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 백테스트 연구소 (기상청 사이렌 탑재 V10.1)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 원본 로직을 유지하며 태풍 경보 사이렌 시각화만 업그레이드 되었습니다.</div>
+        <div class="hero-title">🛡️ 과거 5년 백테스트 연구소 (성과 검증)</div>
+        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 내 계좌 DB 종목들과 방어 스위치가 폭락장에서 어떻게 작동했는지 검증합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -475,15 +404,6 @@ else:
     st.sidebar.markdown("---")
     run_btn = st.sidebar.button("🚀 백테스트 타임머신 가동!", type="primary", use_container_width=True)
 
-    st.sidebar.markdown("---")
-    with st.sidebar.expander("⚖️ 법적 책임 면책 고지문", expanded=False):
-        st.caption("""
-        **[투자 유의사항 안내]**
-        1. 본 프로그램은 과거 주가 데이터를 기반으로 작동하는 **단순 퀀트 시뮬레이션 및 데이터 참고 도구**이며, 특정 종목의 매수/매도를 권유하거나 자문하는 금융 서비스가 아닙니다.
-        2. 과거의 백테스트 수익률이 미래의 투자 수익을 결코 보장하지 않습니다.
-        3. 주식 시장 특성상 원금 손실 위험이 존재하며, **모든 투자의 최종 결정과 손익 결과에 대한 법적 책임은 투자자 본인**에게 있음을 알려드립니다.
-        """)
-
     if run_btn:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
@@ -502,9 +422,7 @@ else:
                     else:
                         close_df = raw_close
 
-                    if isinstance(close_df, pd.Series):
-                        close_df = close_df.to_frame(name=tickers[0])
-
+                    if isinstance(close_df, pd.Series): close_df = close_df.to_frame(name=tickers[0])
                     close_df = close_df.dropna(how='all')
 
                     if close_df.empty:
@@ -829,37 +747,38 @@ else:
                     """, unsafe_allow_html=True)
 
                     # 🌟 [신규 장착] 대한민국 증시 기상청 사이렌 시각화 
-                    last_ks_c, last_ks_ma, last_kq_c, last_kq_ma = 0, 0, 0, 0
+                    last_ks_c, last_ks_ma, last_kq_c, last_kq_ma = None, None, None, None
                     if not bench_df.empty and not bench_ma20.empty:
                         ks_key = '^KS11' if '^KS11' in bench_df.columns else bench_df.columns[0]
                         kq_key = '^KQ11' if '^KQ11' in bench_df.columns else (bench_df.columns[1] if len(bench_df.columns) > 1 else ks_key)
                         
-                        last_ks_c = float(bench_df[ks_key].dropna().iloc[-1]) if ks_key in bench_df else 0
-                        last_ks_ma = float(bench_ma20[ks_key].dropna().iloc[-1]) if ks_key in bench_ma20 else 0
-                        last_kq_c = float(bench_df[kq_key].dropna().iloc[-1]) if kq_key in bench_df else 0
-                        last_kq_ma = float(bench_ma20[kq_key].dropna().iloc[-1]) if kq_key in bench_ma20 else 0
+                        last_ks_c = float(bench_df[ks_key].dropna().iloc[-1]) if ks_key in bench_df else None
+                        last_ks_ma = float(bench_ma20[ks_key].dropna().iloc[-1]) if ks_key in bench_ma20 else None
+                        last_kq_c = float(bench_df[kq_key].dropna().iloc[-1]) if kq_key in bench_df else None
+                        last_kq_ma = float(bench_ma20[kq_key].dropna().iloc[-1]) if kq_key in bench_ma20 else None
 
-                    siren_html = f"""
-                    <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
-                      <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
-                        <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 5px 0;">
-                          {'🚨 KOSPI 태풍 경보 발령 중' if last_ks_c < last_ks_ma else '☀️ KOSPI 시장 날씨 맑음'}
-                        </h3>
-                        <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
-                          현재 코스피 지수 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
-                        </p>
-                      </div>
-                      <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
-                        <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 5px 0;">
-                          {'🚨 KOSDAQ 태풍 경보 발령 중' if last_kq_c < last_kq_ma else '☀️ KOSDAQ 시장 날씨 맑음'}
-                        </h3>
-                        <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
-                          현재 코스닥 지수 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
-                        </p>
-                      </div>
-                    </div>
-                    """
-                    st.markdown(siren_html, unsafe_allow_html=True)
+                        if last_ks_c is not None and last_ks_ma is not None and last_kq_c is not None and last_kq_ma is not None:
+                            siren_html = f"""
+                            <div style="display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap;">
+                              <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
+                                <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 5px 0;">
+                                  {'🚨 KOSPI 태풍 경보 발령 중' if last_ks_c < last_ks_ma else '☀️ KOSPI 시장 날씨 맑음'}
+                                </h3>
+                                <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
+                                  현재 코스피 지수 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
+                                </p>
+                              </div>
+                              <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
+                                <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 5px 0;">
+                                  {'🚨 KOSDAQ 태풍 경보 발령 중' if last_kq_c < last_kq_ma else '☀️ KOSDAQ 시장 날씨 맑음'}
+                                </h3>
+                                <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
+                                  현재 코스닥 지수 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
+                                </p>
+                              </div>
+                            </div>
+                            """
+                            st.markdown(siren_html, unsafe_allow_html=True)
                     # 🌟 시각화 영역 끝
 
                     m0, m1, m2, m3 = st.columns(4)
