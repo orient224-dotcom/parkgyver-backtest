@@ -9,6 +9,23 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+# --- 🌟 0. 한글 초성 분리 엔진 (초성 검색용 마법 함수) ---
+def get_chosung(text):
+    chosung_list = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+    result = ""
+    for char in text:
+        if '가' <= char <= '힣':
+            idx = (ord(char) - ord('가')) // 588
+            result += chosung_list[idx]
+        else:
+            result += char
+    return result
+
+def format_stock_option(stock_name):
+    """멀티셀렉트에서 초성 검색이 가능하도록 표시 형식을 바꿔줍니다."""
+    chosung = get_chosung(stock_name)
+    return f"{stock_name} ({chosung})"
+
 # --- 0. 타임존(Timezone) 및 날짜 안전 정규화 함수 ---
 def clean_date_index(obj):
     if isinstance(obj, pd.Series):
@@ -27,8 +44,8 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# --- 1. 페이지 웹 디자인 세팅 (모바일 반응형 & 프리미엄 UI CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.1.2", page_icon="🛡️", layout="wide")
+# --- 1. 페이지 웹 디자인 세팅 ---
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.2", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -40,44 +57,22 @@ st.markdown("""
     }
     div[data-testid="stMetric"] {
         background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
-        padding: 16px 20px !important;
-        border-radius: 14px !important;
-        border: 1px solid #cbd5e1 !important;
+        padding: 16px 20px !important; border-radius: 14px !important; border: 1px solid #cbd5e1 !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
     }
     .hero-banner {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 22px 24px;
-        border-radius: 16px;
-        color: #ffffff;
-        border-left: 8px solid #38bdf8;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
-        margin-bottom: 25px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 22px 24px;
+        border-radius: 16px; color: #ffffff; border-left: 8px solid #38bdf8;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25); margin-bottom: 25px;
     }
     .hero-title { font-size: 1.6rem; font-weight: 900; margin: 0; color: #f8fafc; }
     .hero-subtitle { font-size: 0.95rem; color: #94a3b8; margin-top: 6px; }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px; background-color: #e2e8f0; padding: 8px 10px; border-radius: 14px; margin-bottom: 20px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 44px; background-color: #ffffff; border-radius: 10px; padding: 0 16px; 
-        font-weight: 800; font-size: 0.9rem; color: #334155; border: 1px solid #cbd5e1;
-    }
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: #ffffff !important;
-    }
-    /* 🌟 기상청 사이렌 및 맑음 박스 CSS */
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: #e2e8f0; padding: 8px 10px; border-radius: 14px; margin-bottom: 20px; }
+    .stTabs [data-baseweb="tab"] { height: 44px; background-color: #ffffff; border-radius: 10px; padding: 0 16px; font-weight: 800; font-size: 0.9rem; color: #334155; border: 1px solid #cbd5e1; }
+    .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: #ffffff !important; }
     @keyframes blinker { 50% { opacity: 0.6; } }
-    .siren-box {
-        background-color: #ffebee; border: 2px solid #e74c3c; border-left: 10px solid #c0392b; 
-        border-radius: 8px; padding: 18px 24px; margin-bottom: 20px; animation: blinker 1.5s linear infinite;
-        box-shadow: 0 4px 6px rgba(231, 76, 60, 0.15);
-    }
-    .clear-box {
-        background-color: #e8f8f5; border: 1px solid #2ecc71; border-left: 10px solid #27ae60; 
-        border-radius: 8px; padding: 18px 24px; margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(46, 204, 113, 0.1);
-    }
+    .siren-box { background-color: #ffebee; border: 2px solid #e74c3c; border-left: 10px solid #c0392b; border-radius: 8px; padding: 18px 24px; margin-bottom: 20px; animation: blinker 1.5s linear infinite; }
+    .clear-box { background-color: #e8f8f5; border: 1px solid #2ecc71; border-left: 10px solid #27ae60; border-radius: 8px; padding: 18px 24px; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -85,21 +80,20 @@ st.markdown("""
 if "sector_db" not in st.session_state:
     st.session_state["sector_db"] = {
         "⚡ 반도체 & HBM / 칩렛": {
-            "테크윙": "089030.KQ", "한미반도체": "042700.KS", "HPSP": "403870.KQ",
-            "이오테크닉스": "039030.KQ", "리노공업": "058470.KQ", "ISC": "095340.KQ",
-            "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "피에스케이": "057030.KQ"
+            "테크윙": "089030.KQ", "한미반도체": "042700.KS", "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", 
+            "리노공업": "058470.KQ", "ISC": "095340.KQ", "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ", 
+            "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "피에스케이": "057030.KQ"
         },
         "🧬 바이오 & 제약 / 화장품": {
-            "한국콜마": "161890.KS", "코스맥스": "192820.KS", "알테오젠": "196170.KQ", 
-            "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS", "HLB": "028300.KQ", 
-            "유한양행": "000100.KS", "리가켐바이오": "141080.KQ"
+            "한국콜마": "161890.KS", "코스맥스": "192820.KS", "알테오젠": "196170.KQ", "셀트리온": "068270.KS", 
+            "삼성바이오로직스": "207940.KS", "HLB": "028300.KQ", "유한양행": "000100.KS", "리가켐바이오": "141080.KQ"
         },
         "📡 통신 & 방산 & 조선": {
-            "RFHIC": "218410.KQ", "한화시스템": "272210.KS", "현대로템": "064350.KS",
-            "LIG넥스원": "079550.KS", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "두산에너빌리티": "034020.KS", "HD현대일렉트릭": "267260.KS"
+            "RFHIC": "218410.KQ", "한화시스템": "272210.KS", "현대로템": "064350.KS", "LIG넥스원": "079550.KS", 
+            "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "두산에너빌리티": "034020.KS", "HD현대일렉트릭": "267260.KS"
         },
         "🔋 2차전지 & 에코": {
-            "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS",
+            "에코프로비엠": "247540.KQ", "에코프로": "086520.KQ", "LG에너지솔루션": "373220.KS", 
             "POSCO홀딩스": "005490.KS", "엘앤에프": "066970.KQ", "포스코퓨처엠": "003670.KS"
         },
         "🚗 자동차 & 대표 제조": {
@@ -115,16 +109,15 @@ if "my_holdings" not in st.session_state: st.session_state["my_holdings"] = ["SK
 if "my_watchlist" not in st.session_state: st.session_state["my_watchlist"] = ["한화오션", "현대로템", "RFHIC", "한국콜마"]
 
 KOREAN_STOCK_MASTER = {
-    "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS",
-    "현대힘스": "460930.KQ", "한화오션": "042660.KS", "HD한국조선해양": "009540.KS",
-    "에스피지": "058610.KQ", "SPG": "058610.KQ", "레인보우로보틱스": "277810.KQ",
-    "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
-    "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS",
-    "이수화학": "005950.KS", "이수스페셜티케미컬": "457190.KS", "마녀공장": "439090.KQ",
-    "뉴파워프라즈마": "144960.KQ", "두산에너빌리티": "034020.KS", "하나마이크론": "084370.KQ",
-    "동진쎄미켐": "033640.KQ", "솔브레인": "357780.KQ", "가온칩스": "399500.KQ",
-    "두산로보틱스": "454910.KS", "한화에어로스페이스": "012450.KS", "LIG넥스원": "079550.KS",
-    "HD현대일렉트릭": "267260.KS", "LS일렉트릭": "010120.KS", "포스코퓨처엠": "003670.KS", "피에스케이": "057030.KQ"
+    "한국콜마": "161890.KS", "RFHIC": "218410.KQ", "코스맥스": "192820.KS", "현대힘스": "460930.KQ", 
+    "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "에스피지": "058610.KQ", "SPG": "058610.KQ", 
+    "레인보우로보틱스": "277810.KQ", "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", 
+    "한미반도체": "042700.KS", "기가비스": "420770.KQ", "케이씨텍": "281820.KS", "이수화학": "005950.KS", 
+    "이수스페셜티케미컬": "457190.KS", "마녀공장": "439090.KQ", "뉴파워프라즈마": "144960.KQ", 
+    "두산에너빌리티": "034020.KS", "하나마이크론": "084370.KQ", "동진쎄미켐": "033640.KQ", 
+    "솔브레인": "357780.KQ", "가온칩스": "399500.KQ", "두산로보틱스": "454910.KS", "한화에어로스페이스": "012450.KS", 
+    "LIG넥스원": "079550.KS", "HD현대일렉트릭": "267260.KS", "LS일렉트릭": "010120.KS", "포스코퓨처엠": "003670.KS", "피에스케이": "057030.KQ",
+    "KODEX 200": "069500.KS", "KODEX 코스닥150": "229200.KS"
 }
 
 MASTER_STOCK_DICT = {}
@@ -158,7 +151,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.1.2")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.2")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", type=["json"], help="스마트폰에 저장해 둔 설정 파일(.json)을 올리면 내 종목 세팅이 1초 만에 복원됩니다.")
@@ -166,12 +159,12 @@ uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", 
 if uploaded_cfg is not None:
     try:
         cfg_data = json.load(uploaded_cfg)
-        if "my_holdings" in cfg_data:
-            st.session_state["my_holdings"] = cfg_data["my_holdings"]
-            st.session_state["selected_stocks"] = cfg_data["my_holdings"]
-        if "my_watchlist" in cfg_data:
-            st.session_state["my_watchlist"] = cfg_data["my_watchlist"]
+        if "my_holdings" in cfg_data: st.session_state["my_holdings"] = cfg_data["my_holdings"]
+        if "my_watchlist" in cfg_data: st.session_state["my_watchlist"] = cfg_data["my_watchlist"]
+        if "custom_stocks" in cfg_data: st.session_state["custom_stocks"] = cfg_data["custom_stocks"] # 🌟 커스텀 종목도 복원
+        st.session_state["selected_stocks"] = st.session_state["my_holdings"]
         st.sidebar.success("🎉 작전 세팅 파일 복원 완료!")
+        st.rerun()
     except Exception:
         st.sidebar.error("⚠️ 올바른 설정(.json) 파일이 아닙니다.")
 
@@ -184,7 +177,7 @@ menu_choice = st.sidebar.radio(
         "🚨 2. 오늘의 실전 매매 레이더", 
         "🛡️ 3. 과거 5년 백테스트 연구소"
     ],
-    index=2
+    index=0
 )
 st.sidebar.markdown("---")
 
@@ -195,7 +188,7 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🗄️ 나만의 투자 영구 DB (마이 포트폴리오)</div>
-        <div class="hero-subtitle">실전 보유 종목을 세팅하고 스마트폰 파일로 영구 저장해 두세요! 언제든 불러와서 사용하실 수 있습니다.</div>
+        <div class="hero-subtitle">실전 보유 종목을 세팅하세요! 모바일 초성검색(예: ㅅㅅㅈㅈ)과 신규 종목 추가가 지원됩니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -204,7 +197,15 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     with db_tab1:
         st.markdown("### 💼 1. 실전 보유 종목 DB 세팅")
         valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
-        new_holdings = st.multiselect("실전 보유 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=valid_holdings)
+        
+        # 🌟 초성 검색이 적용된 멀티셀렉트
+        new_holdings = st.multiselect(
+            "실전 보유 종목 편집 (초성으로 검색 가능 🔍):",
+            options=list(MASTER_STOCK_DICT.keys()),
+            default=valid_holdings,
+            format_func=format_stock_option, # 초성 표시 마법
+            key="holding_multiselect"
+        )
         if st.button("💾 실전 보유 종목 DB 저장", type="primary", use_container_width=True):
             st.session_state["my_holdings"] = new_holdings
             st.session_state["selected_stocks"] = new_holdings
@@ -214,11 +215,36 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     with db_tab2:
         st.markdown("### ⭐ 2. 관심 종목 DB 세팅")
         valid_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
-        new_watchlist = st.multiselect("관심 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=valid_watchlist)
+        new_watchlist = st.multiselect(
+            "관심 종목 편집 (초성으로 검색 가능 🔍):",
+            options=list(MASTER_STOCK_DICT.keys()),
+            default=valid_watchlist,
+            format_func=format_stock_option,
+            key="watchlist_multiselect"
+        )
         if st.button("💾 관심 종목 DB 저장", type="secondary", use_container_width=True):
             st.session_state["my_watchlist"] = new_watchlist
             st.success("🎉 관심 종목이 안전하게 저장되었습니다!")
             st.rerun()
+
+    st.markdown("---")
+    
+    # 🌟 [신규 장착] 없는 종목 직접 추가기
+    with st.expander("➕ 목록에 없는 새로운 종목 즉시 추가하기 (커스텀 등록)", expanded=False):
+        st.markdown("<p style='font-size:14px; color:#64748b;'>원하시는 종목이 검색되지 않는다면, 아래에 직접 입력하여 영구 등록하세요.</p>", unsafe_allow_html=True)
+        c_col1, c_col2 = st.columns(2)
+        with c_col1:
+            new_s_name = st.text_input("📝 종목명 (예: 신한지주)")
+        with c_col2:
+            new_s_code = st.text_input("🔢 종목코드 (예: 055550.KS)", help="코스피는 .KS / 코스닥은 .KQ를 꼭 붙여주세요!")
+        
+        if st.button("✅ 내 DB에 종목 추가하기", use_container_width=True):
+            if new_s_name and new_s_code:
+                st.session_state["custom_stocks"][new_s_name] = new_s_code.upper().strip()
+                st.success(f"🎉 **{new_s_name}** 종목이 내 DB에 영구 등록되었습니다! 이제 위 편집창에서 바로 초성 검색하여 선택하세요.")
+                st.rerun()
+            else:
+                st.error("종목명과 종목코드를 모두 입력해 주세요.")
 
     st.markdown("---")
     st.markdown("### ⚡ 원터치 추천 포트폴리오 패키지 로드")
@@ -232,6 +258,23 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     if p_col3.button("🧬 바이오/화장품 4선", use_container_width=True):
         st.session_state["my_holdings"] = ["한국콜마", "코스맥스", "알테오젠", "셀트리온"]
         st.rerun()
+
+    st.markdown("---")
+    st.markdown("### 💾 나만의 세팅 휴대폰 파일로 백업하기")
+    cfg_to_save = {
+        "my_holdings": st.session_state.get("my_holdings", []),
+        "my_watchlist": st.session_state.get("my_watchlist", []),
+        "custom_stocks": st.session_state.get("custom_stocks", {}) # 커스텀 종목도 백업!
+    }
+    json_cfg_str = json.dumps(cfg_to_save, ensure_ascii=False, indent=2)
+    st.download_button(
+        label="📥 내 작전 세팅 휴대폰에 다운로드 (.json)",
+        data=json_cfg_str,
+        file_name="parkgyver_my_strategy_V10.json",
+        mime="application/json",
+        use_container_width=True,
+        help="클릭하시면 직접 추가하신 종목까지 스마트폰에 안전하게 영구 보존됩니다."
+    )
 
 # =====================================================================
 # 🚨 메뉴 2: 오늘의 실전 매매 레이더 (출격 명령서 전용)
@@ -254,7 +297,6 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     st.markdown("---")
 
     with st.spinner("📡 대한민국 증시 기상청 및 실시간 시세를 동기화 중입니다..."):
-        # 🌟 1. 실시간 양대 지수 기상청 파악 및 사이렌 렌더링
         last_ks_c, last_ks_ma, last_kq_c, last_kq_ma = None, None, None, None
         try:
             live_bench = yf.download(["^KS11", "^KQ11"], period="2mo", interval="1d", progress=False)
@@ -295,7 +337,7 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
             """
             st.markdown(siren_html, unsafe_allow_html=True)
         except Exception:
-            pass # 일시적 통신 오류 시 패스
+            pass
 
         st.markdown("### 📡 실시간 출격 시그널 검사 결과")
         if len(PORTFOLIO_UNIVERSE) > 0:
@@ -313,7 +355,6 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
                         change_pct = ((today_p - yester_p) / yester_p) * 100
                         
                         if change_pct <= -float(buy_cond_input):
-                            # 종목 소속 시장에 따른 경고등 판별
                             is_kq = code.endswith('.KQ')
                             is_stormy = False
                             if is_kq and last_kq_c is not None and last_kq_ma is not None:
@@ -349,7 +390,7 @@ else:
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🛡️ 과거 백테스트 연구소 (하이브리드 & 기상청 에디션)</div>
-        <div class="hero-subtitle">가장 안정적인 V10.1 원본 로직에 [하이브리드 추세연장 스위치]와 [태풍 사이렌 시각화]를 성공적으로 탑재했습니다.</div>
+        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 원본 로직을 유지하며 태풍 경보 사이렌 시각화가 업그레이드 되었습니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -370,8 +411,7 @@ else:
     max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 30, 5) if use_time_cut else 9999
     
     st.sidebar.markdown("---")
-    # 🌟 [신규 장착] 하이브리드 추세연장 체크박스 옵션
-    use_hybrid_trailing = st.sidebar.checkbox("🔥 하이브리드 추세연장 (목표가 달성 시 추세 홀딩)", value=True, help="목표가에 도달했을 때 5일선이 20일선 위에 있으면 팔지 않고 추세가 꺾일 때까지 수익을 극대화합니다.")
+    use_hybrid_trailing = st.sidebar.checkbox("🔥 하이브리드 추세연장 (목표가 달성 시 추세 홀딩)", value=True)
 
     st.sidebar.markdown("---")
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000, key="bt_capital")
@@ -451,14 +491,12 @@ else:
                         bench_df = bench_raw['Close'] if isinstance(bench_raw.columns, pd.MultiIndex) and 'Close' in bench_raw.columns.levels[0] else bench_raw
                         if not bench_df.empty:
                             bench_df.index = clean_date_index(bench_df.index)
-                            bench_ma20 = bench_df.rolling(window=20).mean() # 🌟 기상청 사이렌용 20일선 계산 추가
+                            bench_ma20 = bench_df.rolling(window=20).mean()
                     except Exception:
                         pass
 
                     return_df = close_df.pct_change() * 100
                     sma_df = close_df.rolling(window=int(ma_period_choice)).mean()
-                    
-                    # 🌟 [하이브리드 옵션용 추가 이동평균선 계산]
                     ma5_df = close_df.rolling(window=5).mean()
                     ma20_df = close_df.rolling(window=20).mean()
 
@@ -529,7 +567,6 @@ else:
                                 exit_dt = pd.to_datetime(date_str)
                                 days_taken = (exit_dt - entry_dt).days
 
-                                # 🌟 [하이브리드 옵션 연동 로직 적용] 🌟
                                 ma5_val = ma5_df.loc[date, t_code] if t_code in ma5_df.columns and date in ma5_df.index else None
                                 ma20_val = ma20_df.loc[date, t_code] if t_code in ma20_df.columns and date in ma20_df.index else None
 
@@ -540,7 +577,7 @@ else:
                                     else:
                                         if gross_ret >= sell_target:
                                             if pd.notna(ma5_val) and pd.notna(ma20_val) and (ma5_val > ma20_val) and (curr_price >= ma5_val):
-                                                pos['trailing'] = True # 목표 달성했으나 추세가 살아있으므로 팔지 않고 킵!
+                                                pos['trailing'] = True
                                             else:
                                                 is_exit, exit_reason = True, f"🎯 정상 복귀(+{sell_target_input}%)"
                                         elif stop_loss_limit is not None and gross_ret <= stop_loss_limit:
@@ -548,7 +585,6 @@ else:
                                         elif use_time_cut and days_taken >= max_hold_days_input:
                                             is_exit, exit_reason = True, f"⏳ 타임 컷 ({max_hold_days_input}일 초과)"
                                 else:
-                                    # 옵션이 꺼져있을 땐 기존 V10.1 기계적 매도 로직 작동
                                     if gross_ret >= sell_target:
                                         is_exit, exit_reason = True, f"🎯 정상 복귀(+{sell_target_input}%)"
                                     elif stop_loss_limit is not None and gross_ret <= stop_loss_limit:
@@ -697,7 +733,7 @@ else:
                                     active_positions.append({
                                         'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code,
                                         'entry_price': c_price, 'entry_date': date_str, 'invest_amount': actual_invest, 'entry_day_ret': ret_val,
-                                        'trailing': False # 🌟 하이브리드 옵션용 초기화
+                                        'trailing': False
                                     })
 
                         curr_count = len(active_positions)
@@ -775,7 +811,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 🌟 [신규 장착] 대한민국 증시 기상청 사이렌 시각화 
                     last_ks_c, last_ks_ma, last_kq_c, last_kq_ma = None, None, None, None
                     if not bench_df.empty and not bench_ma20.empty:
                         ks_key = '^KS11' if '^KS11' in bench_df.columns else bench_df.columns[0]
@@ -808,7 +843,6 @@ else:
                             </div>
                             """
                             st.markdown(siren_html, unsafe_allow_html=True)
-                    # 🌟 시각화 영역 끝
 
                     m0, m1, m2, m3 = st.columns(4)
                     m0.metric("💵 금고 잔고 (가용 현금)", format_money(current_cash))
@@ -939,7 +973,6 @@ else:
                                 tot_eval += eval_val
                                 tot_prof += eval_profit
                                 
-                                # 🌟 현재 요원이 하이브리드 추세연장 모드에 진입했는지 상태 표시 추가
                                 status_str = "🔥 추세 홀딩 중" if p.get('trailing', False) else "⚔️ 대기중"
 
                                 active_table.append({
