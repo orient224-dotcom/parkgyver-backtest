@@ -46,12 +46,11 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# --- 1. 페이지 웹 디자인 세팅 (모바일 환경에 특화된 프리미엄 CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.4", page_icon="🛡️", layout="wide")
+# --- 1. 페이지 웹 디자인 세팅 (모바일 최적화 CSS) ---
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.4.1", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
-    /* 📱 모바일 디바이스 최적화 CSS */
     .stApp { background-color: #f8fafc; }
     
     @media (max-width: 768px) {
@@ -125,7 +124,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.4")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.4.1")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
@@ -154,7 +153,7 @@ menu_choice = st.sidebar.radio(
         "🚨 2. 오늘의 실전 매매 레이더", 
         "🛡️ 3. 과거 5년 백테스트 연구소"
     ],
-    index=0
+    index=2
 )
 st.sidebar.markdown("---")
 
@@ -376,8 +375,8 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 백테스트 연구소 (하이브리드 & 공짜주식 수확)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 신규 [하락폭 가중 매수 + 공짜주식 수확] 알고리즘이 탑재되었습니다.</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (하이브리드 & 기상청 에디션)</div>
+        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 내 포트폴리오 성과를 완벽 검증합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -399,9 +398,7 @@ else:
     
     st.sidebar.markdown("---")
     use_hybrid_trailing = st.sidebar.checkbox("🔥 하이브리드 추세연장 (목표가 달성 시 추세 홀딩)", value=True)
-    
-    # 🌟 [신규 탑재 알고리즘 옵션]
-    use_weighted_harvest = st.sidebar.checkbox("🎁 하락폭 가중 매수 + 원금 회수/공짜주식 수확 모드", value=True, help="낙폭이 깊을수록 진입 예산을 가중 투입하고, +5% 반등 시 원금은 100% 현금 회수하며 수익금만 공짜 주식으로 영구 적립합니다.")
+    use_weighted_entry = st.sidebar.checkbox("📉 하락폭 가중 매수 (폭락장에서 예산 가중 투입)", value=True, help="진입 조건보다 깊게 폭락할 경우 예산을 가중 투입하여 평단가를 크게 낮춥니다.")
 
     st.sidebar.markdown("---")
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000, key="bt_capital")
@@ -431,7 +428,13 @@ else:
     tax_pct = (st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100) if use_fee else 0.0
     slippage_pct = (st.sidebar.number_input("체결 오차 (슬리피지) (%)", value=0.10, format="%.2f") / 100) if use_fee else 0.0
 
-    reward_type = st.sidebar.selectbox("🎁 전리품 수령 방식", ["🌟 현금 50% + 열매 50% (하이브리드)", "🌟 현금 40% + 열매 60% (하이브리드 강화)", "전액 현금으로 챙기기", "열매로 결실 모으기"])
+    # 🌟 사이드바 정산 옵션 (100% 분기 로직 적용)
+    reward_type = st.sidebar.selectbox("🎁 전리품 수령 방식", [
+        "전액 현금으로 챙기기", 
+        "🌟 현금 50% + 열매 50% (하이브리드)", 
+        "🌟 현금 40% + 열매 60% (하이브리드 강화)", 
+        "열매로 결실 모으기"
+    ], index=0)
 
     st.sidebar.markdown("---")
     run_btn = st.sidebar.button("🚀 백테스트 타임머신 가동!", type="primary", use_container_width=True)
@@ -440,7 +443,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 하이브리드 & 공짜주식 수확 엔진을 안전하게 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 정산 엔진을 안전하게 분석 중입니다..."):
                 try:
                     end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
@@ -602,20 +605,18 @@ else:
                                         stock_win_stats[s_name]['success'] += 1
                                         stock_win_stats[s_name]['profit_gain'] += net_profit
                                         
-                                        # 🌟 [신규 공짜 주식 수확 로직 분기]
-                                        if use_weighted_harvest:
-                                            # 원금 100% 현금 회수 + 수익금은 공짜 주식으로 적립
+                                        # 🌟 [충돌 해결 완벽 정산 분기 로직] 🌟
+                                        if '전액 현금' in reward_type:
+                                            buyable = 0
+                                            leftover = net_profit
+                                        elif '열매로 결실' in reward_type:
                                             buyable = int(max(0, net_profit) // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
-                                            exit_reason = f"🎁 원금회수 + 공짜주식({buyable}주)"
-                                        elif reward_type == '열매로 결실 모으기':
-                                            buyable = int(max(0, net_profit) // curr_price)
-                                            leftover = net_profit - (buyable * curr_price)
-                                        elif reward_type == '🌟 현금 50% + 열매 50% (하이브리드)':
+                                        elif '50%' in reward_type:
                                             share_budget = max(0, net_profit) * 0.5
                                             buyable = int(share_budget // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
-                                        elif reward_type == '🌟 현금 40% + 열매 60% (하이브리드 강화)':
+                                        elif '60%' in reward_type:
                                             share_budget = max(0, net_profit) * 0.6
                                             buyable = int(share_budget // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
@@ -696,7 +697,7 @@ else:
                                 s_name = cand[0]
 
                                 # 🌟 [하락폭 가중 진입 예산 계산]
-                                if use_weighted_harvest:
+                                if use_weighted_entry:
                                     weight = max(1.0, abs(ret_val) / abs(buy_cond_input))
                                     actual_invest = min(dynamic_invest_amount * weight, current_cash)
                                 else:
@@ -868,6 +869,7 @@ else:
                         b_col2.metric("📉 KOSPI 지수", "동기화 대기중")
                         b_col3.metric("📉 KOSDAQ 지수", "동기화 대기중")
 
+                    # 🌟 공짜 주식이 1주 이상일 때만 금고 현황표 출력!
                     if total_free_shares_count > 0:
                         st.markdown(f"""
                         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 16px 20px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 20px;">
