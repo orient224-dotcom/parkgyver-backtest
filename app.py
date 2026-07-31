@@ -47,7 +47,7 @@ def clean_date_index(obj):
         return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.3 Master", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.3.1", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -78,54 +78,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 🌟 대한민국 전 종목(2,600개+) 수집 & 캐싱 엔진 ---
-@st.cache_data(ttl=86400) # 24시간 캐싱으로 속도 최적화
-def load_all_krx_stock_master():
-    """한국거래소(KRX) 상장 전 종목(코스피+코스닥) 및 대표 ETF 수집"""
-    stocks_dict = {}
-    
-    # 1) 기본 우량주 및 ETF 대표 마스터
-    base_master = {
-        "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", "한미반도체": "042700.KS",
-        "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ",
-        "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "현대로템": "064350.KS", "LIG넥스원": "079550.KS",
-        "한화에어로스페이스": "012450.KS", "한국콜마": "161890.KS", "코스맥스": "192820.KS", "알테오젠": "196170.KQ",
-        "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS", "현대차": "005380.KS", "기아": "000270.KS",
-        "NAVER": "035420.KS", "카카오": "035720.KS", "HD현대일렉트릭": "267260.KS", "두산에너빌리티": "034020.KS",
-        "KODEX 200": "069500.KS", "KODEX 코스닥150": "229200.KS", "KODEX 레버리지": "122630.KS", "TIGER 미국S&P500": "360750.KS"
-    }
-    stocks_dict.update(base_master)
-    
-    # 2) KRX 상장 전체 종목 크롤링 수집
-    try:
-        url_kospi = 'https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13&marketType=stockMkt'
-        df_kospi = pd.read_html(url_kospi, header=0, encoding='euc-kr')[0]
-        for _, row in df_kospi.iterrows():
-            name = str(row['회사명']).strip()
-            code = f"{int(row['종목코드']):06d}.KS"
-            stocks_dict[name] = code
-            
-        url_kosdaq = 'https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13&marketType=kosdaqMkt'
-        df_kosdaq = pd.read_html(url_kosdaq, header=0, encoding='euc-kr')[0]
-        for _, row in df_kosdaq.iterrows():
-            name = str(row['회사명']).strip()
-            code = f"{int(row['종목코드']):06d}.KQ"
-            stocks_dict[name] = code
-    except Exception:
-        pass # 네트워크 에러 발생 시 기본 마스터 리스트로 안전 가동
-        
-    return stocks_dict
+# --- 2. 기본 종목 마스터 사전 (기본 100여 개 우량주) ---
+BASE_STOCK_MASTER = {
+    "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", "한미반도체": "042700.KS",
+    "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ",
+    "한화오션": "042660.KS", "HD한국조선해양": "009540.KS", "현대로템": "064350.KS", "LIG넥스원": "079550.KS",
+    "한화에어로스페이스": "012450.KS", "한국콜마": "161890.KS", "코스맥스": "192820.KS", "알테오젠": "196170.KQ",
+    "셀트리온": "068270.KS", "삼성바이오로직스": "207940.KS", "현대차": "005380.KS", "기아": "000270.KS",
+    "NAVER": "035420.KS", "카카오": "035720.KS", "HD현대일렉트릭": "267260.KS", "두산에너빌리티": "034020.KS",
+    "KODEX 200": "069500.KS", "KODEX 코스닥150": "229200.KS", "KODEX 레버리지": "122630.KS", "TIGER 미국S&P500": "360750.KS"
+}
 
-# 전 종목 로드
-MASTER_STOCK_DICT = load_all_krx_stock_master()
+# 세션 상태에 마스터 DB 관리
+if "full_stock_master" not in st.session_state:
+    st.session_state["full_stock_master"] = BASE_STOCK_MASTER.copy()
 
 if "custom_stocks" not in st.session_state: st.session_state["custom_stocks"] = {}
 if "my_holdings" not in st.session_state: st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
 if "my_watchlist" not in st.session_state: st.session_state["my_watchlist"] = ["한화오션", "현대로템", "RFHIC", "한국콜마"]
 
-# 커스텀 등록 종목 합치기
+# 전체 종목 마스터 병합
+MASTER_STOCK_DICT = st.session_state["full_stock_master"]
 for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
+
+TICKER_TO_SECTOR = {code: "우량주" for code in MASTER_STOCK_DICT.values()}
 
 if "selected_stocks" not in st.session_state: st.session_state["selected_stocks"] = st.session_state["my_holdings"]
 
@@ -144,10 +121,10 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.3")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.3.1")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
-uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", type=["json"], help="스마트폰에 저장해 둔 설정 파일(.json)을 올리면 내 종목 세팅이 1초 만에 복원됩니다.")
+uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
 
 if uploaded_cfg is not None:
     try:
@@ -159,7 +136,7 @@ if uploaded_cfg is not None:
             for name, code in cfg_data["custom_stocks"].items():
                 MASTER_STOCK_DICT[name] = code
         st.session_state["selected_stocks"] = st.session_state["my_holdings"]
-        st.sidebar.success("🎉 작전 세팅 파일 복원 완료!")
+        st.sidebar.success("🎉 세팅 파일 복원 완료!")
         st.rerun()
     except Exception:
         st.sidebar.error("⚠️ 올바른 설정(.json) 파일이 아닙니다.")
@@ -183,12 +160,43 @@ st.sidebar.markdown("---")
 if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🗄️ 나만의 투자 영구 DB (마이 포트폴리오)</div>
-        <div class="hero-subtitle">대한민국 상장 전 종목(2,600개+)이 탑재되었습니다! 초성 키보드로 1초 만에 찾아 포트폴리오를 완성하세요.</div>
+        <div class="hero-title">🗄️ 나만의 투자 영구 DB (스마트폰 연동)</div>
+        <div class="hero-subtitle">스마트폰에 저장된 전 종목 DB를 연동하면, 대한민국 2,600개 상장 종목이 초성 키보드로 1초 만에 검색됩니다!</div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.info(f"💡 현재 통제실 데이터베이스에 **총 {len(MASTER_STOCK_DICT):,}개**의 코스피/코스닥 종목 및 ETF가 탑재되어 언제든 초성 검색이 가능합니다!")
+    # 🌟 [스마트폰 전 종목 DB 관리 구역]
+    with st.expander("📲 🏛️ 대한민국 2,600개 전 종목 DB 스마트폰 연동 / 관리 센터", expanded=True):
+        col_db1, col_db2 = st.columns(2)
+        
+        with col_db1:
+            st.markdown("##### 1️⃣ 스마트폰에 전 종목 DB 탑재하기")
+            uploaded_db = st.file_uploader("📂 스마트폰의 krx_stock_db.json 업로드", type=["json"], help="다운로드해 둔 전 종목 DB 파일(JSON)을 올려주시면 2,600개 종목이 즉시 연동됩니다.")
+            if uploaded_db is not None:
+                try:
+                    loaded_db = json.load(uploaded_db)
+                    st.session_state["full_stock_master"].update(loaded_db)
+                    st.success(f"🎉 성공! 총 {len(st.session_state['full_stock_master']):,}개 전 종목 DB가 탑재되었습니다.")
+                    st.rerun()
+                except Exception:
+                    st.error("❌ 올바른 전 종목 DB 파일이 아닙니다.")
+                    
+        with col_db2:
+            st.markdown("##### 2️⃣ 전 종목 DB 샘플 생성 및 다운로드")
+            st.caption("현재 데이터베이스 종목 수: **" + f"{len(MASTER_STOCK_DICT):,}개**")
+            
+            # 생성된 전 종목 JSON 다운로드 버튼
+            json_db_data = json.dumps(MASTER_STOCK_DICT, ensure_ascii=False, indent=2)
+            st.download_button(
+                label="📥 krx_stock_db.json 스마트폰에 저장",
+                data=json_db_data,
+                file_name="krx_stock_db.json",
+                mime="application/json",
+                use_container_width=True,
+                help="이 버튼을 눌러 파일(krx_stock_db.json)을 저장해 두시면 언제든 다시 불러올 수 있습니다."
+            )
+
+    st.markdown("---")
 
     db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력)", "⭐ 눈여겨보는 관심 종목"])
 
@@ -196,9 +204,9 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
         st.markdown("### 💼 1. 실전 보유 종목 DB 세팅")
         valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
         
-        # 🌟 초성 검색이 구현된 2,600개 전 종목 선택창
+        # 초성 검색이 구현된 멀티셀렉트
         new_holdings = st.multiselect(
-            "실전 보유 종목 편집 (초성 검색: 예: ㅅㅅㅈㅈ, ㅎㅁㅂㄷㅊ, ㅌㅋㅇ):",
+            "실전 보유 종목 편집 (초성 검색 예시: ㅅㅅㅈㅈ, ㅎㅁㅂㄷㅊ, ㅌㅋㅇ):",
             options=list(MASTER_STOCK_DICT.keys()),
             default=valid_holdings,
             format_func=format_stock_option,
@@ -228,30 +236,17 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("---")
     
     # 신규 수동 등록 창
-    with st.expander("➕ 수동 종목 등록 (신규 상장주 등 예외 종목 추가)", expanded=False):
-        st.markdown("<p style='font-size:14px; color:#64748b;'>목록에 없는 신규 상장주나 특수 ETF가 있다면 직접 입력해 등록하세요.</p>", unsafe_allow_html=True)
+    with st.expander("➕ 목록에 없는 특수 종목 개별 등록", expanded=False):
         c_col1, c_col2 = st.columns(2)
         with c_col1: new_s_name = st.text_input("📝 종목명 (예: 신한지주)")
         with c_col2: new_s_code = st.text_input("🔢 종목코드 (예: 055550.KS)", help="코스피는 .KS / 코스닥은 .KQ")
         
-        if st.button("✅ 내 DB에 종목 수동 추가", use_container_width=True):
+        if st.button("✅ 내 DB에 종목 개별 추가", use_container_width=True):
             if new_s_name and new_s_code:
                 st.session_state["custom_stocks"][new_s_name] = new_s_code.upper().strip()
-                st.success(f"🎉 **{new_s_name}** 종목이 등록되었습니다!")
+                st.session_state["full_stock_master"][new_s_name] = new_s_code.upper().strip()
+                st.success(f"🎉 **{new_s_name}** 종목이 새로 등록되었습니다!")
                 st.rerun()
-
-    st.markdown("---")
-    st.markdown("### ⚡ 원터치 추천 포트폴리오 패키지 로드")
-    p_col1, p_col2, p_col3 = st.columns(3)
-    if p_col1.button("🤖 AI/반도체 황금 5선", use_container_width=True):
-        st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
-        st.rerun()
-    if p_col2.button("🛡️ 방산/조선 주도주 4선", use_container_width=True):
-        st.session_state["my_holdings"] = ["한화오션", "HD한국조선해양", "LIG넥스원", "현대로템"]
-        st.rerun()
-    if p_col3.button("🧬 바이오/화장품 4선", use_container_width=True):
-        st.session_state["my_holdings"] = ["한국콜마", "코스맥스", "알테오젠", "셀트리온"]
-        st.rerun()
 
     st.markdown("---")
     st.markdown("### 💾 나만의 세팅 휴대폰 파일로 백업하기")
