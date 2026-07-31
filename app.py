@@ -11,7 +11,6 @@ from plotly.subplots import make_subplots
 
 # --- 0. 한글 초성 분리 및 모바일 검색용 포맷팅 엔진 ---
 def get_chosung(text):
-    """한글 단어에서 초성만 추출하는 함수 (예: 삼성전자 -> ㅅㅅㅈㅈ)"""
     chosung_list = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
     result = ""
     for char in text:
@@ -23,7 +22,6 @@ def get_chosung(text):
     return result
 
 def format_stock_option(stock_name):
-    """모바일 멀티셀렉트 검색창에서 [종목명 + 초성 + 코드]를 동시 매칭시켜주는 포맷터"""
     code = MASTER_STOCK_DICT.get(stock_name, "")
     chosung = get_chosung(stock_name)
     market = "코스닥" if code.endswith(".KQ") else "코스피"
@@ -46,27 +44,105 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# --- 1. 페이지 웹 디자인 세팅 (모바일 최적화 CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.4.1", page_icon="🛡️", layout="wide")
+# --- 1. 페이지 웹 디자인 세팅 (프리미엄 커스텀 CSS) ---
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.6", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
     .stApp { background-color: #f8fafc; }
     
-    @media (max-width: 768px) {
-        .hero-title { font-size: 1.15rem !important; }
-        .hero-banner { padding: 14px 16px !important; border-radius: 12px !important; margin-bottom: 15px !important; }
-        div[data-testid="stMetric"] { padding: 10px 12px !important; border-radius: 10px !important; }
-        div[data-testid="stMetricValue"] { font-size: 1.15rem !important; }
-        .stButton button { font-size: 0.95rem !important; padding: 12px 16px !important; font-weight: bold !important; }
-        .stTabs [data-baseweb="tab"] { height: 38px !important; padding: 0 10px !important; font-size: 0.8rem !important; }
+    /* 🌟 기상청 샌드 옐로우 전광판 CSS */
+    .weather-card {
+        background-color: #fffef2;
+        border: 2px solid #f59e0b;
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
     }
-    
-    div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
-        padding: 14px 16px !important; border-radius: 12px !important; border: 1px solid #cbd5e1 !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    .weather-title {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #92400e;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
+    .weather-box-container {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+    .weather-pill {
+        background-color: #ffffff;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #78350f;
+        flex: 1;
+        min-width: 260px;
+    }
+    .weather-divider {
+        border-top: 1px dashed #f59e0b;
+        margin: 12px 0;
+    }
+    .weather-status-text {
+        font-size: 0.88rem;
+        color: #451a03;
+        font-weight: 600;
+    }
+
+    /* 🎨 세련된 왼쪽 세로 바 메트릭 카드 CSS */
+    .metric-card {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 12px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .metric-card.card-green { border-left: 6px solid #10b981; }
+    .metric-card.card-blue { border-left: 6px solid #2563eb; }
+    .metric-card.card-red { border-left: 6px solid #ef4444; }
+    .metric-card.card-yellow { border-left: 6px solid #f59e0b; }
+    .metric-card.card-orange { border-left: 6px solid #d97706; }
+    .metric-card.card-purple { 
+        border-left: 6px solid #a855f7; 
+        background-color: #faf5ff; 
+        border-top: 1px solid #f3e8ff;
+        border-right: 1px solid #f3e8ff;
+        border-bottom: 1px solid #f3e8ff;
+    }
+
+    .metric-label {
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: #475569;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .metric-value {
+        font-size: 1.35rem;
+        font-weight: 900;
+        color: #0f172a;
+        margin-bottom: 4px;
+    }
+    .metric-sub {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-weight: 600;
+    }
+
     .hero-banner {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 20px;
         border-radius: 14px; color: #ffffff; border-left: 6px solid #38bdf8;
@@ -74,12 +150,6 @@ st.markdown("""
     }
     .hero-title { font-size: 1.45rem; font-weight: 900; margin: 0; color: #f8fafc; }
     .hero-subtitle { font-size: 0.88rem; color: #94a3b8; margin-top: 4px; }
-    .stTabs [data-baseweb="tab-list"] { gap: 6px; background-color: #e2e8f0; padding: 6px 8px; border-radius: 12px; margin-bottom: 16px; }
-    .stTabs [data-baseweb="tab"] { height: 40px; background-color: #ffffff; border-radius: 8px; padding: 0 14px; font-weight: 800; font-size: 0.85rem; color: #334155; border: 1px solid #cbd5e1; }
-    .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: #ffffff !important; }
-    @keyframes blinker { 50% { opacity: 0.6; } }
-    .siren-box { background-color: #ffebee; border: 2px solid #e74c3c; border-left: 8px solid #c0392b; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; animation: blinker 1.5s linear infinite; }
-    .clear-box { background-color: #e8f8f5; border: 1px solid #2ecc71; border-left: 8px solid #27ae60; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -124,7 +194,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.4.1")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.6")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
@@ -301,23 +371,24 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
             last_kq_c = float(kq_series.dropna().iloc[-1])
             last_kq_ma = float(kq_ma20.dropna().iloc[-1])
 
+            # 🌟 세련된 샌드 옐로우 기상청 전광판
+            ks_weather = "🌧️ 먹구름 하락장" if last_ks_c < last_ks_ma else "☀️ 맑은 상승장"
+            kq_weather = "🌧️ 먹구름 하락장" if last_kq_c < last_kq_ma else "☀️ 맑은 상승장"
+            
             siren_html = f"""
-            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 280px;">
-                <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 4px 0; font-size: 1.1rem;">
-                    {'🚨 KOSPI 태풍 경보 발령 중' if last_ks_c < last_ks_ma else '☀️ KOSPI 시장 날씨 맑음'}
-                </h3>
-                <p style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: bold;">
-                    코스피 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
-                </p>
+            <div class="weather-card">
+                <div class="weather-title">⛅ 대한민국 증시 기상청 실시간 현황</div>
+                <div class="weather-box-container">
+                    <div class="weather-pill">
+                        [코스피 지수] {ks_weather} ({last_ks_c:,.1f}pt < 20일선 {last_ks_ma:,.1f}pt)
+                    </div>
+                    <div class="weather-pill">
+                        [코스닥 지수] {kq_weather} ({last_kq_c:,.1f}pt < 20일선 {last_kq_ma:,.1f}pt)
+                    </div>
                 </div>
-                <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 280px;">
-                <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 4px 0; font-size: 1.1rem;">
-                    {'🚨 KOSDAQ 태풍 경보 발령 중' if last_kq_c < last_kq_ma else '☀️ KOSDAQ 시장 날씨 맑음'}
-                </h3>
-                <p style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: bold;">
-                    코스닥 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
-                </p>
+                <div class="weather-divider"></div>
+                <div class="weather-status-text">
+                    🔒 현재 통제실 상태: <b>{'🚨 하락장 경보 발령 (출격 보류 권장)' if (last_ks_c < last_ks_ma or last_kq_c < last_kq_ma) else '✅ 상승장 순풍 (정상 출격 가능)'}</b>
                 </div>
             </div>
             """
@@ -375,8 +446,8 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 백테스트 연구소 (하이브리드 & 기상청 에디션)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 내 포트폴리오 성과를 완벽 검증합니다.</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (V10.6 세련된 대시보드 에디션)</div>
+        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 새로워진 프리미엄 커스텀 디자인 지표 카드로 성과를 분석합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -398,7 +469,7 @@ else:
     
     st.sidebar.markdown("---")
     use_hybrid_trailing = st.sidebar.checkbox("🔥 하이브리드 추세연장 (목표가 달성 시 추세 홀딩)", value=True)
-    use_weighted_entry = st.sidebar.checkbox("📉 하락폭 가중 매수 (폭락장에서 예산 가중 투입)", value=True, help="진입 조건보다 깊게 폭락할 경우 예산을 가중 투입하여 평단가를 크게 낮춥니다.")
+    use_weighted_entry = st.sidebar.checkbox("📉 하락폭 가중 매수 (폭락장에서 예산 가중 투입)", value=True)
 
     st.sidebar.markdown("---")
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000, key="bt_capital")
@@ -428,7 +499,6 @@ else:
     tax_pct = (st.sidebar.number_input("매도 거래세 (%)", value=0.18, format="%.2f") / 100) if use_fee else 0.0
     slippage_pct = (st.sidebar.number_input("체결 오차 (슬리피지) (%)", value=0.10, format="%.2f") / 100) if use_fee else 0.0
 
-    # 🌟 사이드바 정산 옵션 (100% 분기 로직 적용)
     reward_type = st.sidebar.selectbox("🎁 전리품 수령 방식", [
         "전액 현금으로 챙기기", 
         "🌟 현금 50% + 열매 50% (하이브리드)", 
@@ -443,7 +513,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 정산 엔진을 안전하게 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 디자인 대시보드와 백테스트 데이터를 안전하게 생성 중입니다..."):
                 try:
                     end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
@@ -605,7 +675,6 @@ else:
                                         stock_win_stats[s_name]['success'] += 1
                                         stock_win_stats[s_name]['profit_gain'] += net_profit
                                         
-                                        # 🌟 [충돌 해결 완벽 정산 분기 로직] 🌟
                                         if '전액 현금' in reward_type:
                                             buyable = 0
                                             leftover = net_profit
@@ -696,7 +765,6 @@ else:
                                 t_code = cand[1]
                                 s_name = cand[0]
 
-                                # 🌟 [하락폭 가중 진입 예산 계산]
                                 if use_weighted_entry:
                                     weight = max(1.0, abs(ret_val) / abs(buy_cond_input))
                                     actual_invest = min(dynamic_invest_amount * weight, current_cash)
@@ -754,7 +822,12 @@ else:
                         if current_drawdown < max_drawdown_pct:
                             max_drawdown_pct = current_drawdown
                         
-                        asset_history.append({"Date": date_str, "Total_Asset": today_total_asset, "Drawdown": current_drawdown})
+                        asset_history.append({
+                            "Date": date_str, 
+                            "Total_Asset": today_total_asset, 
+                            "Drawdown": current_drawdown,
+                            "Invest_Scale": dynamic_invest_amount
+                        })
 
                     asset_df = pd.DataFrame(asset_history)
                     kospi_ret_pct, kosdaq_ret_pct = 0.0, 0.0
@@ -798,6 +871,10 @@ else:
                     current_query_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     backtest_period_str = f"{start_date_str} ~ {end_date_str} ({period_label})"
                     
+                    initial_scale = float(invest_amount_input)
+                    final_scale = float(asset_df['Invest_Scale'].iloc[-1]) if not asset_df.empty else initial_scale
+                    scale_growth_pct = ((final_scale - initial_scale) / initial_scale) * 100 if initial_scale > 0 else 0
+
                     st.markdown(f"""
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
                         <div>
@@ -812,6 +889,7 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
+                    # 🌟 기상청 전광판 (샌드 옐로우)
                     last_ks_c, last_ks_ma, last_kq_c, last_kq_ma = None, None, None, None
                     if not bench_df.empty and not bench_ma20.empty:
                         ks_key = '^KS11' if '^KS11' in bench_df.columns else bench_df.columns[0]
@@ -823,40 +901,107 @@ else:
                         last_kq_ma = float(bench_ma20[kq_key].dropna().iloc[-1]) if kq_key in bench_ma20 else None
 
                         if last_ks_c is not None and last_ks_ma is not None and last_kq_c is not None and last_kq_ma is not None:
+                            ks_weather = "🌧️ 먹구름 하락장" if last_ks_c < last_ks_ma else "☀️ 맑은 상승장"
+                            kq_weather = "🌧️ 먹구름 하락장" if last_kq_c < last_kq_ma else "☀️ 맑은 상승장"
                             siren_html = f"""
-                            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                              <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 280px;">
-                                <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 4px 0; font-size: 1.05rem;">
-                                  {'🚨 KOSPI 태풍 경보 발령 중' if last_ks_c < last_ks_ma else '☀️ KOSPI 시장 날씨 맑음'}
-                                </h3>
-                                <p style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: bold;">
-                                  코스피 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
-                                </p>
-                              </div>
-                              <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 280px;">
-                                <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 4px 0; font-size: 1.05rem;">
-                                  {'🚨 KOSDAQ 태풍 경보 발령 중' if last_kq_c < last_kq_ma else '☀️ KOSDAQ 시장 날씨 맑음'}
-                                </h3>
-                                <p style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: bold;">
-                                  코스닥 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
-                                </p>
-                              </div>
+                            <div class="weather-card">
+                                <div class="weather-title">⛅ 대한민국 증시 기상청 실시간 현황</div>
+                                <div class="weather-box-container">
+                                    <div class="weather-pill">
+                                        [코스피 지수] {ks_weather} ({last_ks_c:,.1f}pt < 20일선 {last_ks_ma:,.1f}pt)
+                                    </div>
+                                    <div class="weather-pill">
+                                        [코스닥 지수] {kq_weather} ({last_kq_c:,.1f}pt < 20일선 {last_kq_ma:,.1f}pt)
+                                    </div>
+                                </div>
+                                <div class="weather-divider"></div>
+                                <div class="weather-status-text">
+                                    🔒 백테스트 기준 상태: <b>{'🚨 하락장 우산 스위치 작동 중' if (last_ks_c < last_ks_ma or last_kq_c < last_kq_ma) else '✅ 상승장 순풍'}</b>
+                                </div>
                             </div>
                             """
                             st.markdown(siren_html, unsafe_allow_html=True)
 
-                    m0, m1, m2, m3 = st.columns(4)
-                    m0.metric("💵 금고 잔고 (가용 현금)", format_money(current_cash))
-                    m1.metric("🏁 원금 예산", format_money(total_capital_input))
-                    m2.metric(f"✨ {period_label} 후 총자산", format_money(final_total_asset))
-                    m3.metric("📈 총 순수익금", format_money(total_net_profit), delta=f"{total_return_pct:.2f}%")
-                    
-                    st.write("") 
-                    m4, m5, m6, m7 = st.columns(4)
-                    m4.metric("🎯 작전 승률", f"{win_rate:.1f}%", delta=f"{total_trades}전 {total_success}승 {total_stop_loss}패")
-                    m5.metric("🌊 최대 낙폭 (MDD)", f"{max_drawdown_pct:.1f}%")
-                    m6.metric("📦 수확한 공짜 주식 평가액", format_money(total_free_shares_value))
-                    m7.metric("🍯 누적 배당금", format_money(total_dividend_profit))
+                    # 🌟 8색 커스텀 디자인 지표 카드 레이아웃 (이미지 디자인 100% 동일 재현)
+                    row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
+                    with row1_col1:
+                        st.markdown(f"""
+                        <div class="metric-card card-green">
+                            <div class="metric-label">🎯 청산 승률</div>
+                            <div class="metric-value">{win_rate:.1f}%</div>
+                            <div class="metric-sub">익절 {total_success} / 손절 {total_stop_loss}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with row1_col2:
+                        st.markdown(f"""
+                        <div class="metric-card card-blue">
+                            <div class="metric-label">⚔️ 총 투입 요원</div>
+                            <div class="metric-value">{agent_counter}명</div>
+                            <div class="metric-sub">교전 대기중 요원: {len(active_positions)}명</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with row1_col3:
+                        st.markdown(f"""
+                        <div class="metric-card card-red">
+                            <div class="metric-label">🏰 최대 동시 출격 요원</div>
+                            <div class="metric-value">{global_max_deployed}명</div>
+                            <div class="metric-sub">전체 슬롯: 총 {max_active_slots}개</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with row1_col4:
+                        scale_text = f"+{scale_growth_pct:.1f}% 증액" if use_compounding else "단리 고정"
+                        st.markdown(f"""
+                        <div class="metric-card card-yellow">
+                            <div class="metric-label">🚀 스노우볼 레벨UP (1회 예산)</div>
+                            <div class="metric-value">{format_pure_number(final_scale)}원</div>
+                            <div class="metric-sub">초기 예산 대비 {scale_text}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    st.write("")
+
+                    row2_col1, row2_col2, row2_col3, row2_col4, row2_col5 = st.columns(5)
+                    with row2_col1:
+                        st.markdown(f"""
+                        <div class="metric-card card-blue">
+                            <div class="metric-label">💵 현재 보유 현금(예수금)</div>
+                            <div class="metric-value">{format_pure_number(current_cash)}원</div>
+                            <div class="metric-sub">출금 / 재투입 가능 실탄 현금</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with row2_col2:
+                        st.markdown(f"""
+                        <div class="metric-card card-yellow">
+                            <div class="metric-label">📈 대기주식 평가금</div>
+                            <div class="metric-value">{format_pure_number(active_eval_value)}원</div>
+                            <div class="metric-sub">대기 요원 {len(active_positions)}명 주식 평가가</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with row2_col3:
+                        profit_sign = "+" if total_net_profit >= 0 else ""
+                        st.markdown(f"""
+                        <div class="metric-card card-orange">
+                            <div class="metric-label">💰 누적 실현 순수익</div>
+                            <div class="metric-value">{profit_sign}{format_pure_number(total_net_profit)}원</div>
+                            <div class="metric-sub">매매순익 + 주식평가손익</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with row2_col4:
+                        st.markdown(f"""
+                        <div class="metric-card card-orange">
+                            <div class="metric-label">🚀 계좌 총자산</div>
+                            <div class="metric-value">{format_pure_number(final_total_asset)}원</div>
+                            <div class="metric-sub">현금 + 대기주식 + 공짜주식</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with row2_col5:
+                        st.markdown(f"""
+                        <div class="metric-card card-purple">
+                            <div class="metric-label">📦 확보 공짜주식</div>
+                            <div class="metric-value">{total_free_shares_count}주</div>
+                            <div class="metric-sub">평가 가치: {format_money(total_free_shares_value)}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
                     st.markdown("---")
                     st.markdown("### 📊 벤치마크 시장 지수 대비 수익률 초과 달성 리포트")
@@ -869,7 +1014,6 @@ else:
                         b_col2.metric("📉 KOSPI 지수", "동기화 대기중")
                         b_col3.metric("📉 KOSDAQ 지수", "동기화 대기중")
 
-                    # 🌟 공짜 주식이 1주 이상일 때만 금고 현황표 출력!
                     if total_free_shares_count > 0:
                         st.markdown(f"""
                         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 16px 20px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 20px;">
@@ -892,21 +1036,33 @@ else:
                         st.dataframe(pd.DataFrame(fruit_list), use_container_width=True, hide_index=True)
 
                     tab1, tab2, tab3, tab4 = st.tabs([
-                        "📊 1. 자산 성장 & MDD 차트", 
+                        "📊 1. 자산 성장 & 복리 스케일업 차트", 
                         "🔍 2. 자금 회전율 & 미출격 진단", 
                         "📈 3. 종목/연도별 손익분석", 
                         "📜 4. 현장 투입요원 & 매매장부"
                     ])
 
                     with tab1:
-                        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.1, row_heights=[0.7, 0.3], subplot_titles=("총자산 증식 추이", "계좌 최대 낙폭 (MDD)"))
+                        fig = make_subplots(
+                            rows=3, cols=1, 
+                            shared_xaxes=True, 
+                            vertical_spacing=0.08, 
+                            row_heights=[0.5, 0.25, 0.25],
+                            subplot_titles=("🏆 1. 총자산 증식 추이", "🚀 2. 1회 출격 예산(복리 스케일업) 증식 추이", "🌊 3. 계좌 최대 낙폭 (MDD)")
+                        )
+                        
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Total_Asset'], mode='lines', name='내 총자산', line=dict(color='#2563eb', width=3), fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'), row=1, col=1)
                         if bench_synced:
                             fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSPI (지수)'], mode='lines', name='KOSPI 지수', line=dict(color='#94a3b8', width=1.5, dash='dash')), row=1, col=1)
                             fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSDAQ (지수)'], mode='lines', name='KOSDAQ 지수', line=dict(color='#cbd5e1', width=1.5, dash='dot')), row=1, col=1)
                         fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
-                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='낙폭(MDD)', line=dict(color='#dc2626', width=1.5), fill='tozeroy', fillcolor='rgba(220, 38, 38, 0.15)'), row=2, col=1)
-                        fig.update_layout(height=600, template="plotly_white", margin=dict(l=10, r=10, t=35, b=10), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+                        
+                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Invest_Scale'], mode='lines', name='1회 출격 예산(스케일)', line=dict(color='#16a34a', width=2.5), fill='tozeroy', fillcolor='rgba(22, 163, 74, 0.08)'), row=2, col=1)
+                        fig.add_hline(y=invest_amount_input, line_dash="dash", line_color="#16a34a", annotation_text="초기 1회 예산", row=2, col=1)
+                        
+                        fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='낙폭(MDD)', line=dict(color='#dc2626', width=1.5), fill='tozeroy', fillcolor='rgba(220, 38, 38, 0.15)'), row=3, col=1)
+                        
+                        fig.update_layout(height=800, template="plotly_white", margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
                         st.plotly_chart(fig, use_container_width=True)
 
                     with tab2:
@@ -1002,11 +1158,29 @@ else:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             st.dataframe(logs_df, use_container_width=True)
                             
-                            csv_data = logs_df.to_csv(index=False).encode('utf-8-sig')
+                            metadata_header = f"""# ===================================================
+# 🛡️ 박가이버 통합 작전 사령부 백테스트 설정 조건
+# ===================================================
+# 🕒 생성 일시: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+# 📅 백테스트 기간: {period_label} ({start_date_str} ~ {end_date_str})
+# 🛒 진입 기준: -{buy_cond_input}% 이하 하락 시
+# 🎯 익절 목표: +{sell_target_input}%
+# 🚨 손절 기준: -{stop_loss_input}%
+# ⏱️ 타임 컷: {f'{max_hold_days_input}일' if use_time_cut else '미사용'}
+# 🚀 복리 스케일업 모드: {'ON (적용)' if use_compounding else 'OFF (미적용)'}
+# 📉 하락폭 가중 매수: {'ON (적용)' if use_weighted_entry else 'OFF (미적용)'}
+# 🔥 하이브리드 추세연장: {'ON (적용)' if use_hybrid_trailing else 'OFF (미적용)'}
+# 🎁 전리품 수령 방식: {reward_type}
+# ===================================================
+
+"""
+                            csv_body = logs_df.to_csv(index=False)
+                            full_csv_content = metadata_header + csv_body
+                            
                             st.download_button(
-                                label="📥 엑셀(CSV) 매매장부 다운로드",
-                                data=csv_data,
-                                file_name=f"당귀다TV_매매장부_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
+                                label="📥 엑셀(CSV) 매매장부 다운로드 (설정 조건 메타데이터 포함)",
+                                data=full_csv_content.encode('utf-8-sig'),
+                                file_name=f"당귀다TV_매매장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                                 mime="text/csv",
                             )
 
