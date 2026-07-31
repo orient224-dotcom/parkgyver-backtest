@@ -44,14 +44,32 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# --- 1. 페이지 웹 디자인 세팅 (프리미엄 커스텀 CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.8", page_icon="🛡️", layout="wide")
+# 🌟 [신규 장착] 매매장부 행별 컬러 음영 스타일러 함수
+def style_trade_df(df):
+    def apply_row_style(row):
+        ret_val = str(row.get('순수익률', ''))
+        reason = str(row.get('구분', ''))
+        
+        if '특별 보너스' in reason:
+            return ['background-color: #eff6ff; color: #1d4ed8; font-weight: bold;'] * len(row) # 연파랑 (배당금)
+        elif '강제 철수' in reason or '-' in ret_val:
+            return ['background-color: #fee2e2; color: #991b1b; font-weight: bold;'] * len(row) # 연분홍/빨강 (손절)
+        elif '타임 컷' in reason:
+            return ['background-color: #fff7ed; color: #c2410c; font-weight: bold;'] * len(row) # 연주황 (타임컷)
+        elif '+' in ret_val or '정상 복귀' in reason or '추세연장' in reason:
+            return ['background-color: #dcfce7; color: #166534; font-weight: bold;'] * len(row) # 연초록 (익절)
+        else:
+            return [''] * len(row)
+            
+    return df.style.apply(apply_row_style, axis=1)
+
+# --- 1. 페이지 웹 디자인 세팅 ---
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.9", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
     .stApp { background-color: #f8fafc; }
     
-    /* 💡 알고리즘 동작 원리 명세서 카드 CSS */
     .algo-spec-container {
         background-color: #ffffff;
         border: 1px solid #cbd5e1;
@@ -87,24 +105,13 @@ st.markdown("""
     .algo-card.card-3 { border-left: 6px solid #10b981; }
     .algo-card.card-4 { border-left: 6px solid #2563eb; }
     
-    .algo-card-title {
-        font-size: 0.95rem;
-        font-weight: 800;
-        margin-bottom: 6px;
-    }
+    .algo-card-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 6px; }
     .algo-card-title.t-1 { color: #dc2626; }
     .algo-card-title.t-2 { color: #d97706; }
     .algo-card-title.t-3 { color: #059669; }
     .algo-card-title.t-4 { color: #2563eb; }
-    
-    .algo-card-desc {
-        font-size: 0.85rem;
-        color: #475569;
-        line-height: 1.45;
-        font-weight: 500;
-    }
+    .algo-card-desc { font-size: 0.85rem; color: #475569; line-height: 1.45; font-weight: 500; }
 
-    /* 🌟 기상청 샌드 옐로우 전광판 CSS */
     .weather-card {
         background-color: #fffef2;
         border: 2px solid #f59e0b;
@@ -113,94 +120,29 @@ st.markdown("""
         margin-bottom: 20px;
         box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
     }
-    .weather-title {
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: #92400e;
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .weather-box-container {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-        margin-bottom: 12px;
-    }
-    .weather-pill {
-        background-color: #ffffff;
-        border: 1px solid #fcd34d;
-        border-radius: 8px;
-        padding: 8px 14px;
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: #78350f;
-        flex: 1;
-        min-width: 260px;
-    }
-    .weather-divider {
-        border-top: 1px dashed #f59e0b;
-        margin: 12px 0;
-    }
-    .weather-status-text {
-        font-size: 0.88rem;
-        color: #451a03;
-        font-weight: 600;
-    }
+    .weather-title { font-size: 1.1rem; font-weight: 800; color: #92400e; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .weather-box-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .weather-pill { background-color: #ffffff; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 14px; font-size: 0.9rem; font-weight: 700; color: #78350f; flex: 1; min-width: 260px; }
+    .weather-divider { border-top: 1px dashed #f59e0b; margin: 12px 0; }
+    .weather-status-text { font-size: 0.88rem; color: #451a03; font-weight: 600; }
 
-    /* 🎨 메트릭 카드 CSS */
     .metric-card {
-        background-color: #ffffff;
-        border-radius: 10px;
-        padding: 14px 16px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        border: 1px solid #e2e8f0;
-        margin-bottom: 12px;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
+        background-color: #ffffff; border-radius: 10px; padding: 14px 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0; margin-bottom: 12px;
+        height: 100%; display: flex; flex-direction: column; justify-content: space-between;
     }
     .metric-card.card-green { border-left: 6px solid #10b981; }
     .metric-card.card-blue { border-left: 6px solid #2563eb; }
     .metric-card.card-red { border-left: 6px solid #ef4444; }
     .metric-card.card-yellow { border-left: 6px solid #f59e0b; }
     .metric-card.card-orange { border-left: 6px solid #d97706; }
-    .metric-card.card-purple { 
-        border-left: 6px solid #a855f7; 
-        background-color: #faf5ff; 
-        border-top: 1px solid #f3e8ff;
-        border-right: 1px solid #f3e8ff;
-        border-bottom: 1px solid #f3e8ff;
-    }
+    .metric-card.card-purple { border-left: 6px solid #a855f7; background-color: #faf5ff; border-top: 1px solid #f3e8ff; border-right: 1px solid #f3e8ff; border-bottom: 1px solid #f3e8ff; }
 
-    .metric-label {
-        font-size: 0.85rem;
-        font-weight: 800;
-        color: #475569;
-        margin-bottom: 4px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .metric-value {
-        font-size: 1.35rem;
-        font-weight: 900;
-        color: #0f172a;
-        margin-bottom: 4px;
-    }
-    .metric-sub {
-        font-size: 0.78rem;
-        color: #64748b;
-        font-weight: 600;
-    }
+    .metric-label { font-size: 0.85rem; font-weight: 800; color: #475569; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+    .metric-value { font-size: 1.35rem; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
+    .metric-sub { font-size: 0.78rem; color: #64748b; font-weight: 600; }
 
-    .hero-banner {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 20px;
-        border-radius: 14px; color: #ffffff; border-left: 6px solid #38bdf8;
-        box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.2); margin-bottom: 20px;
-    }
+    .hero-banner { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 20px; border-radius: 14px; color: #ffffff; border-left: 6px solid #38bdf8; box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.2); margin-bottom: 20px; }
     .hero-title { font-size: 1.45rem; font-weight: 900; margin: 0; color: #f8fafc; }
     .hero-subtitle { font-size: 0.88rem; color: #94a3b8; margin-top: 4px; }
 </style>
@@ -247,7 +189,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.8")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.9")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
@@ -498,12 +440,11 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 백테스트 연구소 (알고리즘 명세서 탑재 V10.8)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 박가이버표 알고리즘 동작 원리 명세서와 성과 대시보드를 검증합니다.</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (스마트 컬러 음영 장부 V10.9)</div>
+        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 알록달록 컬러 음영이 적용된 매매장부로 성과를 한눈에 파악하세요.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 🌟 [신규 장착] 박가이버표 매매 알고리즘 동작 원리 명세서 패널
     with st.expander("💡 🛡️ 박가이버표 매매 알고리즘 4대 동작 원리 명세서", expanded=True):
         spec_html = f"""
         <div class="algo-spec-container">
@@ -592,7 +533,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 백테스트 및 알고리즘 명세서 데이터를 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 백테스트 및 매매장부 스타일링 데이터를 분석 중입니다..."):
                 try:
                     end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
@@ -805,7 +746,7 @@ else:
                                         '진입단가': format_exact_price(pos['entry_price']), '복귀일': date_str,
                                         '청산일 등락률': f"{exit_day_ret:+.2f}%", '청산단가': format_exact_price(curr_price),
                                         '매도금액': f"{format_pure_number(sell_gross_val)}원", '등락폭': price_change_str,
-                                        '소요기간': f"{days_taken}일 소요", '순수익률': f"{net_ret:.2f}%",
+                                        '소요기간': f"{days_taken}일 소요", '순수익률': f"{net_ret:+.2f}%",
                                         '정산내역': log_reward, '구분': exit_reason
                                     })
                                 else:
@@ -968,7 +909,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 🌟 기상청 전광판 (샌드 옐로우)
                     last_ks_c, last_ks_ma, last_kq_c, last_kq_ma = None, None, None, None
                     if not bench_df.empty and not bench_ma20.empty:
                         ks_key = '^KS11' if '^KS11' in bench_df.columns else bench_df.columns[0]
@@ -1146,7 +1086,6 @@ else:
                     with tab2:
                         st.write("### 🔍 자금 회전율 & 요원 동시 투입 분포 리포트")
                         
-                        # 🌟 작전 회차별 요원 동시 투입 분포 현황 패널
                         if daily_deployment_snapshots:
                             snap_df = pd.DataFrame(daily_deployment_snapshots)
                             total_deploy_sessions = len(snap_df)
@@ -1293,10 +1232,13 @@ else:
                             st.success("🎉 현재 현장에 대기 중인 요원이 없습니다! (100% 현금 회수 완료 상태)")
 
                         st.markdown("---")
-                        st.write("### 📜 전체 매매 장부")
+                        st.write("### 📜 전체 매매 장부 (스마트 컬러 음영 적용)")
                         if trade_logs:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
-                            st.dataframe(logs_df, use_container_width=True)
+                            
+                            # 🌟 [스마트 컬러 음영 적용된 데이터프레임 출력]
+                            styled_logs_df = style_trade_df(logs_df)
+                            st.dataframe(styled_logs_df, use_container_width=True)
                             
                             metadata_header = f"""# ===================================================
 # 🛡️ 박가이버 통합 작전 사령부 백테스트 설정 조건
