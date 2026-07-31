@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# --- 0. 한글 초성 분리 및 검색용 포맷팅 엔진 ---
+# --- 0. 한글 초성 분리 및 모바일 검색용 포맷팅 엔진 ---
 def get_chosung(text):
     """한글 단어에서 초성만 추출하는 함수 (예: 삼성전자 -> ㅅㅅㅈㅈ)"""
     chosung_list = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
@@ -23,7 +23,7 @@ def get_chosung(text):
     return result
 
 def format_stock_option(stock_name):
-    """멀티셀렉트 검색창에서 [종목명 + 초성 + 코드]를 동시 매칭시켜주는 포맷터"""
+    """모바일 멀티셀렉트 검색창에서 [종목명 + 초성 + 코드]를 동시 매칭시켜주는 포맷터"""
     code = MASTER_STOCK_DICT.get(stock_name, "")
     chosung = get_chosung(stock_name)
     market = "코스닥" if code.endswith(".KQ") else "코스피"
@@ -46,39 +46,45 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# --- 1. 페이지 웹 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.3.1", page_icon="🛡️", layout="wide")
+# --- 1. 페이지 웹 디자인 세팅 (모바일 환경에 특화된 프리미엄 CSS) ---
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.4", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
+    /* 📱 모바일 디바이스 최적화 CSS */
     .stApp { background-color: #f8fafc; }
+    
     @media (max-width: 768px) {
-        .hero-title { font-size: 1.2rem !important; }
-        .hero-banner { padding: 14px 16px !important; }
-        div[data-testid="stMetric"] { padding: 10px 12px !important; }
+        .hero-title { font-size: 1.15rem !important; }
+        .hero-banner { padding: 14px 16px !important; border-radius: 12px !important; margin-bottom: 15px !important; }
+        div[data-testid="stMetric"] { padding: 10px 12px !important; border-radius: 10px !important; }
+        div[data-testid="stMetricValue"] { font-size: 1.15rem !important; }
+        .stButton button { font-size: 0.95rem !important; padding: 12px 16px !important; font-weight: bold !important; }
+        .stTabs [data-baseweb="tab"] { height: 38px !important; padding: 0 10px !important; font-size: 0.8rem !important; }
     }
+    
     div[data-testid="stMetric"] {
         background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
-        padding: 16px 20px !important; border-radius: 14px !important; border: 1px solid #cbd5e1 !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+        padding: 14px 16px !important; border-radius: 12px !important; border: 1px solid #cbd5e1 !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
     }
     .hero-banner {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 22px 24px;
-        border-radius: 16px; color: #ffffff; border-left: 8px solid #38bdf8;
-        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25); margin-bottom: 25px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 20px;
+        border-radius: 14px; color: #ffffff; border-left: 6px solid #38bdf8;
+        box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.2); margin-bottom: 20px;
     }
-    .hero-title { font-size: 1.6rem; font-weight: 900; margin: 0; color: #f8fafc; }
-    .hero-subtitle { font-size: 0.95rem; color: #94a3b8; margin-top: 6px; }
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; background-color: #e2e8f0; padding: 8px 10px; border-radius: 14px; margin-bottom: 20px; }
-    .stTabs [data-baseweb="tab"] { height: 44px; background-color: #ffffff; border-radius: 10px; padding: 0 16px; font-weight: 800; font-size: 0.9rem; color: #334155; border: 1px solid #cbd5e1; }
+    .hero-title { font-size: 1.45rem; font-weight: 900; margin: 0; color: #f8fafc; }
+    .hero-subtitle { font-size: 0.88rem; color: #94a3b8; margin-top: 4px; }
+    .stTabs [data-baseweb="tab-list"] { gap: 6px; background-color: #e2e8f0; padding: 6px 8px; border-radius: 12px; margin-bottom: 16px; }
+    .stTabs [data-baseweb="tab"] { height: 40px; background-color: #ffffff; border-radius: 8px; padding: 0 14px; font-weight: 800; font-size: 0.85rem; color: #334155; border: 1px solid #cbd5e1; }
     .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: #ffffff !important; }
     @keyframes blinker { 50% { opacity: 0.6; } }
-    .siren-box { background-color: #ffebee; border: 2px solid #e74c3c; border-left: 10px solid #c0392b; border-radius: 8px; padding: 18px 24px; margin-bottom: 20px; animation: blinker 1.5s linear infinite; }
-    .clear-box { background-color: #e8f8f5; border: 1px solid #2ecc71; border-left: 10px solid #27ae60; border-radius: 8px; padding: 18px 24px; margin-bottom: 20px; }
+    .siren-box { background-color: #ffebee; border: 2px solid #e74c3c; border-left: 8px solid #c0392b; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; animation: blinker 1.5s linear infinite; }
+    .clear-box { background-color: #e8f8f5; border: 1px solid #2ecc71; border-left: 8px solid #27ae60; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 기본 종목 마스터 사전 (기본 100여 개 우량주) ---
+# --- 2. 기본 종목 마스터 사전 ---
 BASE_STOCK_MASTER = {
     "삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "테크윙": "089030.KQ", "한미반도체": "042700.KS",
     "HPSP": "403870.KQ", "이오테크닉스": "039030.KQ", "주성엔지니어링": "036930.KQ", "원익IPS": "240810.KQ",
@@ -89,7 +95,6 @@ BASE_STOCK_MASTER = {
     "KODEX 200": "069500.KS", "KODEX 코스닥150": "229200.KS", "KODEX 레버리지": "122630.KS", "TIGER 미국S&P500": "360750.KS"
 }
 
-# 세션 상태에 마스터 DB 관리
 if "full_stock_master" not in st.session_state:
     st.session_state["full_stock_master"] = BASE_STOCK_MASTER.copy()
 
@@ -97,7 +102,6 @@ if "custom_stocks" not in st.session_state: st.session_state["custom_stocks"] = 
 if "my_holdings" not in st.session_state: st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
 if "my_watchlist" not in st.session_state: st.session_state["my_watchlist"] = ["한화오션", "현대로템", "RFHIC", "한국콜마"]
 
-# 전체 종목 마스터 병합
 MASTER_STOCK_DICT = st.session_state["full_stock_master"]
 for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
@@ -121,7 +125,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.3.1")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.4")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
@@ -161,39 +165,36 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🗄️ 나만의 투자 영구 DB (스마트폰 연동)</div>
-        <div class="hero-subtitle">스마트폰에 저장된 전 종목 DB를 연동하면, 대한민국 2,600개 상장 종목이 초성 키보드로 1초 만에 검색됩니다!</div>
+        <div class="hero-subtitle">스마트폰 전 종목 DB 연동으로 대한민국 2,600개 상장 종목을 초성 키보드로 1초 만에 검색하세요!</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # 🌟 [스마트폰 전 종목 DB 관리 구역]
-    with st.expander("📲 🏛️ 대한민국 2,600개 전 종목 DB 스마트폰 연동 / 관리 센터", expanded=True):
+    with st.expander("📲 🏛️ 대한민국 2,600개 전 종목 DB 스마트폰 연동 센터", expanded=True):
         col_db1, col_db2 = st.columns(2)
         
         with col_db1:
             st.markdown("##### 1️⃣ 스마트폰에 전 종목 DB 탑재하기")
-            uploaded_db = st.file_uploader("📂 스마트폰의 krx_stock_db.json 업로드", type=["json"], help="다운로드해 둔 전 종목 DB 파일(JSON)을 올려주시면 2,600개 종목이 즉시 연동됩니다.")
+            uploaded_db = st.file_uploader("📂 스마트폰의 krx_stock_db.json 업로드", type=["json"])
             if uploaded_db is not None:
                 try:
                     loaded_db = json.load(uploaded_db)
                     st.session_state["full_stock_master"].update(loaded_db)
-                    st.success(f"🎉 성공! 총 {len(st.session_state['full_stock_master']):,}개 전 종목 DB가 탑재되었습니다.")
+                    st.success(f"🎉 성공! 총 {len(st.session_state['full_stock_master']):,}개 전 종목 DB 탑재 완료!")
                     st.rerun()
                 except Exception:
                     st.error("❌ 올바른 전 종목 DB 파일이 아닙니다.")
                     
         with col_db2:
-            st.markdown("##### 2️⃣ 전 종목 DB 샘플 생성 및 다운로드")
-            st.caption("현재 데이터베이스 종목 수: **" + f"{len(MASTER_STOCK_DICT):,}개**")
+            st.markdown("##### 2️⃣ 전 종목 DB 다운로드")
+            st.caption("현재 통제실 DB 종목 수: **" + f"{len(MASTER_STOCK_DICT):,}개**")
             
-            # 생성된 전 종목 JSON 다운로드 버튼
             json_db_data = json.dumps(MASTER_STOCK_DICT, ensure_ascii=False, indent=2)
             st.download_button(
                 label="📥 krx_stock_db.json 스마트폰에 저장",
                 data=json_db_data,
                 file_name="krx_stock_db.json",
                 mime="application/json",
-                use_container_width=True,
-                help="이 버튼을 눌러 파일(krx_stock_db.json)을 저장해 두시면 언제든 다시 불러올 수 있습니다."
+                use_container_width=True
             )
 
     st.markdown("---")
@@ -204,9 +205,8 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
         st.markdown("### 💼 1. 실전 보유 종목 DB 세팅")
         valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
         
-        # 초성 검색이 구현된 멀티셀렉트
         new_holdings = st.multiselect(
-            "실전 보유 종목 편집 (초성 검색 예시: ㅅㅅㅈㅈ, ㅎㅁㅂㄷㅊ, ㅌㅋㅇ):",
+            "실전 보유 종목 편집 (초성 검색: 예: ㅅㅅㅈㅈ, ㅎㅁㅂㄷㅊ, ㅌㅋㅇ):",
             options=list(MASTER_STOCK_DICT.keys()),
             default=valid_holdings,
             format_func=format_stock_option,
@@ -235,7 +235,6 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
 
     st.markdown("---")
     
-    # 신규 수동 등록 창
     with st.expander("➕ 목록에 없는 특수 종목 개별 등록", expanded=False):
         c_col1, c_col2 = st.columns(2)
         with c_col1: new_s_name = st.text_input("📝 종목명 (예: 신한지주)")
@@ -261,8 +260,7 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
         data=json_cfg_str,
         file_name="parkgyver_my_strategy_V10.json",
         mime="application/json",
-        use_container_width=True,
-        help="클릭하시면 내 포트폴리오 세팅이 스마트폰에 완벽 백업됩니다."
+        use_container_width=True
     )
 
 # =====================================================================
@@ -272,7 +270,7 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🚨 오늘의 실전 매매 레이더 (출격 명령서)</div>
-        <div class="hero-subtitle">매일 오후 3시 20분 종가 기준 | 내 계좌 DB에 담긴 주력 종목들의 실전 매수 타점을 포착합니다.</div>
+        <div class="hero-subtitle">매일 오후 3시 20분 종가 기준 | 내 계좌 DB 주력 종목의 매수 타점을 감시합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -282,7 +280,7 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
-    st.markdown(f"🎯 **[실전 감시 전광판] 현재 내 계좌 DB 연동 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
+    st.markdown(f"🎯 **[실전 감시 전광판] 현재 감시 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
     st.markdown("---")
 
     with st.spinner("📡 대한민국 증시 기상청 및 실시간 시세를 동기화 중입니다..."):
@@ -305,21 +303,21 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
             last_kq_ma = float(kq_ma20.dropna().iloc[-1])
 
             siren_html = f"""
-            <div style="display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap;">
-                <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
-                <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 5px 0;">
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 280px;">
+                <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 4px 0; font-size: 1.1rem;">
                     {'🚨 KOSPI 태풍 경보 발령 중' if last_ks_c < last_ks_ma else '☀️ KOSPI 시장 날씨 맑음'}
                 </h3>
-                <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
-                    현재 코스피 지수 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
+                <p style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: bold;">
+                    코스피 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
                 </p>
                 </div>
-                <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
-                <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 5px 0;">
+                <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 280px;">
+                <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 4px 0; font-size: 1.1rem;">
                     {'🚨 KOSDAQ 태풍 경보 발령 중' if last_kq_c < last_kq_ma else '☀️ KOSDAQ 시장 날씨 맑음'}
                 </h3>
-                <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
-                    현재 코스닥 지수 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
+                <p style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: bold;">
+                    코스닥 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
                 </p>
                 </div>
             </div>
@@ -351,13 +349,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
                             elif not is_kq and last_ks_c is not None and last_ks_ma is not None:
                                 is_stormy = last_ks_c < last_ks_ma
                                 
-                            warning_tag = "<span style='color:#e74c3c; font-weight:bold;'>(⚠️소속 시장 태풍! 출격 보류 권장)</span>" if is_stormy else "<span style='color:#27ae60; font-weight:bold;'>(✅시장 순풍! 출격 가능)</span>"
-                            buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** ➔ 오늘 3시 20분 타점 포착! {warning_tag}")
+                            warning_tag = "<span style='color:#e74c3c; font-weight:bold;'>(⚠️태풍 경보! 출격 보류)</span>" if is_stormy else "<span style='color:#27ae60; font-weight:bold;'>(✅순풍! 출격 가능)</span>"
+                            buy_signals.append(f"🛒 **[{name}]** 변동률: **{change_pct:.2f}%** ➔ 오늘 3시 20분 타점! {warning_tag}")
                 
                 if buy_signals:
                     st.markdown("<div style='padding:15px; border-radius:8px; border:2px solid #e74c3c; background-color:#fef9e7;'>⚡ <b>오늘 실전 진입 타점에 포착된 종목이 있습니다!</b><br><br>" + "<br><br>".join(buy_signals) + "</div>", unsafe_allow_html=True)
                 else:
-                    st.success("✅ **현재 내 계좌 DB 종목 중 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
+                    st.success("✅ **현재 감시 종목 중 당일 급락 종목이 없습니다.** 요원들은 출격 대기 상태를 유지합니다.")
             except Exception:
                 st.info("💡 실시간 시세를 동기화하는 중입니다.")
         else:
@@ -369,7 +367,7 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
         1. **👔 장중 감시 금지:** 장중 주가창을 보며 조바심을 내지 마세요. 본업에 온전히 집중합니다!
         2. **🕒 오후 3시 20분 접속:** 장 마감 직전 본 앱의 이 화면을 켜서 상단의 **`🚨 오늘의 실전 출격 명령서`**를 확인합니다.
         3. **🛒 원클릭 종가 매수:** 포착된 종목이 있다면 증권사 앱에서 **'종가(동시호가)'**로 매수 주문을 넣습니다.
-        4. **🕒 오후 3시 20분 종가 청산(관리):** 매수한 다음 날부터 매일 오후 3시 20분, 계좌를 확인하여 목표가(+5%)나 손절가(-15%)에 도달했다면 **'종가(동시호가)'**로 깔끔하게 매도하여 백테스트와 100% 일치하는 수익을 수확합니다!
+        4. **🕒 오후 3시 20분 종가 청산(관리):** 매수한 다음 날부터 매일 오후 3시 20분, 계좌를 확인하여 목표가(+5%)나 손절가(-15%)에 도달했다면 **'종가(동시호가)'**로 깔끔하게 매도하여 수익을 수확합니다!
         """)
 
 # =====================================================================
@@ -378,8 +376,8 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 백테스트 연구소 (하이브리드 & 기상청 에디션)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 원본 로직을 유지하며 태풍 경보 사이렌 시각화가 업그레이드 되었습니다.</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (하이브리드 & 공짜주식 수확)</div>
+        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 신규 [하락폭 가중 매수 + 공짜주식 수확] 알고리즘이 탑재되었습니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -389,7 +387,7 @@ else:
     if valid_watch_stocks:
         st.success(f"🎯 **[백테스트 연구소 전광판] 내 계좌 DB 연동 종목 ({len(valid_watch_stocks)}개):** {', '.join(valid_watch_stocks)}")
     else:
-        st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 메뉴 **[🗄️ 1. 내 계좌 영구 DB]**에서 종목을 먼저 골라주세요.")
+        st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 메뉴 **[🗄️ 1. 내 계좌 영구 DB]**에서 종목을 골라주세요.")
 
     st.sidebar.subheader("⚙️ 백테스트 전략 조건 설정")
     use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True)
@@ -401,6 +399,9 @@ else:
     
     st.sidebar.markdown("---")
     use_hybrid_trailing = st.sidebar.checkbox("🔥 하이브리드 추세연장 (목표가 달성 시 추세 홀딩)", value=True)
+    
+    # 🌟 [신규 탑재 알고리즘 옵션]
+    use_weighted_harvest = st.sidebar.checkbox("🎁 하락폭 가중 매수 + 원금 회수/공짜주식 수확 모드", value=True, help="낙폭이 깊을수록 진입 예산을 가중 투입하고, +5% 반등 시 원금은 100% 현금 회수하며 수익금만 공짜 주식으로 영구 적립합니다.")
 
     st.sidebar.markdown("---")
     total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000, key="bt_capital")
@@ -439,7 +440,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 하이브리드 엔진을 안전하게 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 과거 파동, 벤치마크 지수, 하이브리드 & 공짜주식 수확 엔진을 안전하게 분석 중입니다..."):
                 try:
                     end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
@@ -601,7 +602,13 @@ else:
                                         stock_win_stats[s_name]['success'] += 1
                                         stock_win_stats[s_name]['profit_gain'] += net_profit
                                         
-                                        if reward_type == '열매로 결실 모으기':
+                                        # 🌟 [신규 공짜 주식 수확 로직 분기]
+                                        if use_weighted_harvest:
+                                            # 원금 100% 현금 회수 + 수익금은 공짜 주식으로 적립
+                                            buyable = int(max(0, net_profit) // curr_price)
+                                            leftover = net_profit - (buyable * curr_price)
+                                            exit_reason = f"🎁 원금회수 + 공짜주식({buyable}주)"
+                                        elif reward_type == '열매로 결실 모으기':
                                             buyable = int(max(0, net_profit) // curr_price)
                                             leftover = net_profit - (buyable * curr_price)
                                         elif reward_type == '🌟 현금 50% + 열매 50% (하이브리드)':
@@ -683,11 +690,17 @@ else:
                             candidates.sort(key=lambda x: x[2])
 
                             for cand in candidates:
-                                actual_invest = min(dynamic_invest_amount, current_cash)
                                 c_price = cand[3]
                                 ret_val = cand[2]
                                 t_code = cand[1]
                                 s_name = cand[0]
+
+                                # 🌟 [하락폭 가중 진입 예산 계산]
+                                if use_weighted_harvest:
+                                    weight = max(1.0, abs(ret_val) / abs(buy_cond_input))
+                                    actual_invest = min(dynamic_invest_amount * weight, current_cash)
+                                else:
+                                    actual_invest = min(dynamic_invest_amount, current_cash)
                                 
                                 if use_sector_limit:
                                     c_sector = TICKER_TO_SECTOR.get(t_code, "기타")
@@ -787,13 +800,13 @@ else:
                     st.markdown(f"""
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
                         <div>
-                            <h2 style="margin: 0; font-size: 1.5rem; color: #0f172a; font-weight: 800;">🏆 백테스트 최종 성과 대시보드</h2>
-                            <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #475569; font-weight: 700;">
+                            <h2 style="margin: 0; font-size: 1.4rem; color: #0f172a; font-weight: 800;">🏆 백테스트 최종 성과 대시보드</h2>
+                            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #475569; font-weight: 700;">
                                 📅 검증 기간: <b style="color: #2563eb;">{backtest_period_str}</b> | 📏 기준선: <b style="color: #2563eb;">{ma_period_choice}일선 적용</b>
                             </p>
                         </div>
-                        <span style="font-size: 0.9rem; color: #64748b; font-weight: 600; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
-                            🕒 조회 시각: <b style="color: #0284c7;">{current_query_time}</b>
+                        <span style="font-size: 0.85rem; color: #64748b; font-weight: 600; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                            🕒 조회: <b style="color: #0284c7;">{current_query_time}</b>
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
@@ -810,21 +823,21 @@ else:
 
                         if last_ks_c is not None and last_ks_ma is not None and last_kq_c is not None and last_kq_ma is not None:
                             siren_html = f"""
-                            <div style="display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap;">
-                              <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
-                                <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 5px 0;">
+                            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                              <div class="{'siren-box' if last_ks_c < last_ks_ma else 'clear-box'}" style="flex: 1; min-width: 280px;">
+                                <h3 style="color: {'#c0392b' if last_ks_c < last_ks_ma else '#27ae60'}; margin: 0 0 4px 0; font-size: 1.05rem;">
                                   {'🚨 KOSPI 태풍 경보 발령 중' if last_ks_c < last_ks_ma else '☀️ KOSPI 시장 날씨 맑음'}
                                 </h3>
-                                <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
-                                  현재 코스피 지수 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
+                                <p style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: bold;">
+                                  코스피 <b>{last_ks_c:,.1f}pt</b> (20일선: {last_ks_ma:,.1f}pt)
                                 </p>
                               </div>
-                              <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 300px;">
-                                <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 5px 0;">
+                              <div class="{'siren-box' if last_kq_c < last_kq_ma else 'clear-box'}" style="flex: 1; min-width: 280px;">
+                                <h3 style="color: {'#c0392b' if last_kq_c < last_kq_ma else '#27ae60'}; margin: 0 0 4px 0; font-size: 1.05rem;">
                                   {'🚨 KOSDAQ 태풍 경보 발령 중' if last_kq_c < last_kq_ma else '☀️ KOSDAQ 시장 날씨 맑음'}
                                 </h3>
-                                <p style="margin: 0; color: #2c3e50; font-size: 15px; font-weight: bold;">
-                                  현재 코스닥 지수 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
+                                <p style="margin: 0; color: #2c3e50; font-size: 14px; font-weight: bold;">
+                                  코스닥 <b>{last_kq_c:,.1f}pt</b> (20일선: {last_kq_ma:,.1f}pt)
                                 </p>
                               </div>
                             </div>
@@ -841,7 +854,7 @@ else:
                     m4, m5, m6, m7 = st.columns(4)
                     m4.metric("🎯 작전 승률", f"{win_rate:.1f}%", delta=f"{total_trades}전 {total_success}승 {total_stop_loss}패")
                     m5.metric("🌊 최대 낙폭 (MDD)", f"{max_drawdown_pct:.1f}%")
-                    m6.metric("📦 수확한 열매 평가액", format_money(total_free_shares_value))
+                    m6.metric("📦 수확한 공짜 주식 평가액", format_money(total_free_shares_value))
                     m7.metric("🍯 누적 배당금", format_money(total_dividend_profit))
 
                     st.markdown("---")
@@ -857,8 +870,8 @@ else:
 
                     if total_free_shares_count > 0:
                         st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 18px 22px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 25px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
-                            <h4 style="margin-top: 0; color: #166534; font-size: 1.15rem; margin-bottom: 10px;">📦 내 열매(무료 주식) 금고 상세 현황</h4>
+                        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 16px 20px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 20px;">
+                            <h4 style="margin-top: 0; color: #166534; font-size: 1.1rem; margin-bottom: 8px;">📦 내 공짜 주식(무위험 자산) 금고 상세 현황</h4>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -870,9 +883,9 @@ else:
                                 eval_val = count * c_price
                                 fruit_list.append({
                                     "작전 구역 (종목명)": s_name,
-                                    "보유 수량": f"{count}주",
+                                    "공짜주식 보유 수량": f"{count}주",
                                     "현재 1주 단가": format_exact_price(c_price),
-                                    "현재 평가액": format_money(eval_val)
+                                    "현재 공짜주식 평가액": format_money(eval_val)
                                 })
                         st.dataframe(pd.DataFrame(fruit_list), use_container_width=True, hide_index=True)
 
@@ -891,7 +904,7 @@ else:
                             fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['KOSDAQ (지수)'], mode='lines', name='KOSDAQ 지수', line=dict(color='#cbd5e1', width=1.5, dash='dot')), row=1, col=1)
                         fig.add_hline(y=total_capital_input, line_dash="solid", line_color="#ef4444", annotation_text="초기 원금", row=1, col=1)
                         fig.add_trace(go.Scatter(x=asset_df['Date'], y=asset_df['Drawdown'], mode='lines', name='낙폭(MDD)', line=dict(color='#dc2626', width=1.5), fill='tozeroy', fillcolor='rgba(220, 38, 38, 0.15)'), row=2, col=1)
-                        fig.update_layout(height=650, template="plotly_white", margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+                        fig.update_layout(height=600, template="plotly_white", margin=dict(l=10, r=10, t=35, b=10), hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
                         st.plotly_chart(fig, use_container_width=True)
 
                     with tab2:
@@ -926,11 +939,11 @@ else:
                             st.write("#### 🗓️ 연도별 정산 종합표")
                             yearly_summary_list = []
                             for y, val in sorted(yearly_stats.items()):
-                                yearly_summary_list.append({"연도": str(y), "🎯 익절": f"{val['success']}회", "🚨 손절": f"{val['stop']}회", "📦 획득 열매": f"{int(val['shares'])}주", "💵 현금수익": format_money(val['cash'])})
+                                yearly_summary_list.append({"연도": str(y), "🎯 익절": f"{val['success']}회", "🚨 손절": f"{val['stop']}회", "📦 획득 공짜주식": f"{int(val['shares'])}주", "💵 현금수익": format_money(val['cash'])})
                             st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
 
                         st.markdown("---")
-                        st.write("#### 📦 종목별 누적 열매 수확 총합계 리포트")
+                        st.write("#### 📦 종목별 누적 공짜주식 수확 총합계 리포트")
                         total_stock_fruit_summary = []
                         for s_name in PORTFOLIO_UNIVERSE.keys():
                             total_shares = free_shares_dict.get(s_name, 0)
@@ -939,9 +952,9 @@ else:
                             eval_val = total_shares * c_price
                             total_stock_fruit_summary.append({
                                 "작전 구역 (종목명)": s_name,
-                                "총 수확한 열매(주식) 수": f"{total_shares}주",
+                                "총 수확한 공짜주식 수": f"{total_shares}주",
                                 "현재 1주 단가": format_exact_price(c_price),
-                                "현재 열매 총 평가액": format_money(eval_val)
+                                "현재 공짜주식 총 평가액": format_money(eval_val)
                             })
                         st.dataframe(pd.DataFrame(total_stock_fruit_summary), use_container_width=True, hide_index=True)
 
