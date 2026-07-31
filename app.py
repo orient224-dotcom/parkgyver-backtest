@@ -45,7 +45,7 @@ def clean_date_index(obj):
         return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 (프리미엄 커스텀 CSS) ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.6", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.7", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -194,7 +194,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.6")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.7")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
@@ -371,7 +371,6 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
             last_kq_c = float(kq_series.dropna().iloc[-1])
             last_kq_ma = float(kq_ma20.dropna().iloc[-1])
 
-            # 🌟 세련된 샌드 옐로우 기상청 전광판
             ks_weather = "🌧️ 먹구름 하락장" if last_ks_c < last_ks_ma else "☀️ 맑은 상승장"
             kq_weather = "🌧️ 먹구름 하락장" if last_kq_c < last_kq_ma else "☀️ 맑은 상승장"
             
@@ -446,8 +445,8 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 백테스트 연구소 (V10.6 세련된 대시보드 에디션)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 새로워진 프리미엄 커스텀 디자인 지표 카드로 성과를 분석합니다.</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (요원 동시 투입 분포 V10.7)</div>
+        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 새로워진 프리미엄 대시보드와 요원 동시 투입 분포 현황을 검증합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -513,7 +512,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 디자인 대시보드와 백테스트 데이터를 안전하게 생성 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 백테스트 및 요원 동시 투입 분포 현황을 분석 중입니다..."):
                 try:
                     end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
@@ -889,7 +888,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 🌟 기상청 전광판 (샌드 옐로우)
                     last_ks_c, last_ks_ma, last_kq_c, last_kq_ma = None, None, None, None
                     if not bench_df.empty and not bench_ma20.empty:
                         ks_key = '^KS11' if '^KS11' in bench_df.columns else bench_df.columns[0]
@@ -922,7 +920,6 @@ else:
                             """
                             st.markdown(siren_html, unsafe_allow_html=True)
 
-                    # 🌟 8색 커스텀 디자인 지표 카드 레이아웃 (이미지 디자인 100% 동일 재현)
                     row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
                     with row1_col1:
                         st.markdown(f"""
@@ -1037,7 +1034,7 @@ else:
 
                     tab1, tab2, tab3, tab4 = st.tabs([
                         "📊 1. 자산 성장 & 복리 스케일업 차트", 
-                        "🔍 2. 자금 회전율 & 미출격 진단", 
+                        "🔍 2. 자금 회전율 & 동시 투입 분포", 
                         "📈 3. 종목/연도별 손익분석", 
                         "📜 4. 현장 투입요원 & 매매장부"
                     ])
@@ -1066,7 +1063,69 @@ else:
                         st.plotly_chart(fig, use_container_width=True)
 
                     with tab2:
-                        st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
+                        st.write("### 🔍 자금 회전율 & 요원 동시 투입 분포 리포트")
+                        
+                        # 🌟 [신규 장착] 작전 회차별 요원 동시 투입 분포 현황 패널
+                        if daily_deployment_snapshots:
+                            snap_df = pd.DataFrame(daily_deployment_snapshots)
+                            total_deploy_sessions = len(snap_df)
+                            c1_cnt = int((snap_df['동시 출격 수'] == 1).sum())
+                            c2_cnt = int((snap_df['동시 출격 수'] == 2).sum())
+                            c3_cnt = int((snap_df['동시 출격 수'] == 3).sum())
+                            c4_cnt = int((snap_df['동시 출격 수'] == 4).sum())
+                            cf_cnt = int((snap_df['동시 출격 수'] >= max_active_slots).sum())
+
+                            c1_pct = (c1_cnt / total_deploy_sessions * 100) if total_deploy_sessions > 0 else 0.0
+                            c2_pct = (c2_cnt / total_deploy_sessions * 100) if total_deploy_sessions > 0 else 0.0
+                            c3_pct = (c3_cnt / total_deploy_sessions * 100) if total_deploy_sessions > 0 else 0.0
+                            c4_pct = (c4_cnt / total_deploy_sessions * 100) if total_deploy_sessions > 0 else 0.0
+                            cf_pct = (cf_cnt / total_deploy_sessions * 100) if total_deploy_sessions > 0 else 0.0
+                        else:
+                            total_deploy_sessions = 0
+                            c1_cnt, c2_cnt, c3_cnt, c4_cnt, cf_cnt = 0, 0, 0, 0, 0
+                            c1_pct, c2_pct, c3_pct, c4_pct, cf_pct = 0.0, 0.0, 0.0, 0.0, 0.0
+
+                        dist_html = f"""
+                        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-top: 10px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);">
+                            <div style="font-size: 1.05rem; font-weight: 800; color: #1e293b; margin-bottom: 14px; display: flex; align-items: center; gap: 6px;">
+                                📊 작전 회차별 요원 동시 투입 분포 현황 (총 {total_deploy_sessions}개 작전 회차)
+                            </div>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 130px; background-color: #f0fdf4; border-left: 5px solid #10b981; border-radius: 8px; padding: 10px 14px; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #166534;">1명 투입</div>
+                                    <div style="font-size: 1.2rem; font-weight: 900; color: #0f172a; margin-top: 2px;">
+                                        {c1_cnt}회 <span style="font-size: 0.82rem; font-weight: 600; color: #475569;">({c1_pct:.1f}%)</span>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; min-width: 130px; background-color: #f0fdf4; border-left: 5px solid #10b981; border-radius: 8px; padding: 10px 14px; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #166534;">2명 투입</div>
+                                    <div style="font-size: 1.2rem; font-weight: 900; color: #0f172a; margin-top: 2px;">
+                                        {c2_cnt}회 <span style="font-size: 0.82rem; font-weight: 600; color: #475569;">({c2_pct:.1f}%)</span>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; min-width: 130px; background-color: #fefce8; border-left: 5px solid #eab308; border-radius: 8px; padding: 10px 14px; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #854d0e;">3명 투입</div>
+                                    <div style="font-size: 1.2rem; font-weight: 900; color: #0f172a; margin-top: 2px;">
+                                        {c3_cnt}회 <span style="font-size: 0.82rem; font-weight: 600; color: #475569;">({c3_pct:.1f}%)</span>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; min-width: 130px; background-color: #fefce8; border-left: 5px solid #eab308; border-radius: 8px; padding: 10px 14px; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #854d0e;">4명 투입</div>
+                                    <div style="font-size: 1.2rem; font-weight: 900; color: #0f172a; margin-top: 2px;">
+                                        {c4_cnt}회 <span style="font-size: 0.82rem; font-weight: 600; color: #475569;">({c4_pct:.1f}%)</span>
+                                    </div>
+                                </div>
+                                <div style="flex: 1; min-width: 130px; background-color: #fef2f2; border-left: 5px solid #ef4444; border-radius: 8px; padding: 10px 14px; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #991b1b;">🔥 최대 풀출격</div>
+                                    <div style="font-size: 1.15rem; font-weight: 900; color: #0f172a; margin-top: 2px;">
+                                        {cf_cnt}회 <span style="font-size: 0.82rem; font-weight: 600; color: #475569;">({cf_pct:.1f}%)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        """
+                        st.markdown(dist_html, unsafe_allow_html=True)
+
                         st.warning(f"📊 기간 중 최대 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개)")
                         if daily_deployment_snapshots:
                             snap_df = pd.DataFrame(daily_deployment_snapshots)
