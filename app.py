@@ -57,7 +57,7 @@ def style_trade_df(df):
     return df.style.apply(apply_row_style, axis=1)
 
 # --- 1. 페이지 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.14", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.15", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -108,7 +108,7 @@ def format_money(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.14")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.15")
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     [
@@ -209,13 +209,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
         st.warning("⚠️ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 종목을 골라주세요.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (미출격 기회 추적기 포함)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (소요기간 버그 완벽 수정)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.14 미출격 기회 추적기 장착)</div>
-        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산 + 연도별 보고서 + 자금/슬롯 부족 미출격 기회 분석 패키지</div>
+        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.15 소요기간 정밀 수정)</div>
+        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산 + 정확한 소요 일수 계산(일 단위) 시뮬레이션 엔진</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -247,7 +247,7 @@ else:
         if not PORTFOLIO_UNIVERSE:
             st.error("❌ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 미출격 기회 및 백테스트 연산을 수행 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 소요 기간을 정밀 계산하여 백테스트를 가동 중입니다..."):
                 try:
                     end_dt = datetime.datetime.today()
                     start_dt = end_dt - relativedelta(years=years_input + 1)
@@ -273,7 +273,7 @@ else:
                     total_agent_counter, total_fees_paid_all = 0, 0.0
 
                     yearly_operations = {}
-                    missed_opportunities = [] # 🌟 [신규] 미출격 기회 추적 리스트
+                    missed_opportunities = []
 
                     for s_name, t_code in PORTFOLIO_UNIVERSE.items():
                         if t_code not in close_df.columns: continue
@@ -380,13 +380,18 @@ else:
                                     if is_win: win_trades += 1
                                     else: loss_trades += 1
 
+                                    # 🌟 [수정] 출격일부터 복귀일까지의 실제 소요 일수 계산
+                                    entry_dt = pd.to_datetime(pos['entry_date'])
+                                    exit_dt = pd.to_datetime(date_str)
+                                    days_taken = (exit_dt - entry_dt).days
+
                                     trade_item = {
                                         '요원': pos['name'], '작전구역': s_name, '종목코드': t_code,
                                         '출격일': pos['entry_date'], '진입일 등락률': f"{pos['entry_return']:+.2f}%",
                                         '진입금액': f"{int(buy_net):,}원", '진입단가': f"{int(pos['entry_price']):,}원",
                                         '복귀일': date_str, '청산일 등락률': f"{daily_ret:+.2f}%", '청산단가': f"{int(close):,}원",
                                         '매도금액': f"{int(sell_net):,}원", '총수수료·세금': f"{int(trade_fee_total):,}원",
-                                        '등락폭': f"{int(profit_krw):,}원 ({ret:+.2f}%)", '소요기간': "동반 수확",
+                                        '등락폭': f"{int(profit_krw):,}원 ({ret:+.2f}%)", '소요기간': f"{days_taken}일 소요",
                                         '순수익률': f"{ret:+.2f}%", '정산내역': f"{'+' if profit_krw>=0 else ''}{int(profit_krw):,}원",
                                         '구분': "🎯 동반 수확 성공" if is_win else "🚨 강제 철수",
                                         '스노우볼 레벨': f"Lv.{max(1, level_up_count + 1)}", 'is_win': is_win, 'raw_profit': profit_krw, 'exit_date': date
@@ -405,7 +410,6 @@ else:
                                 matched_trades.extend(current_batch_trades)
                                 positions = []
 
-                            # 🌟 진입 조건 체크 및 미출격 기회 로깅
                             if daily_ret <= -float(buy_cond_input):
                                 if len(positions) >= max_agents_input:
                                     missed_opportunities.append({
@@ -522,13 +526,11 @@ else:
 
                     st.markdown("---")
 
-                    # 🌟 [신규 추가] 미출격 기회 리포트 탭/섹션
                     st.markdown(f"### 📂 미출격 기회 분석 리포트 (총 {len(missed_opportunities)}건 포착)")
-                    st.caption("급락(-5% 이하) 타점이 포착되었으나, 요원 슬롯(최대 수)이 풀가동 상태여서 아쉽게 진입하지 못한 기회들입니다.")
                     if missed_opportunities:
                         st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
                     else:
-                        st.success("🎉 아쉽게 놓친 미출격 기회가 없습니다! 모든 급락 타점에 요원들이 완벽하게 투입되었습니다.")
+                        st.success("🎉 아쉽게 놓친 미출격 기회가 없습니다!")
 
                     st.markdown("---")
 
@@ -607,7 +609,7 @@ else:
                         st.download_button(
                             label="📥 엑셀(CSV) 공식 작전 장부 다운로드 (메타데이터 포함)",
                             data=csv_data,
-                            file_name=f"박가이버사령부_V10.13_공식작전장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            file_name=f"박가이버사령부_V10.15_공식작전장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                             mime="text/csv"
                         )
                     else:
