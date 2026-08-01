@@ -57,7 +57,7 @@ def style_trade_df(df):
     return df.style.apply(apply_row_style, axis=1)
 
 # --- 1. 페이지 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.12", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.13", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -108,7 +108,7 @@ def format_money(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.12")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.13")
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     [
@@ -121,7 +121,7 @@ menu_choice = st.sidebar.radio(
 st.sidebar.markdown("---")
 
 # =====================================================================
-# 🗄️ 메뉴 1: 내 계좌 영구 DB (안전 필터링 적용)
+# 🗄️ 메뉴 1: 내 계좌 영구 DB
 # =====================================================================
 if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
@@ -209,13 +209,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
         st.warning("⚠️ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 종목을 골라주세요.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (풀버전 대시보드)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (연도별 운영 내용 포함 풀버전)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.12 풀버전 대시보드)</div>
-        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산 + 3단 분배 + 대시보드 풀패키지 시뮬레이션 엔진</div>
+        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.13 연도별 작전 보고서 추가)</div>
+        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산 + 3단 분배 + 연도별 작전 운영 내용 종합 보고서 패키지</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -247,7 +247,7 @@ else:
         if not PORTFOLIO_UNIVERSE:
             st.error("❌ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 멀티 함대 3단 과수원 시뮬레이션을 가동 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 연도별 작전 운영 내용을 분석 중입니다..."):
                 try:
                     end_dt = datetime.datetime.today()
                     start_dt = end_dt - relativedelta(years=years_input + 1)
@@ -271,6 +271,9 @@ else:
                     total_cycles_all, full_launch_cycles_all = 0, 0
                     all_batch_agent_counts = []
                     total_agent_counter, total_fees_paid_all = 0, 0.0
+
+                    # 🌟 연도별 작전 운영 내용 통계 저장 딕셔너리
+                    yearly_operations = {}
 
                     for s_name, t_code in PORTFOLIO_UNIVERSE.items():
                         if t_code not in close_df.columns: continue
@@ -302,6 +305,13 @@ else:
                             ma60 = float(row['MA60']) if not pd.isna(row['MA60']) else close
                             ma120 = float(row['MA120']) if not pd.isna(row['MA120']) else close
                             date_str = date.strftime('%Y-%m-%d')
+                            year_key = date.year
+
+                            if year_key not in yearly_operations:
+                                yearly_operations[year_key] = {
+                                    'success': 0, 'stop': 0, 'net_profit': 0.0, 
+                                    'fees': 0.0, 'core_acquired': 0, 'reserve_added': 0.0, 'trades_list': []
+                                }
 
                             if pd.isna(daily_ret): continue
 
@@ -341,11 +351,15 @@ else:
                                     profit_krw = sell_net - buy_net
                                     ret = (profit_krw / buy_net) * 100
 
+                                    acquired_c = 0
+                                    added_r = 0.0
                                     if profit_krw > 0:
                                         if "3단 밸런스" in strategy_choice:
                                             reinvest_amt = profit_krw * 0.60
-                                            reserve_cash += (profit_krw * 0.20)
-                                            core_shares += int((profit_krw * 0.20) // close)
+                                            added_r = profit_krw * 0.20
+                                            reserve_cash += added_r
+                                            acquired_c = int((profit_krw * 0.20) // close)
+                                            core_shares += acquired_c
                                         elif "풀 현금" in strategy_choice:
                                             reinvest_amt = profit_krw * 1.00
                                         else:
@@ -353,13 +367,23 @@ else:
                                     else:
                                         reinvest_amt = profit_krw
 
+                                    # 연도별 작전 운영 내용 데이터 누적
+                                    is_win = profit_krw >= 0
+                                    if is_win:
+                                        yearly_operations[year_key]['success'] += 1
+                                    else:
+                                        yearly_operations[year_key]['stop'] += 1
+                                    yearly_operations[year_key]['net_profit'] += profit_krw
+                                    yearly_operations[year_key]['fees'] += trade_fee_total
+                                    yearly_operations[year_key]['core_acquired'] += acquired_c
+                                    yearly_operations[year_key]['reserve_added'] += added_r
+
                                     batch_reinvest_profit += reinvest_amt
                                     total_trades += 1
-                                    if profit_krw >= 0: win_trades += 1
+                                    if is_win: win_trades += 1
                                     else: loss_trades += 1
 
-                                    is_win = profit_krw >= 0
-                                    current_batch_trades.append({
+                                    trade_item = {
                                         '요원': pos['name'], '작전구역': s_name, '종목코드': t_code,
                                         '출격일': pos['entry_date'], '진입일 등락률': f"{pos['entry_return']:+.2f}%",
                                         '진입금액': f"{int(buy_net):,}원", '진입단가': f"{int(pos['entry_price']):,}원",
@@ -369,7 +393,9 @@ else:
                                         '순수익률': f"{ret:+.2f}%", '정산내역': f"{'+' if profit_krw>=0 else ''}{int(profit_krw):,}원",
                                         '구분': "🎯 동반 수확 성공" if is_win else "🚨 강제 철수",
                                         '스노우볼 레벨': f"Lv.{max(1, level_up_count + 1)}", 'is_win': is_win, 'raw_profit': profit_krw, 'exit_date': date
-                                    })
+                                    }
+                                    current_batch_trades.append(trade_item)
+                                    yearly_operations[year_key]['trades_list'].append(trade_item)
 
                                 if "균등 배분" not in strategy_choice:
                                     step_progress += batch_reinvest_profit
@@ -464,6 +490,44 @@ else:
 
                     st.markdown("---")
 
+                    # =========================================================
+                    # 📅 [신규 추가] 연도별 작전 운영 내용 종합 보고서 섹션
+                    # =========================================================
+                    st.markdown("### 📅 연도별 작전 운영 내용 종합 보고서")
+                    st.caption("각 연도별 함대 교전 횟수, 익절/손절 성과, 실현 순익 및 수수료, 과수원 적립 현황을 입체적으로 분석합니다.")
+
+                    yearly_summary_rows = []
+                    for yr in sorted(yearly_operations.keys()):
+                        y_data = yearly_operations[yr]
+                        y_trades = y_data['success'] + y_data['stop']
+                        y_win_rate = (y_data['success'] / y_trades * 100) if y_trades > 0 else 0.0
+                        yearly_summary_rows.append({
+                            '연도': f"{yr}년",
+                            '총 교전횟수': f"{y_trades}회",
+                            '승률': f"{y_win_rate:.1f}% (익절 {y_data['success']} / 손절 {y_data['stop']})",
+                            '실현 순수익': f"{'+' if y_data['net_profit']>=0 else ''}{int(y_data['net_profit']):,}원",
+                            '납부 수수료·세금': f"-{int(y_data['fees']):,}원",
+                            '코어주식 적립': f"{y_data['core_acquired']}주",
+                            '현금금고 적립': f"+{int(y_data['reserve_added']):,}원"
+                        })
+                    
+                    if yearly_summary_rows:
+                        st.dataframe(pd.DataFrame(yearly_summary_rows), use_container_width=True, hide_index=True)
+                        
+                        # 연도별 상세 확장 카드
+                        for yr in sorted(yearly_operations.keys()):
+                            y_data = yearly_operations[yr]
+                            y_trades = y_data['success'] + y_data['stop']
+                            with st.expander(f"🔍 [{yr}년 작전 운영 상세 보고서] 총 {y_trades}회 교전 / 순익: {int(y_data['net_profit']):,}원"):
+                                if y_data['trades_list']:
+                                    st.dataframe(pd.DataFrame([{k: v for k, v in t.items() if k not in ['is_win', 'raw_profit', 'exit_date']} for t in y_data['trades_list']]), use_container_width=True, hide_index=True)
+                                else:
+                                    st.info(f"{yr}년도에 청산된 거래 내역이 없습니다.")
+                    else:
+                        st.info("연도별 작전 데이터가 없습니다.")
+
+                    st.markdown("---")
+
                     st.markdown(f"#### 📊 작전 회차별 요원 동시 투입 분포 현황 (총 {total_cycles_all}개 청산 작전 회차)")
                     agent_dist = {1:0, 2:0, 3:0, 4:0, 5:0}
                     for cnt in all_batch_agent_counts:
@@ -539,7 +603,7 @@ else:
                         st.download_button(
                             label="📥 엑셀(CSV) 공식 작전 장부 다운로드 (메타데이터 포함)",
                             data=csv_data,
-                            file_name=f"박가이버사령부_V10.12_공식작전장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            file_name=f"박가이버사령부_V10.13_공식작전장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                             mime="text/csv"
                         )
                     else:
