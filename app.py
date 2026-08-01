@@ -50,14 +50,14 @@ def style_trade_df(df):
         
         if '레벨UP' in snow_level or '정상 복귀' in reason or '동반 수확' in reason or '+' in ret_val:
             return ['background-color: #fdedec; color: #c0392b; font-weight: bold;'] * len(row)
-        elif '강제 철수' in reason or '-' in ret_val:
+        elif '강제 철수' in reason or '타임 컷' in reason or '-' in ret_val:
             return ['background-color: #ebf5fb; color: #2980b9; font-weight: bold;'] * len(row)
         else:
             return [''] * len(row)
     return df.style.apply(apply_row_style, axis=1)
 
 # --- 1. 페이지 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.15", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.16", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -108,13 +108,13 @@ def format_money(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.15")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.16")
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     [
         "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)", 
         "🚨 2. 오늘의 실전 매매 레이더", 
-        "🛡️ 3. 과거 5년 백테스트 연구소 (3단 밸런스 과수원)"
+        "🛡️ 3. 과거 5년 백테스트 연구소 (스마트 회전율)"
     ],
     index=2
 )
@@ -209,13 +209,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
         st.warning("⚠️ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 종목을 골라주세요.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (소요기간 버그 완벽 수정)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (스마트 자금 회전율 타임 컷 장착)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.15 소요기간 정밀 수정)</div>
-        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산 + 정확한 소요 일수 계산(일 단위) 시뮬레이션 엔진</div>
+        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.16 스마트 회전율 엔진 장착)</div>
+        <div class="hero-subtitle">오래 묵은 자금을 강제 회전시켜 기회비용을 살려내는 스마트 타임 컷(Time-Cut) 패키지</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -237,6 +237,12 @@ else:
     sell_target_input = st.sidebar.slider("🎯 익절 목표 (+%)", 1, 30, 10, 1)
     stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1)
 
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("⏳ 스마트 자금 회전율 (타임 컷)")
+    use_time_cut = st.sidebar.checkbox("스마트 타임 컷 가동 (자금 동맥경화 방지)", value=True)
+    max_hold_days_input = st.sidebar.slider("최대 보유 제한일 (이 기간 넘기면 즉시 동반 철수)", 10, 90, 30, 5)
+
+    st.sidebar.markdown("---")
     st.sidebar.subheader("💸 실전 수수료 및 세금 설정")
     buy_fee_rate = (st.sidebar.number_input("📉 매수 수수료 (%)", value=0.015, format="%.3f") / 100.0)
     sell_tax_rate = (st.sidebar.number_input("📈 매도 세금+수수료 (%)", value=0.20, format="%.2f") / 100.0)
@@ -247,7 +253,7 @@ else:
         if not PORTFOLIO_UNIVERSE:
             st.error("❌ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 소요 기간을 정밀 계산하여 백테스트를 가동 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 스마트 자금 회전율 엔진을 가동하여 분석 중입니다..."):
                 try:
                     end_dt = datetime.datetime.today()
                     start_dt = end_dt - relativedelta(years=years_input + 1)
@@ -319,9 +325,17 @@ else:
                             is_super_bear = (close < ma20) and (ma20 < ma60) and (ma60 < ma120)
                             target_ret = 15.0 if is_super_bull else (5.0 if is_super_bear else float(sell_target_input))
 
+                            # 🌟 [신규] 동반 수확 조건 및 스마트 타임 컷 조건 체크
                             has_winner = any(((close - pos['entry_price']) / pos['entry_price']) * 100 >= target_ret for pos in positions)
+                            has_time_cut = False
+                            
+                            if use_time_cut and len(positions) > 0:
+                                oldest_entry = pd.to_datetime(positions[0]['entry_date'])
+                                if (pd.to_datetime(date_str) - oldest_entry).days >= max_hold_days_input:
+                                    has_time_cut = True
 
-                            if has_winner and len(positions) > 0:
+                            # 익절 도달이거나, 오래 물려서 타임 컷에 걸렸다면 전원 철수 (테이블 회전)
+                            if (has_winner or has_time_cut) and len(positions) > 0:
                                 total_cycles += 1
                                 total_cycles_all += 1
                                 batch_size = len(positions)
@@ -380,10 +394,15 @@ else:
                                     if is_win: win_trades += 1
                                     else: loss_trades += 1
 
-                                    # 🌟 [수정] 출격일부터 복귀일까지의 실제 소요 일수 계산
                                     entry_dt = pd.to_datetime(pos['entry_date'])
                                     exit_dt = pd.to_datetime(date_str)
                                     days_taken = (exit_dt - entry_dt).days
+
+                                    # 철수 사유 결정
+                                    if has_time_cut and not has_winner:
+                                        exit_reason = f"⏳ 타임 컷 회전 ({days_taken}일 초과)"
+                                    else:
+                                        exit_reason = "🎯 동반 수확 성공" if is_win else "🚨 강제 철수"
 
                                     trade_item = {
                                         '요원': pos['name'], '작전구역': s_name, '종목코드': t_code,
@@ -393,7 +412,7 @@ else:
                                         '매도금액': f"{int(sell_net):,}원", '총수수료·세금': f"{int(trade_fee_total):,}원",
                                         '등락폭': f"{int(profit_krw):,}원 ({ret:+.2f}%)", '소요기간': f"{days_taken}일 소요",
                                         '순수익률': f"{ret:+.2f}%", '정산내역': f"{'+' if profit_krw>=0 else ''}{int(profit_krw):,}원",
-                                        '구분': "🎯 동반 수확 성공" if is_win else "🚨 강제 철수",
+                                        '구분': exit_reason,
                                         '스노우볼 레벨': f"Lv.{max(1, level_up_count + 1)}", 'is_win': is_win, 'raw_profit': profit_krw, 'exit_date': date
                                     }
                                     current_batch_trades.append(trade_item)
@@ -527,10 +546,11 @@ else:
                     st.markdown("---")
 
                     st.markdown(f"### 📂 미출격 기회 분석 리포트 (총 {len(missed_opportunities)}건 포착)")
+                    st.caption("급락(-5% 이하) 타점이 포착되었으나, 요원 슬롯(최대 수)이 풀가동 상태여서 아쉽게 진입하지 못한 기회들입니다.")
                     if missed_opportunities:
                         st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
                     else:
-                        st.success("🎉 아쉽게 놓친 미출격 기회가 없습니다!")
+                        st.success("🎉 아쉽게 놓친 미출격 기회가 없습니다! 모든 급락 타점에 요원들이 완벽하게 투입되었습니다.")
 
                     st.markdown("---")
 
@@ -609,7 +629,7 @@ else:
                         st.download_button(
                             label="📥 엑셀(CSV) 공식 작전 장부 다운로드 (메타데이터 포함)",
                             data=csv_data,
-                            file_name=f"박가이버사령부_V10.15_공식작전장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            file_name=f"박가이버사령부_V10.16_공식작전장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                             mime="text/csv"
                         )
                     else:
