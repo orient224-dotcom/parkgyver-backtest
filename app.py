@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# --- 0. 한글 초성 분리 및 모바일 검색용 포맷팅 엔진 ---
+# --- 0. 한글 초성 분리 및 검색 엔진 ---
 def get_chosung(text):
     chosung_list = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
     result = ""
@@ -30,18 +30,15 @@ def format_stock_option(stock_name):
 def clean_date_index(obj):
     if isinstance(obj, pd.Series):
         s = pd.to_datetime(obj)
-        if s.dt.tz is not None:
-            s = s.dt.tz_convert(None)
+        if s.dt.tz is not None: s = s.dt.tz_convert(None)
         return s.dt.normalize()
     elif isinstance(obj, (pd.DatetimeIndex, pd.Index)):
         idx = pd.to_datetime(obj)
-        if getattr(idx, 'tz', None) is not None:
-            idx = idx.tz_convert(None)
+        if getattr(idx, 'tz', None) is not None: idx = idx.tz_convert(None)
         return idx.normalize()
     else:
         dt = pd.to_datetime(obj)
-        if getattr(dt, 'tz', None) is not None:
-            dt = dt.tz_convert(None)
+        if getattr(dt, 'tz', None) is not None: dt = dt.tz_convert(None)
         return dt.normalize()
 
 # 🌟 한국식 스마트 컬러 장부 스타일러 (익절=빨강계열, 손절=파랑계열)
@@ -51,7 +48,7 @@ def style_trade_df(df):
         reason = str(row.get('구분', ''))
         snow_level = str(row.get('스노우볼 레벨', ''))
         
-        if '레벨UP' in snow_level or '정상 복귀' in reason or '+' in ret_val:
+        if '레벨UP' in snow_level or '정상 복귀' in reason or '동반 수확' in reason or '+' in ret_val:
             return ['background-color: #fdedec; color: #c0392b; font-weight: bold;'] * len(row)
         elif '강제 철수' in reason or '-' in ret_val:
             return ['background-color: #ebf5fb; color: #2980b9; font-weight: bold;'] * len(row)
@@ -59,8 +56,8 @@ def style_trade_df(df):
             return [''] * len(row)
     return df.style.apply(apply_row_style, axis=1)
 
-# --- 1. 페이지 웹 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.11", page_icon="🛡️", layout="wide")
+# --- 1. 페이지 디자인 세팅 ---
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.12", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -83,24 +80,6 @@ st.markdown("""
         background-color: #ffffff; border: 1px solid #fcd34d; border-radius: 8px;
         padding: 8px 14px; font-size: 0.9rem; font-weight: 700; color: #78350f; flex: 1; min-width: 260px;
     }
-    .weather-divider { border-top: 1px dashed #f59e0b; margin: 12px 0; }
-    .weather-status-text { font-size: 0.88rem; color: #451a03; font-weight: 600; }
-
-    .metric-card {
-        background-color: #ffffff; border-radius: 10px; padding: 14px 16px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0; margin-bottom: 12px;
-        height: 100%; display: flex; flex-direction: column; justify-content: space-between;
-    }
-    .metric-card.card-green { border-left: 6px solid #10b981; }
-    .metric-card.card-blue { border-left: 6px solid #2563eb; }
-    .metric-card.card-red { border-left: 6px solid #ef4444; }
-    .metric-card.card-yellow { border-left: 6px solid #f59e0b; background-color: #fffbeb; }
-    .metric-card.card-orange { border-left: 6px solid #d97706; }
-    .metric-card.card-purple { border-left: 6px solid #a855f7; background-color: #faf5ff; }
-
-    .metric-label { font-size: 0.85rem; font-weight: 800; color: #475569; margin-bottom: 4px; }
-    .metric-value { font-size: 1.35rem; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
-    .metric-sub { font-size: 0.78rem; color: #64748b; font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -124,36 +103,12 @@ MASTER_STOCK_DICT = st.session_state["full_stock_master"]
 for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
 
-if "selected_stocks" not in st.session_state: st.session_state["selected_stocks"] = st.session_state["my_holdings"]
-
 def format_money(num):
     if num is None or pd.isna(num): return "-"
     return f"{int(round(num)):,}원"
 
-def format_pure_number(num):
-    if num is None or pd.isna(num): return "-"
-    return f"{int(round(num)):,}"
-
-def format_exact_price(num):
-    if num is None or pd.isna(num): return "-"
-    return f"{int(round(num)):,}원"
-
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.11")
-
-st.sidebar.subheader("💾 나만의 작전 세팅")
-uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"])
-if uploaded_cfg is not None:
-    try:
-        cfg_data = json.load(uploaded_cfg)
-        if "my_holdings" in cfg_data: st.session_state["my_holdings"] = cfg_data["my_holdings"]
-        if "my_watchlist" in cfg_data: st.session_state["my_watchlist"] = cfg_data["my_watchlist"]
-        st.sidebar.success("🎉 세팅 파일 복원 완료!")
-        st.rerun()
-    except Exception:
-        st.sidebar.error("⚠️ 올바른 설정 파일이 아닙니다.")
-
-st.sidebar.markdown("---")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.12")
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     [
@@ -172,17 +127,9 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🗄️ 나만의 투자 영구 DB (스마트폰 연동)</div>
-        <div class="hero-subtitle">대한민국 상장 종목을 초성 키보드로 1초 만에 검색하고 보유 종목을 관리합니다.</div>
+        <div class="hero-subtitle">대한민국 상장 종목을 초성 키보드로 검색하고 보유 종목을 관리합니다.</div>
     </div>
     """, unsafe_allow_html=True)
-
-    with st.expander("📲 대한민국 2,600개 전 종목 DB 스마트폰 연동 센터", expanded=True):
-        uploaded_db = st.file_uploader("📂 krx_stock_db.json 업로드", type=["json"])
-        if uploaded_db is not None:
-            loaded_db = json.load(uploaded_db)
-            st.session_state["full_stock_master"].update(loaded_db)
-            st.success("🎉 전 종목 DB 탑재 완료!")
-            st.rerun()
 
     db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력 함대)", "⭐ 눈여겨보는 관심 종목"])
     with db_tab1:
@@ -199,7 +146,7 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
             st.rerun()
 
 # =====================================================================
-# 🚨 메뉴 2: 오늘의 실전 매매 레이더 (날씨 분석 & 출격 명령서)
+# 🚨 메뉴 2: 오늘의 실전 매매 레이더
 # =====================================================================
 elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     st.markdown("""
@@ -258,13 +205,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
         st.warning("⚠️ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 종목을 골라주세요.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (3단 밸런스 과수원 엔진 완벽 이식)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (풀버전 대시보드 완벽 이식)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.11 마스터)</div>
-        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산(Batch) + 3단 분배(현금금고/코어주식) 시뮬레이션 엔진</div>
+        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.12 풀버전 대시보드)</div>
+        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산 + 3단 분배 + 대시보드 풀패키지 시뮬레이션 엔진</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -310,11 +257,6 @@ else:
 
                     bench_raw = yf.download(["^KS11", "^KQ11"], start=start_dt.strftime('%Y-%m-%d'), end=end_dt.strftime('%Y-%m-%d'), progress=False)
                     bench_df = bench_raw['Close'] if isinstance(bench_raw.columns, pd.MultiIndex) else bench_raw
-
-                    return_df = close_df.pct_change() * 100
-                    ma20_df = close_df.rolling(20).mean()
-                    ma60_df = close_df.rolling(60).mean()
-                    ma120_df = close_df.rolling(120).mean()
 
                     capital_per_stock = total_capital_input / len(PORTFOLIO_UNIVERSE)
                     
@@ -457,10 +399,11 @@ else:
                         for p in positions:
                             cur_eval_p = p['shares'] * float(df_s['Close'].iloc[-1])
                             pnl_p = cur_eval_p - (p['shares'] * p['entry_price'])
+                            pnl_pct = (pnl_p / (p['shares'] * p['entry_price'])) * 100
                             all_active_positions.append({
                                 '작전구역': s_name, '요원명': p['name'], '파견일': p['entry_date'],
                                 '진입단가': f"{int(p['entry_price']):,}원", '수량': f"{p['shares']}주",
-                                '평가금액': f"{int(cur_eval_p):,}원", '평가손익': f"{int(pnl_p):,}원", 'is_plus': pnl_p >= 0
+                                '평가금액': f"{int(cur_eval_p):,}원", '평가손익': f"{int(pnl_p):,}원 ({pnl_pct:+.2f}%)", 'is_plus': pnl_p >= 0
                             })
 
                         df_eq = pd.DataFrame(daily_log).set_index('Date')
@@ -493,23 +436,110 @@ else:
                     total_active_eval = sum([res['active_eval'] for res in stock_results.values()])
                     total_active_count = sum([res['active_count'] for res in stock_results.values()])
 
-                    # 화면 출력
+                    # =========================================================
+                    # 📊 풀버전 대시보드 화면 렌더링 (콜백 경험 완벽 재현)
+                    # =========================================================
                     st.markdown(f"""
                     <div style="background:#e8f8f5; border:2px solid #1abc9c; padding:15px; border-radius:10px; margin-bottom:20px;">
-                        <h3 style="margin:0; color:#117a65;">🏆 [3단 밸런스 과수원] 백테스트 작전 완료!</h3>
-                        <p style="margin:5px 0 0 0; color:#2c3e50;">전략: <b>{strategy_choice}</b> | 통합 청산 승률: <b>{overall_win_rate:.1f}%</b> | 총 실현 순수익: <b style="color:#c0392b;">+{int(total_net_profit_all):,}원</b></p>
+                        <h3 style="margin:0; color:#117a65;">🏆 [3단 밸런스 과수원] 백테스트 대시보드 풀패키지 가동 완료!</h3>
+                        <p style="margin:5px 0 0 0; color:#2c3e50;">전략: <b>{strategy_choice}</b> | 통합 청산 승률: <b>{overall_win_rate:.1f}%</b> | 실현 순수익: <b style="color:#c0392b;">+{int(total_net_profit_all):,}원</b></p>
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 4대 KPI 카드
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("🎯 통합 청산 승률", f"{overall_win_rate:.1f}%", f"익절 {win_trades_all} / 손절 {loss_trades_all}")
-                    c2.metric("⚔️ 총 투입 요원", f"{total_agent_counter}명", f"대기 {total_active_count}명")
-                    c3.metric("💰 실현 순수익", f"+{int(total_net_profit_all):,}원")
-                    c4.metric("🚀 포트폴리오 총자산", f"{int(final_portfolio_equity):,}원")
+                    # 1. 상단 KPI 카드 1열
+                    k1, k2, k3, k4 = st.columns(4)
+                    k1.metric("🎯 통합 청산 승률", f"{overall_win_rate:.1f}%", f"익절 {win_trades_all} / 손절 {loss_trades_all}")
+                    k2.metric("⚔️ 총 투입 요원", f"{total_agent_counter}명", f"총 {total_cycles_all}개 회차 / 대기 {total_active_count}명")
+                    full_launch_pct = (full_launch_cycles_all / total_cycles_all * 100) if total_cycles_all > 0 else 0.0
+                    k3.metric("🔥 최대 요원 풀출력", f"{full_launch_cycles_all}회", f"({full_launch_pct:.1f}%)")
+                    k4.metric("🚀 스노우볼 레벨UP", f"{sum([r.get('level_up_count',0) for r in stock_results.values()])}회", "수익 +10% 축적 시 증액")
 
-                    # 전체 매매 장부 출력
-                    st.markdown("### 📜 멀티 함대 공식 작전 장부")
+                    # 상단 KPI 카드 2열
+                    k5, k6, k7, k8, k9 = st.columns(5)
+                    k5.metric("💵 비상 현금금고", f"{int(total_reserve_cash):,}원", "폭락장 대비 20% 안전예수금")
+                    k6.metric("📈 대기주식 평가금", f"{int(total_active_eval):,}원", f"대기 요원 {total_active_count}명")
+                    k7.metric("💰 누적 실현 순수익", f"+{int(total_net_profit_all):,}원", "매매 실현 순수익")
+                    k8.metric("🚀 포트폴리오 총자산", f"{int(final_portfolio_equity):,}원", "현금+대기주식+코어주식")
+                    k9.metric("🍎 확보 코어주식", f"{total_core_shares}주", f"가치 {int(total_core_eval):,}원")
+
+                    st.markdown("---")
+
+                    # 2. 작전 회차별 요원 동시 투입 분포 현황
+                    st.markdown(f"#### 📊 작전 회차별 요원 동시 투입 분포 현황 (총 {total_cycles_all}개 청산 작전 회차)")
+                    agent_dist = {1:0, 2:0, 3:0, 4:0, 5:0}
+                    for cnt in all_batch_agent_counts:
+                        if cnt in agent_dist: agent_dist[cnt] += 1
+                    
+                    d_cols = st.columns(max_agents_input)
+                    for a_num in range(1, max_agents_input + 1):
+                        cnt = agent_dist.get(a_num, 0)
+                        pct = (cnt / total_cycles_all * 100) if total_cycles_all > 0 else 0.0
+                        with d_cols[a_num - 1]:
+                            st.markdown(f"""
+                            <div style="background:white; border-left:4px solid #3498db; padding:10px; border-radius:6px; border:1px solid #d5dbdf; text-align:center;">
+                                <div style="font-size:11px; color:#7f8c8d; font-weight:bold;">{a_num}명 투입</div>
+                                <div style="font-size:16px; font-weight:900; color:#2c3e50; margin-top:2px;">{cnt}회 <span style="font-size:11px; font-weight:normal;">({pct:.1f}%)</span></div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    st.markdown("")
+
+                    # 3. 현재 파견 대기 중인 요원 실시간 현황판
+                    st.markdown(f"#### 🕵️ [현재 파견 대기 중인 요원 실시간 현황판] (총 {len(all_active_positions)}명 대기 중)")
+                    if len(all_active_positions) > 0:
+                        st.dataframe(pd.DataFrame(all_active_positions), use_container_width=True, hide_index=True)
+                    else:
+                        st.success("현재 장 마감 기준 현장에 파견되어 대기 중인 요원이 없습니다 (모두 성공 복귀 완료).")
+
+                    st.markdown("")
+
+                    # 4. 종목별 독립 성과 분석
+                    st.markdown("#### 🔍 [종목별 독립 성과 분석] 어떤 주식이 어떻게 움직였나?")
+                    s_cols = st.columns(len(stock_results))
+                    for idx, (t_code, res) in enumerate(stock_results.items()):
+                        with s_cols[idx]:
+                            st.markdown(f"""
+                            <div style="background:white; border:1px solid #d5dbdf; border-top:4px solid #2980b9; padding:12px; border-radius:6px;">
+                                <div style="font-weight:bold; color:#2980b9; font-size:14px; margin-bottom:6px;">{res['name']} ({t_code})</div>
+                                <div style="font-size:12px; color:#555; line-height:1.5;">
+                                    • 승률: <b>{res['win_rate']:.1f}%</b> (익절 {res['win_trades']} / 손절 {res['loss_trades']})<br>
+                                    • 실현 순익: <b style="color:#c0392b;">+{int(res['net_profit']):,}원</b><br>
+                                    • 최종 평가자산: <b>{int(res['final_equity']):,}원</b><br>
+                                    • 현금금고 / 코어: {int(res['reserve_cash']):,}원 / {res['core_shares']}주<br>
+                                    • 현재 대기요원: <b style="color:#2980b9;">{res['active_count']}명</b>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    st.markdown("---")
+
+                    # 5. 플롯리 인터랙티브 자산 비교 차트
+                    st.markdown("#### 📈 [전략 및 시장 비교] 오토파일럿 함대 vs 현금 vs KOSPI·KOSDAQ")
+                    x_dates = [d.strftime('%Y-%m-%d') for d in combined_equity_df.index]
+                    fig_chart = go.Figure()
+                    fig_chart.add_trace(go.Scatter(x=x_dates, y=combined_equity_df['Portfolio_Equity'], mode='lines', name=f'오토파일럿 ({strategy_choice})', line=dict(color='#e74c3c', width=3)))
+                    fig_chart.add_trace(go.Scatter(x=x_dates, y=[total_capital_input]*len(x_dates), mode='lines', name='전액 현금 (Cash)', line=dict(color='#f1c40f', width=1.5, dash='dot')))
+                    
+                    if not bench_df.empty:
+                        try:
+                            bench_clean = bench_df.reindex(combined_equity_df.index).ffill().bfill()
+                            ks_col = '^KS11' if '^KS11' in bench_clean.columns else bench_clean.columns[0]
+                            kq_col = '^KQ11' if '^KQ11' in bench_clean.columns else (bench_clean.columns[1] if len(bench_clean.columns)>1 else ks_col)
+                            
+                            ks_norm = total_capital_input * (bench_clean[ks_col] / bench_clean[ks_col].iloc[0])
+                            kq_norm = total_capital_input * (bench_clean[kq_col] / bench_clean[kq_col].iloc[0])
+                            fig_chart.add_trace(go.Scatter(x=x_dates, y=ks_norm, mode='lines', name='KOSPI 지수', line=dict(color='#2ecc71', width=1.2, dash='dash')))
+                            fig_chart.add_trace(go.Scatter(x=x_dates, y=kq_norm, mode='lines', name='KOSDAQ 지수', line=dict(color='#9b59b6', width=1.2, dash='dash')))
+                        except Exception:
+                            pass
+
+                    fig_chart.update_layout(height=450, template="plotly_white", margin=dict(l=10, r=10, t=30, b=10), hovermode="x unified")
+                    st.plotly_chart(fig_chart, use_container_width=True)
+
+                    st.markdown("---")
+
+                    # 6. 전체 매매 장부 및 다운로드
+                    st.markdown("### 📜 멀티 함대 통합 전체 매매 장부 (한국식 스마트 컬러 적용)")
                     if all_matched_trades:
                         df_trades = pd.DataFrame([{k: v for k, v in t.items() if k not in ['is_win', 'raw_profit', 'exit_date']} for t in all_matched_trades])
                         st.dataframe(style_trade_df(df_trades), use_container_width=True)
@@ -518,11 +548,11 @@ else:
                         st.download_button(
                             label="📥 엑셀(CSV) 공식 작전 장부 다운로드 (메타데이터 포함)",
                             data=csv_data,
-                            file_name=f"과수원사령부_장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            file_name=f"박가이버사령부_V10.12_공식작전장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                             mime="text/csv"
                         )
                     else:
-                        st.info("청산된 거래 내역이 없습니다.")
+                        st.info("청산된 매매 기록이 없습니다.")
 
                 except Exception as e:
                     st.error(f"❌ 시뮬레이션 중 에러 발생: {e}")
