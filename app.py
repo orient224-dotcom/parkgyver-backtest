@@ -57,7 +57,7 @@ def style_trade_df(df):
     return df.style.apply(apply_row_style, axis=1)
 
 # --- 1. 페이지 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.13", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.14", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -108,7 +108,7 @@ def format_money(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.13")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.14")
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     [
@@ -209,13 +209,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
         st.warning("⚠️ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 종목을 골라주세요.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (연도별 운영 내용 포함 풀버전)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (미출격 기회 추적기 포함)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.13 연도별 작전 보고서 추가)</div>
-        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산 + 3단 분배 + 연도별 작전 운영 내용 종합 보고서 패키지</div>
+        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.14 미출격 기회 추적기 장착)</div>
+        <div class="hero-subtitle">멀티 함대 분산 + 동반 청산 + 연도별 보고서 + 자금/슬롯 부족 미출격 기회 분석 패키지</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -247,7 +247,7 @@ else:
         if not PORTFOLIO_UNIVERSE:
             st.error("❌ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 연도별 작전 운영 내용을 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 미출격 기회 및 백테스트 연산을 수행 중입니다..."):
                 try:
                     end_dt = datetime.datetime.today()
                     start_dt = end_dt - relativedelta(years=years_input + 1)
@@ -272,8 +272,8 @@ else:
                     all_batch_agent_counts = []
                     total_agent_counter, total_fees_paid_all = 0, 0.0
 
-                    # 🌟 연도별 작전 운영 내용 통계 저장 딕셔너리
                     yearly_operations = {}
+                    missed_opportunities = [] # 🌟 [신규] 미출격 기회 추적 리스트
 
                     for s_name, t_code in PORTFOLIO_UNIVERSE.items():
                         if t_code not in close_df.columns: continue
@@ -367,12 +367,9 @@ else:
                                     else:
                                         reinvest_amt = profit_krw
 
-                                    # 연도별 작전 운영 내용 데이터 누적
                                     is_win = profit_krw >= 0
-                                    if is_win:
-                                        yearly_operations[year_key]['success'] += 1
-                                    else:
-                                        yearly_operations[year_key]['stop'] += 1
+                                    if is_win: yearly_operations[year_key]['success'] += 1
+                                    else: yearly_operations[year_key]['stop'] += 1
                                     yearly_operations[year_key]['net_profit'] += profit_krw
                                     yearly_operations[year_key]['fees'] += trade_fee_total
                                     yearly_operations[year_key]['core_acquired'] += acquired_c
@@ -408,17 +405,24 @@ else:
                                 matched_trades.extend(current_batch_trades)
                                 positions = []
 
-                            if daily_ret <= -float(buy_cond_input) and len(positions) < max_agents_input:
-                                agent_counter += 1
-                                total_agent_counter += 1
-                                scale_ratio = current_capital / capital_per_stock if "균등 배분" not in strategy_choice else 1.0
-                                agent_budget = int((capital_per_stock // max_agents_input) * scale_ratio)
-                                shares = max(int(agent_budget // close), 1)
+                            # 🌟 진입 조건 체크 및 미출격 기회 로깅
+                            if daily_ret <= -float(buy_cond_input):
+                                if len(positions) >= max_agents_input:
+                                    missed_opportunities.append({
+                                        '발생 일자': date_str, '작전구역': s_name, '당일 하락률': f"{daily_ret:+.2f}%",
+                                        '불가 사유': f"종목당 최대 요원 슬롯({max_agents_input}명) 풀가동 중"
+                                    })
+                                else:
+                                    agent_counter += 1
+                                    total_agent_counter += 1
+                                    scale_ratio = current_capital / capital_per_stock if "균등 배분" not in strategy_choice else 1.0
+                                    agent_budget = int((capital_per_stock // max_agents_input) * scale_ratio)
+                                    shares = max(int(agent_budget // close), 1)
 
-                                positions.append({
-                                    'name': f"{agent_counter}호 요원", 'entry_price': close,
-                                    'entry_date': date_str, 'entry_return': daily_ret, 'shares': shares
-                                })
+                                    positions.append({
+                                        'name': f"{agent_counter}호 요원", 'entry_price': close,
+                                        'entry_date': date_str, 'entry_return': daily_ret, 'shares': shares
+                                    })
 
                             active_eval = sum(p['shares'] * close for p in positions)
                             core_eval = core_shares * close
@@ -490,31 +494,23 @@ else:
 
                     st.markdown("---")
 
-                    # =========================================================
-                    # 📅 [신규 추가] 연도별 작전 운영 내용 종합 보고서 섹션
-                    # =========================================================
+                    # 연도별 작전 운영 내용 보고서
                     st.markdown("### 📅 연도별 작전 운영 내용 종합 보고서")
-                    st.caption("각 연도별 함대 교전 횟수, 익절/손절 성과, 실현 순익 및 수수료, 과수원 적립 현황을 입체적으로 분석합니다.")
-
                     yearly_summary_rows = []
                     for yr in sorted(yearly_operations.keys()):
                         y_data = yearly_operations[yr]
                         y_trades = y_data['success'] + y_data['stop']
                         y_win_rate = (y_data['success'] / y_trades * 100) if y_trades > 0 else 0.0
                         yearly_summary_rows.append({
-                            '연도': f"{yr}년",
-                            '총 교전횟수': f"{y_trades}회",
+                            '연도': f"{yr}년", '총 교전횟수': f"{y_trades}회",
                             '승률': f"{y_win_rate:.1f}% (익절 {y_data['success']} / 손절 {y_data['stop']})",
                             '실현 순수익': f"{'+' if y_data['net_profit']>=0 else ''}{int(y_data['net_profit']):,}원",
                             '납부 수수료·세금': f"-{int(y_data['fees']):,}원",
-                            '코어주식 적립': f"{y_data['core_acquired']}주",
-                            '현금금고 적립': f"+{int(y_data['reserve_added']):,}원"
+                            '코어주식 적립': f"{y_data['core_acquired']}주", '현금금고 적립': f"+{int(y_data['reserve_added']):,}원"
                         })
                     
                     if yearly_summary_rows:
                         st.dataframe(pd.DataFrame(yearly_summary_rows), use_container_width=True, hide_index=True)
-                        
-                        # 연도별 상세 확장 카드
                         for yr in sorted(yearly_operations.keys()):
                             y_data = yearly_operations[yr]
                             y_trades = y_data['success'] + y_data['stop']
@@ -523,8 +519,16 @@ else:
                                     st.dataframe(pd.DataFrame([{k: v for k, v in t.items() if k not in ['is_win', 'raw_profit', 'exit_date']} for t in y_data['trades_list']]), use_container_width=True, hide_index=True)
                                 else:
                                     st.info(f"{yr}년도에 청산된 거래 내역이 없습니다.")
+
+                    st.markdown("---")
+
+                    # 🌟 [신규 추가] 미출격 기회 리포트 탭/섹션
+                    st.markdown(f"### 📂 미출격 기회 분석 리포트 (총 {len(missed_opportunities)}건 포착)")
+                    st.caption("급락(-5% 이하) 타점이 포착되었으나, 요원 슬롯(최대 수)이 풀가동 상태여서 아쉽게 진입하지 못한 기회들입니다.")
+                    if missed_opportunities:
+                        st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
                     else:
-                        st.info("연도별 작전 데이터가 없습니다.")
+                        st.success("🎉 아쉽게 놓친 미출격 기회가 없습니다! 모든 급락 타점에 요원들이 완벽하게 투입되었습니다.")
 
                     st.markdown("---")
 
