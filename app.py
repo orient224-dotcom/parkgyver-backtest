@@ -287,8 +287,8 @@ else:
     stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1)
 
     st.sidebar.subheader("💸 실전 수수료 및 세금 설정")
-    buy_fee_pct = (st.sidebar.number_input("📉 매수 수수료 (%)", value=0.015, format="%.3f") / 100.0)
-    sell_tax_pct = (st.sidebar.number_input("📈 매도 세금+수수료 (%)", value=0.20, format="%.2f") / 100.0)
+    buy_fee_rate = (st.sidebar.number_input("📉 매수 수수료 (%)", value=0.015, format="%.3f") / 100.0)
+    sell_tax_rate = (st.sidebar.number_input("📈 매도 세금+수수료 (%)", value=0.20, format="%.2f") / 100.0)
 
     run_btn = st.sidebar.button("🚀 3단 과수원 백테스트 가동!", type="primary", use_container_width=True)
 
@@ -381,7 +381,7 @@ else:
                                 for pos in positions:
                                     shares = pos['shares']
                                     buy_gross = shares * pos['entry_price']
-                                    buy_fee = buy_gross * buy_fee_pct
+                                    buy_fee = buy_gross * buy_fee_rate
                                     buy_net = buy_gross + buy_fee
                                     
                                     sell_gross = shares * close
