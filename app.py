@@ -121,7 +121,7 @@ menu_choice = st.sidebar.radio(
 st.sidebar.markdown("---")
 
 # =====================================================================
-# 🗄️ 메뉴 1: 내 계좌 영구 DB
+# 🗄️ 메뉴 1: 내 계좌 영구 DB (안전 필터링 적용)
 # =====================================================================
 if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
@@ -132,14 +132,18 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     """, unsafe_allow_html=True)
 
     db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력 함대)", "⭐ 눈여겨보는 관심 종목"])
+    
     with db_tab1:
-        new_holdings = st.multiselect("실전 보유 종목 편집 (초성 검색 지원):", options=list(MASTER_STOCK_DICT.keys()), default=st.session_state["my_holdings"], format_func=format_stock_option)
+        valid_default_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
+        new_holdings = st.multiselect("실전 보유 종목 편집 (초성 검색 지원):", options=list(MASTER_STOCK_DICT.keys()), default=valid_default_holdings, format_func=format_stock_option)
         if st.button("💾 보유 종목 DB 저장", type="primary", use_container_width=True):
             st.session_state["my_holdings"] = new_holdings
             st.success("🎉 저장 완료!")
             st.rerun()
+            
     with db_tab2:
-        new_watchlist = st.multiselect("관심 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=st.session_state["my_watchlist"], format_func=format_stock_option)
+        valid_default_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
+        new_watchlist = st.multiselect("관심 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=valid_default_watchlist, format_func=format_stock_option)
         if st.button("💾 관심 종목 DB 저장", use_container_width=True):
             st.session_state["my_watchlist"] = new_watchlist
             st.success("🎉 저장 완료!")
@@ -205,7 +209,7 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
         st.warning("⚠️ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 종목을 골라주세요.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (풀버전 대시보드 완벽 이식)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (풀버전 대시보드)
 # =====================================================================
 else:
     st.markdown("""
@@ -436,9 +440,7 @@ else:
                     total_active_eval = sum([res['active_eval'] for res in stock_results.values()])
                     total_active_count = sum([res['active_count'] for res in stock_results.values()])
 
-                    # =========================================================
-                    # 📊 풀버전 대시보드 화면 렌더링 (콜백 경험 완벽 재현)
-                    # =========================================================
+                    # 화면 렌더링
                     st.markdown(f"""
                     <div style="background:#e8f8f5; border:2px solid #1abc9c; padding:15px; border-radius:10px; margin-bottom:20px;">
                         <h3 style="margin:0; color:#117a65;">🏆 [3단 밸런스 과수원] 백테스트 대시보드 풀패키지 가동 완료!</h3>
@@ -446,7 +448,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # 1. 상단 KPI 카드 1열
                     k1, k2, k3, k4 = st.columns(4)
                     k1.metric("🎯 통합 청산 승률", f"{overall_win_rate:.1f}%", f"익절 {win_trades_all} / 손절 {loss_trades_all}")
                     k2.metric("⚔️ 총 투입 요원", f"{total_agent_counter}명", f"총 {total_cycles_all}개 회차 / 대기 {total_active_count}명")
@@ -454,7 +455,6 @@ else:
                     k3.metric("🔥 최대 요원 풀출력", f"{full_launch_cycles_all}회", f"({full_launch_pct:.1f}%)")
                     k4.metric("🚀 스노우볼 레벨UP", f"{sum([r.get('level_up_count',0) for r in stock_results.values()])}회", "수익 +10% 축적 시 증액")
 
-                    # 상단 KPI 카드 2열
                     k5, k6, k7, k8, k9 = st.columns(5)
                     k5.metric("💵 비상 현금금고", f"{int(total_reserve_cash):,}원", "폭락장 대비 20% 안전예수금")
                     k6.metric("📈 대기주식 평가금", f"{int(total_active_eval):,}원", f"대기 요원 {total_active_count}명")
@@ -464,7 +464,6 @@ else:
 
                     st.markdown("---")
 
-                    # 2. 작전 회차별 요원 동시 투입 분포 현황
                     st.markdown(f"#### 📊 작전 회차별 요원 동시 투입 분포 현황 (총 {total_cycles_all}개 청산 작전 회차)")
                     agent_dist = {1:0, 2:0, 3:0, 4:0, 5:0}
                     for cnt in all_batch_agent_counts:
@@ -483,8 +482,6 @@ else:
                             """, unsafe_allow_html=True)
 
                     st.markdown("")
-
-                    # 3. 현재 파견 대기 중인 요원 실시간 현황판
                     st.markdown(f"#### 🕵️ [현재 파견 대기 중인 요원 실시간 현황판] (총 {len(all_active_positions)}명 대기 중)")
                     if len(all_active_positions) > 0:
                         st.dataframe(pd.DataFrame(all_active_positions), use_container_width=True, hide_index=True)
@@ -492,8 +489,6 @@ else:
                         st.success("현재 장 마감 기준 현장에 파견되어 대기 중인 요원이 없습니다 (모두 성공 복귀 완료).")
 
                     st.markdown("")
-
-                    # 4. 종목별 독립 성과 분석
                     st.markdown("#### 🔍 [종목별 독립 성과 분석] 어떤 주식이 어떻게 움직였나?")
                     s_cols = st.columns(len(stock_results))
                     for idx, (t_code, res) in enumerate(stock_results.items()):
@@ -512,8 +507,6 @@ else:
                             """, unsafe_allow_html=True)
 
                     st.markdown("---")
-
-                    # 5. 플롯리 인터랙티브 자산 비교 차트
                     st.markdown("#### 📈 [전략 및 시장 비교] 오토파일럿 함대 vs 현금 vs KOSPI·KOSDAQ")
                     x_dates = [d.strftime('%Y-%m-%d') for d in combined_equity_df.index]
                     fig_chart = go.Figure()
@@ -537,8 +530,6 @@ else:
                     st.plotly_chart(fig_chart, use_container_width=True)
 
                     st.markdown("---")
-
-                    # 6. 전체 매매 장부 및 다운로드
                     st.markdown("### 📜 멀티 함대 통합 전체 매매 장부 (한국식 스마트 컬러 적용)")
                     if all_matched_trades:
                         df_trades = pd.DataFrame([{k: v for k, v in t.items() if k not in ['is_win', 'raw_profit', 'exit_date']} for t in all_matched_trades])
