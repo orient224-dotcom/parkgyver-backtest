@@ -44,13 +44,16 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# 🌟 [신규 장착] 매매장부 행별 컬러 음영 스타일러 함수
+# 🌟 [업그레이드] 스노우볼 레벨업 상태가 반영된 스마트 컬러 음영 스타일러 함수
 def style_trade_df(df):
     def apply_row_style(row):
         ret_val = str(row.get('순수익률', ''))
         reason = str(row.get('구분', ''))
+        snow_level = str(row.get('스노우볼 레벨', ''))
         
-        if '특별 보너스' in reason:
+        if '레벨UP' in snow_level:
+            return ['background-color: #fef08a; color: #854d0e; font-weight: bold;'] * len(row) # 골드 옐로우 (스노우볼 레벨업 순간!)
+        elif '특별 보너스' in reason:
             return ['background-color: #eff6ff; color: #1d4ed8; font-weight: bold;'] * len(row) # 연파랑 (배당금)
         elif '강제 철수' in reason or '-' in ret_val:
             return ['background-color: #fee2e2; color: #991b1b; font-weight: bold;'] * len(row) # 연분홍/빨강 (손절)
@@ -64,7 +67,7 @@ def style_trade_df(df):
     return df.style.apply(apply_row_style, axis=1)
 
 # --- 1. 페이지 웹 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.9", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.10", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -134,7 +137,7 @@ st.markdown("""
     .metric-card.card-green { border-left: 6px solid #10b981; }
     .metric-card.card-blue { border-left: 6px solid #2563eb; }
     .metric-card.card-red { border-left: 6px solid #ef4444; }
-    .metric-card.card-yellow { border-left: 6px solid #f59e0b; }
+    .metric-card.card-yellow { border-left: 6px solid #f59e0b; background-color: #fffbeb; }
     .metric-card.card-orange { border-left: 6px solid #d97706; }
     .metric-card.card-purple { border-left: 6px solid #a855f7; background-color: #faf5ff; border-top: 1px solid #f3e8ff; border-right: 1px solid #f3e8ff; border-bottom: 1px solid #f3e8ff; }
 
@@ -189,7 +192,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.9")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.10")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
@@ -440,8 +443,8 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 백테스트 연구소 (스마트 컬러 음영 장부 V10.9)</div>
-        <div class="hero-subtitle">실전 투입 전 과거 기출문제 풀이 | 알록달록 컬러 음영이 적용된 매매장부로 성과를 한눈에 파악하세요.</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (스노우볼 레벨UP V10.10)</div>
+        <div class="hero-subtitle">실전 검증 | 스노우볼 레벨업(자산 증액 구간) 추적과 스마트 컬러 음영 매매장부를 확인하세요.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -533,7 +536,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 백테스트 및 매매장부 스타일링 데이터를 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 스노우볼 레벨업 및 백테스트 데이터를 안전하게 가동 중입니다..."):
                 try:
                     end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
@@ -602,6 +605,11 @@ else:
                     peak_asset_value = float(total_capital_input)
                     max_drawdown_pct = 0.0
 
+                    # 🌟 스노우볼 레벨업 추적 변수 (수익 +10% 축적 시마다 레벨UP)
+                    current_snow_level = 1
+                    last_level_threshold_asset = float(total_capital_input)
+                    level_up_events_count = 0
+
                     for date, row in close_df.iterrows():
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
@@ -633,7 +641,8 @@ else:
                                 '진입일 등락률': '-', '진입금액': '-', '진입단가': '-', '복귀일': date_str,
                                 '청산일 등락률': '-', '청산단가': '-', '매도금액': '-',
                                 '등락폭': '-', '소요기간': '-', '순수익률': '-',
-                                '정산내역': f"🍯 꿀 수입: +{format_pure_number(daily_dividend_sum)}원", '구분': '🌟 특별 보너스'
+                                '정산내역': f"🍯 꿀 수입: +{format_pure_number(daily_dividend_sum)}원", '구분': '🌟 특별 보너스',
+                                '스노우볼 레벨': f"Lv.{current_snow_level}"
                             })
                         
                         survived_positions = []
@@ -740,6 +749,17 @@ else:
                                     entry_day_ret = pos.get('entry_day_ret', 0)
                                     exit_day_ret = float(return_df.loc[date, t_code]) if date in return_df.index and t_code in return_df.columns and not pd.isna(return_df.loc[date, t_code]) else 0.0
 
+                                    # 🌟 자산 증가에 따른 스노우볼 레벨업 체크 (+10% 축적 시)
+                                    current_total_eval_check = current_cash + sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
+                                    is_level_up = False
+                                    if use_compounding and current_total_eval_check >= last_level_threshold_asset * 1.10:
+                                        current_snow_level += 1
+                                        level_up_events_count += 1
+                                        last_level_threshold_asset = current_total_eval_check
+                                        is_level_up = True
+
+                                    level_display_str = f"🚀 Lv.{current_snow_level} (레벨UP!)" if is_level_up else f"Lv.{current_snow_level}"
+
                                     trade_logs.append({
                                         '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
                                         '진입일 등락률': f"{entry_day_ret:+.2f}%", '진입금액': f"{format_pure_number(pos['invest_amount'])}원",
@@ -747,7 +767,8 @@ else:
                                         '청산일 등락률': f"{exit_day_ret:+.2f}%", '청산단가': format_exact_price(curr_price),
                                         '매도금액': f"{format_pure_number(sell_gross_val)}원", '등락폭': price_change_str,
                                         '소요기간': f"{days_taken}일 소요", '순수익률': f"{net_ret:+.2f}%",
-                                        '정산내역': log_reward, '구분': exit_reason
+                                        '정산내역': log_reward, '구분': exit_reason,
+                                        '스노우볼 레벨': level_display_str
                                     })
                                 else:
                                     survived_positions.append(pos)
@@ -967,12 +988,12 @@ else:
                         </div>
                         """, unsafe_allow_html=True)
                     with row1_col4:
-                        scale_text = f"+{scale_growth_pct:.1f}% 증액" if use_compounding else "단리 고정"
+                        # 🌟 [스노우볼 레벨UP 카드 반영]
                         st.markdown(f"""
                         <div class="metric-card card-yellow">
-                            <div class="metric-label">🚀 스노우볼 레벨UP (1회 예산)</div>
-                            <div class="metric-value">{format_pure_number(final_scale)}원</div>
-                            <div class="metric-sub">초기 예산 대비 {scale_text}</div>
+                            <div class="metric-label">🚀 스노우볼 레벨UP</div>
+                            <div class="metric-value">Lv.{current_snow_level} (레벨UP {level_up_events_count}회)</div>
+                            <div class="metric-sub">수익 +10% 축적 시마다 예산 증액</div>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -1232,11 +1253,11 @@ else:
                             st.success("🎉 현재 현장에 대기 중인 요원이 없습니다! (100% 현금 회수 완료 상태)")
 
                         st.markdown("---")
-                        st.write("### 📜 전체 매매 장부 (스마트 컬러 음영 적용)")
+                        st.write("### 📜 전체 매매 장부 (스노우볼 레벨UP & 스마트 컬러 음영 적용)")
                         if trade_logs:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             
-                            # 🌟 [스마트 컬러 음영 적용된 데이터프레임 출력]
+                            # 🌟 [스노우볼 레벨업 음영 스타일러 적용]
                             styled_logs_df = style_trade_df(logs_df)
                             st.dataframe(styled_logs_df, use_container_width=True)
                             
@@ -1263,7 +1284,7 @@ else:
                                 label="📥 엑셀(CSV) 매매장부 다운로드 (설정 조건 메타데이터 포함)",
                                 data=full_csv_content.encode('utf-8-sig'),
                                 file_name=f"당귀다TV_매매장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                                mime="text/csv",
+                                mime="text/css",
                             )
 
                 except Exception as e:
