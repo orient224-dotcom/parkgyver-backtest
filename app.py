@@ -44,7 +44,7 @@ def clean_date_index(obj):
             dt = dt.tz_convert(None)
         return dt.normalize()
 
-# 🌟 [업그레이드] 스노우볼 레벨업 상태가 반영된 스마트 컬러 음영 스타일러 함수
+# 🌟 매매장부 스마트 컬러 음영 스타일러 함수
 def style_trade_df(df):
     def apply_row_style(row):
         ret_val = str(row.get('순수익률', ''))
@@ -52,56 +52,39 @@ def style_trade_df(df):
         snow_level = str(row.get('스노우볼 레벨', ''))
         
         if '레벨UP' in snow_level:
-            return ['background-color: #fef08a; color: #854d0e; font-weight: bold;'] * len(row) # 골드 옐로우 (스노우볼 레벨업 순간!)
+            return ['background-color: #fef08a; color: #854d0e; font-weight: bold;'] * len(row)
         elif '특별 보너스' in reason:
-            return ['background-color: #eff6ff; color: #1d4ed8; font-weight: bold;'] * len(row) # 연파랑 (배당금)
+            return ['background-color: #eff6ff; color: #1d4ed8; font-weight: bold;'] * len(row)
         elif '강제 철수' in reason or '-' in ret_val:
-            return ['background-color: #fee2e2; color: #991b1b; font-weight: bold;'] * len(row) # 연분홍/빨강 (손절)
+            return ['background-color: #fee2e2; color: #991b1b; font-weight: bold;'] * len(row)
         elif '타임 컷' in reason:
-            return ['background-color: #fff7ed; color: #c2410c; font-weight: bold;'] * len(row) # 연주황 (타임컷)
+            return ['background-color: #fff7ed; color: #c2410c; font-weight: bold;'] * len(row)
         elif '+' in ret_val or '정상 복귀' in reason or '추세연장' in reason:
-            return ['background-color: #dcfce7; color: #166534; font-weight: bold;'] * len(row) # 연초록 (익절)
+            return ['background-color: #dcfce7; color: #166534; font-weight: bold;'] * len(row)
         else:
             return [''] * len(row)
             
     return df.style.apply(apply_row_style, axis=1)
 
 # --- 1. 페이지 웹 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.10", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.11", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
     .stApp { background-color: #f8fafc; }
     
     .algo-spec-container {
-        background-color: #ffffff;
-        border: 1px solid #cbd5e1;
-        border-radius: 14px;
-        padding: 18px 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 14px;
+        padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
     }
     .algo-spec-header {
-        font-size: 1.1rem;
-        font-weight: 800;
-        color: #0f172a;
-        margin-bottom: 14px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+        font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-bottom: 14px;
+        display: flex; align-items: center; gap: 6px;
     }
-    .algo-grid {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-    }
+    .algo-grid { display: flex; gap: 12px; flex-wrap: wrap; }
     .algo-card {
-        flex: 1;
-        min-width: 280px;
-        background-color: #f8fafc;
-        border-radius: 10px;
-        padding: 14px 16px;
-        border: 1px solid #e2e8f0;
+        flex: 1; min-width: 280px; background-color: #f8fafc; border-radius: 10px;
+        padding: 14px 16px; border: 1px solid #e2e8f0;
     }
     .algo-card.card-1 { border-left: 6px solid #ef4444; }
     .algo-card.card-2 { border-left: 6px solid #f59e0b; }
@@ -116,16 +99,15 @@ st.markdown("""
     .algo-card-desc { font-size: 0.85rem; color: #475569; line-height: 1.45; font-weight: 500; }
 
     .weather-card {
-        background-color: #fffef2;
-        border: 2px solid #f59e0b;
-        border-radius: 14px;
-        padding: 16px 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
+        background-color: #fffef2; border: 2px solid #f59e0b; border-radius: 14px;
+        padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
     }
     .weather-title { font-size: 1.1rem; font-weight: 800; color: #92400e; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
     .weather-box-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-    .weather-pill { background-color: #ffffff; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 14px; font-size: 0.9rem; font-weight: 700; color: #78350f; flex: 1; min-width: 260px; }
+    .weather-pill {
+        background-color: #ffffff; border: 1px solid #fcd34d; border-radius: 8px;
+        padding: 8px 14px; font-size: 0.9rem; font-weight: 700; color: #78350f; flex: 1; min-width: 260px;
+    }
     .weather-divider { border-top: 1px dashed #f59e0b; margin: 12px 0; }
     .weather-status-text { font-size: 0.88rem; color: #451a03; font-weight: 600; }
 
@@ -145,7 +127,11 @@ st.markdown("""
     .metric-value { font-size: 1.35rem; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
     .metric-sub { font-size: 0.78rem; color: #64748b; font-weight: 600; }
 
-    .hero-banner { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 20px; border-radius: 14px; color: #ffffff; border-left: 6px solid #38bdf8; box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.2); margin-bottom: 20px; }
+    .hero-banner {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 20px;
+        border-radius: 14px; color: #ffffff; border-left: 6px solid #38bdf8;
+        box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.2); margin-bottom: 20px;
+    }
     .hero-title { font-size: 1.45rem; font-weight: 900; margin: 0; color: #f8fafc; }
     .hero-subtitle { font-size: 0.88rem; color: #94a3b8; margin-top: 4px; }
 </style>
@@ -192,7 +178,7 @@ def format_exact_price(num):
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.10")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.11")
 
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
@@ -443,8 +429,8 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 과거 백테스트 연구소 (스노우볼 레벨UP V10.10)</div>
-        <div class="hero-subtitle">실전 검증 | 스노우볼 레벨업(자산 증액 구간) 추적과 스마트 컬러 음영 매매장부를 확인하세요.</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (은퇴 설계 월별 정산 V10.11)</div>
+        <div class="hero-subtitle">은퇴 현금 흐름 분석 | 연도별 총 투입횟수 및 월별 정산 종합표가 완벽하게 연동됩니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -536,7 +522,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 먼저 세팅해 주세요!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 스노우볼 레벨업 및 백테스트 데이터를 안전하게 가동 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 은퇴 설계 연도별/월별 정산 데이터를 가동 중입니다..."):
                 try:
                     end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                     start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
@@ -593,6 +579,7 @@ else:
                     agent_counter = 0
 
                     yearly_stats = {}
+                    monthly_stats = {} # 🌟 [신규] 월별 정산 통계 딕셔너리 (YYYY-MM 기준)
                     free_shares_dict = {s_name: 0 for s_name in PORTFOLIO_UNIVERSE.keys()}
                     stock_win_stats = {s_name: {'success': 0, 'stop': 0, 'profit_gain': 0, 'loss_cost': 0} for s_name in PORTFOLIO_UNIVERSE.keys()}
 
@@ -605,7 +592,6 @@ else:
                     peak_asset_value = float(total_capital_input)
                     max_drawdown_pct = 0.0
 
-                    # 🌟 스노우볼 레벨업 추적 변수 (수익 +10% 축적 시마다 레벨UP)
                     current_snow_level = 1
                     last_level_threshold_asset = float(total_capital_input)
                     level_up_events_count = 0
@@ -613,8 +599,12 @@ else:
                     for date, row in close_df.iterrows():
                         date_str = date.strftime('%Y-%m-%d')
                         year = date.year
+                        month_key = date.strftime('%Y-%m') # 🌟 월별 키 (예: 2026-07)
+                        
                         if year not in yearly_stats:
                             yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0, 'stock_fruits': {}}
+                        if month_key not in monthly_stats:
+                            monthly_stats[month_key] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0}
                         
                         daily_dividend_sum = 0
                         if date in div_df.index:
@@ -636,6 +626,7 @@ else:
                         if daily_dividend_sum > 0:
                             current_cash += daily_dividend_sum
                             total_dividend_profit += daily_dividend_sum
+                            monthly_stats[month_key]['cash'] += daily_dividend_sum
                             trade_logs.append({
                                 '요원': '시스템', '작전 구역': '배당금(꿀) 수금', '출격일': date_str,
                                 '진입일 등락률': '-', '진입금액': '-', '진입단가': '-', '복귀일': date_str,
@@ -701,6 +692,7 @@ else:
                                     if gross_ret >= sell_target or net_profit > 0:
                                         total_success += 1
                                         yearly_stats[year]['success'] += 1
+                                        monthly_stats[month_key]['success'] += 1 # 월별 익절 누적
                                         stock_win_stats[s_name]['success'] += 1
                                         stock_win_stats[s_name]['profit_gain'] += net_profit
                                         
@@ -724,6 +716,7 @@ else:
                                     else:
                                         total_stop_loss += 1
                                         yearly_stats[year]['stop'] += 1
+                                        monthly_stats[month_key]['stop'] += 1 # 월별 손절 누적
                                         stock_win_stats[s_name]['stop'] += 1
                                         stock_win_stats[s_name]['loss_cost'] += net_profit
                                         buyable, leftover = 0, net_profit
@@ -736,6 +729,9 @@ else:
                                     yearly_stats[year]['cash'] += leftover
                                     yearly_stats[year]['share_val'] += (buyable * curr_price)
                                     
+                                    monthly_stats[month_key]['shares'] += buyable
+                                    monthly_stats[month_key]['cash'] += leftover
+
                                     if buyable > 0:
                                         if s_name not in yearly_stats[year]['stock_fruits']:
                                             yearly_stats[year]['stock_fruits'][s_name] = {'shares': 0, 'value': 0}
@@ -749,7 +745,6 @@ else:
                                     entry_day_ret = pos.get('entry_day_ret', 0)
                                     exit_day_ret = float(return_df.loc[date, t_code]) if date in return_df.index and t_code in return_df.columns and not pd.isna(return_df.loc[date, t_code]) else 0.0
 
-                                    # 🌟 자산 증가에 따른 스노우볼 레벨업 체크 (+10% 축적 시)
                                     current_total_eval_check = current_cash + sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
                                     is_level_up = False
                                     if use_compounding and current_total_eval_check >= last_level_threshold_asset * 1.10:
@@ -988,7 +983,6 @@ else:
                         </div>
                         """, unsafe_allow_html=True)
                     with row1_col4:
-                        # 🌟 [스노우볼 레벨UP 카드 반영]
                         st.markdown(f"""
                         <div class="metric-card card-yellow">
                             <div class="metric-label">🚀 스노우볼 레벨UP</div>
@@ -1042,42 +1036,10 @@ else:
                         </div>
                         """, unsafe_allow_html=True)
 
-                    st.markdown("---")
-                    st.markdown("### 📊 벤치마크 시장 지수 대비 수익률 초과 달성 리포트")
-                    b_col1, b_col2, b_col3 = st.columns(3)
-                    b_col1.metric("🛡️ 내 박가이버 작전 수익률", f"{total_return_pct:+.2f}%")
-                    if bench_synced:
-                        b_col2.metric("📉 KOSPI 지수", f"{kospi_ret_pct:+.2f}%", delta=f"지수 대비 {(total_return_pct - kospi_ret_pct):+.2f}%p 초과")
-                        b_col3.metric("📉 KOSDAQ 지수", f"{kosdaq_ret_pct:+.2f}%", delta=f"지수 대비 {(total_return_pct - kosdaq_ret_pct):+.2f}%p 초과")
-                    else:
-                        b_col2.metric("📉 KOSPI 지수", "동기화 대기중")
-                        b_col3.metric("📉 KOSDAQ 지수", "동기화 대기중")
-
-                    if total_free_shares_count > 0:
-                        st.markdown(f"""
-                        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); padding: 16px 20px; border-radius: 12px; border-left: 6px solid #22c55e; margin-top: 15px; margin-bottom: 20px;">
-                            <h4 style="margin-top: 0; color: #166534; font-size: 1.1rem; margin-bottom: 8px;">📦 내 공짜 주식(무위험 자산) 금고 상세 현황</h4>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        fruit_list = []
-                        for s_name, count in free_shares_dict.items():
-                            if count > 0:
-                                t_code = PORTFOLIO_UNIVERSE[s_name]
-                                c_price = float(last_row[t_code]) if t_code in last_row and not pd.isna(last_row[t_code]) else 0
-                                eval_val = count * c_price
-                                fruit_list.append({
-                                    "작전 구역 (종목명)": s_name,
-                                    "공짜주식 보유 수량": f"{count}주",
-                                    "현재 1주 단가": format_exact_price(c_price),
-                                    "현재 공짜주식 평가액": format_money(eval_val)
-                                })
-                        st.dataframe(pd.DataFrame(fruit_list), use_container_width=True, hide_index=True)
-
                     tab1, tab2, tab3, tab4 = st.tabs([
                         "📊 1. 자산 성장 & 복리 스케일업 차트", 
                         "🔍 2. 자금 회전율 & 동시 투입 분포", 
-                        "📈 3. 종목/연도별 손익분석", 
+                        "📈 3. 종목/연도/월별 은퇴 정산", 
                         "📜 4. 현장 투입요원 & 매매장부"
                     ])
 
@@ -1106,7 +1068,6 @@ else:
 
                     with tab2:
                         st.write("### 🔍 자금 회전율 & 요원 동시 투입 분포 리포트")
-                        
                         if daily_deployment_snapshots:
                             snap_df = pd.DataFrame(daily_deployment_snapshots)
                             total_deploy_sessions = len(snap_df)
@@ -1167,38 +1128,38 @@ else:
                         """
                         st.markdown(dist_html, unsafe_allow_html=True)
 
-                        st.warning(f"📊 기간 중 최대 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개)")
-                        if daily_deployment_snapshots:
-                            snap_df = pd.DataFrame(daily_deployment_snapshots)
-                            peak_df = snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자'])
-                            st.write("▼ **역대 최고 자금 몰림(피크) 발생 일자 및 출격 목록:**")
-                            st.dataframe(peak_df, use_container_width=True, hide_index=True)
+                    with tab3:
+                        st.write("### 📅 은퇴 설계 맞춤형 정산 종합표 (연도별 및 월별 현금 흐름)")
+                        
+                        st.markdown("#### 🗓️ 1. 연도별 정산 종합표 (총 투입횟수 추가)")
+                        yearly_summary_list = []
+                        for y, val in sorted(yearly_stats.items()):
+                            total_deploy_cnt = val['success'] + val['stop']
+                            yearly_summary_list.append({
+                                "연도": str(y), 
+                                "🎯 익절": f"{val['success']}회", 
+                                "🚨 손절": f"{val['stop']}회", 
+                                "⚔️ 총 투입횟수": f"{total_deploy_cnt}회", 
+                                "📦 획득 공짜주식": f"{int(val['shares'])}주", 
+                                "💵 현금수익": format_money(val['cash'])
+                            })
+                        st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
 
                         st.markdown("---")
-                        st.write("### 🚫 현금/슬롯/섹터 제한으로 놓쳐버린 출격 타점 추적기")
-                        if missed_opportunities:
-                            st.error(f"🚨 하락 타점이 맞았으나 제한으로 놓친 기회: 총 {len(missed_opportunities)}회")
-                            st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
-                        else:
-                            st.success("🎉 단 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다!")
-
-                    with tab3:
-                        st.write("### 📊 종목 및 연도별 정밀 성적표")
-                        c_col1, c_col2 = st.columns([1.2, 1])
-                        with c_col1:
-                            st.write("#### 🗓️ 연도별 익절 vs 손절 건수 그래프")
-                            yearly_chart_data = []
-                            for y, val in yearly_stats.items():
-                                yearly_chart_data.append({"연도": str(y), "구분": "🎯 익절", "건수": val['success']})
-                                yearly_chart_data.append({"연도": str(y), "구분": "🚨 손절", "건수": val['stop']})
-                            fig_bar = px.bar(pd.DataFrame(yearly_chart_data), x="연도", y="건수", color="구분", barmode="group", color_discrete_map={"🎯 익절": "#22c55e", "🚨 손절": "#ef4444"})
-                            st.plotly_chart(fig_bar, use_container_width=True)
-                        with c_col2:
-                            st.write("#### 🗓️ 연도별 정산 종합표")
-                            yearly_summary_list = []
-                            for y, val in sorted(yearly_stats.items()):
-                                yearly_summary_list.append({"연도": str(y), "🎯 익절": f"{val['success']}회", "🚨 손절": f"{val['stop']}회", "📦 획득 공짜주식": f"{int(val['shares'])}주", "💵 현금수익": format_money(val['cash'])})
-                            st.dataframe(pd.DataFrame(yearly_summary_list), use_container_width=True, hide_index=True)
+                        st.markdown("#### 📅 2. 월별 정산 종합표 (은퇴 현금 흐름 분석)")
+                        monthly_summary_list = []
+                        for m_key in sorted(monthly_stats.keys()):
+                            m_val = monthly_stats[m_key]
+                            m_total_deploy = m_val['success'] + m_val['stop']
+                            monthly_summary_list.append({
+                                "월 (YYYY-MM)": m_key,
+                                "🎯 익절": f"{m_val['success']}회",
+                                "🚨 손절": f"{m_val['stop']}회",
+                                "⚔️ 총 투입횟수": f"{m_total_deploy}회",
+                                "📦 획득 공짜주식": f"{int(m_val['shares'])}주",
+                                "💵 월별 현금수익": format_money(m_val['cash'])
+                            })
+                        st.dataframe(pd.DataFrame(monthly_summary_list), use_container_width=True, hide_index=True)
 
                         st.markdown("---")
                         st.write("#### 📦 종목별 누적 공짜주식 수확 총합계 리포트")
@@ -1257,7 +1218,6 @@ else:
                         if trade_logs:
                             logs_df = pd.DataFrame(list(reversed(trade_logs)))
                             
-                            # 🌟 [스노우볼 레벨업 음영 스타일러 적용]
                             styled_logs_df = style_trade_df(logs_df)
                             st.dataframe(styled_logs_df, use_container_width=True)
                             
@@ -1284,7 +1244,7 @@ else:
                                 label="📥 엑셀(CSV) 매매장부 다운로드 (설정 조건 메타데이터 포함)",
                                 data=full_csv_content.encode('utf-8-sig'),
                                 file_name=f"당귀다TV_매매장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                                mime="text/css",
+                                mime="text/csv",
                             )
 
                 except Exception as e:
