@@ -298,8 +298,9 @@ if run_btn or 'calculated' in st.session_state:
                     'pnl_val': pnl_p, 'pnl_pct': pnl_pct
                 })
 
-            df_stock_eq = pd.DataFrame(daily_log).set_index('Date')
-            combined_equity_df[s_name] = df_stock_eq['Stock_Equity']
+            if daily_log:
+                df_stock_eq = pd.DataFrame(daily_log).set_index('Date')
+                combined_equity_df[s_name] = df_stock_eq['Stock_Equity']
 
             final_close_price = float(df['Close'].iloc[-1])
             stock_results[ticker] = {
@@ -310,14 +311,14 @@ if run_btn or 'calculated' in st.session_state:
                 'core_eval': core_shares * final_close_price,
                 'active_eval': sum(p['shares'] * final_close_price for p in positions),
                 'active_count': len(positions),
-                'final_equity': combined_equity_df[s_name].iloc[-1] if not combined_equity_df.empty else s_capital,
+                'final_equity': df_stock_eq['Stock_Equity'].iloc[-1] if 'df_stock_eq' in locals() and not df_stock_eq.empty else s_capital,
                 'total_cycles': total_cycles, 'full_launch_cycles': full_launch_cycles,
                 'level_up_count': level_up_count, 'step_down_count': step_down_count,
                 'total_fees': stock_total_fees, 'matched_trades': matched_trades
             }
             all_matched_trades.extend(matched_trades)
 
-        combined_equity_df = combined_equity_df.dropna()
+        combined_equity_df = combined_equity_df.ffill().bfill().dropna()
         combined_equity_df['Portfolio_Equity'] = combined_equity_df.sum(axis=1)
 
         portfolio_eq = combined_equity_df['Portfolio_Equity']
@@ -395,8 +396,8 @@ if run_btn or 'calculated' in st.session_state:
         # --- 4. 대시보드 UI 출력 ---
         st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>🎛️ [박가이버 사령부 V10.28 통제실] 전략: {current_strategy_name} ({len(tickers_list)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
-        # 🤖 제미니 분석 보고서 카드
-        st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
+        # 🤖 제미니 분석 보고서 카드 (초기 투자금액/씨드머니 명시 추가 완료!)
+        st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (과수원을 처음 일군 총 씨앗돈)</li><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
 
         # 📖 [복원] 박가이버 사령부 공식 운영 설명서 및 작전 원리 가이드
         with st.expander("📖 [클릭하여 펼치기] 박가이버 사령부 공식 운영 설명서 및 작전 원리 가이드"):
@@ -480,7 +481,7 @@ if run_btn or 'calculated' in st.session_state:
         yearly_html += "</div>"
         st.markdown(yearly_html, unsafe_allow_html=True)
 
-        # --- 🏆 [신규] 장기 체류 요원 TOP 3 경보 순위표 ---
+        # --- 🏆 장기 체류 요원 TOP 3 경보 순위표 ---
         sorted_active_positions = sorted(all_active_positions, key=lambda x: x['holding_days'], reverse=True)
         top3_long_term = sorted_active_positions[:3] if len(sorted_active_positions) >= 3 else sorted_active_positions
 
@@ -497,10 +498,7 @@ if run_btn or 'calculated' in st.session_state:
             active_html += "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:550px;'><thead style='background-color:#ebf5fb;color:#2980b9;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원명</th><th style='padding:6px;border:1px solid #d5dbdf;'>파견일</th><th style='padding:6px;border:1px solid #d5dbdf;'>체류일수</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입단가</th><th style='padding:6px;border:1px solid #d5dbdf;'>수량</th><th style='padding:6px;border:1px solid #d5dbdf;'>현재평가금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>평가손익</th></tr></thead><tbody>"
             for idx_ap, ap in enumerate(all_active_positions, 1):
                 pnl_color = "#c0392b" if ap['is_plus'] else "#2980b9"
-                if ap['holding_days'] >= 30:
-                    row_bg = "#fef9e7" # 연노란색 경고 배경
-                else:
-                    row_bg = "#ffffff"
+                row_bg = "#fef9e7" if ap['holding_days'] >= 30 else "#ffffff"
 
                 active_html += f"<tr style='background-color:{row_bg};'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#7f8c8d;'>{idx_ap}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['작전구역']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['요원명']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['파견일']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['holding_days']}일</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['진입단가']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['수량']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['평가금액']}</td><td style='padding:5px;border:1px solid #eaeded;color:{pnl_color};font-weight:bold;'>{ap['평가손익']}</td></tr>"
             active_html += "</tbody></table></div>"
@@ -536,7 +534,7 @@ if run_btn or 'calculated' in st.session_state:
             text_color = "#c0392b" if t['is_win'] else "#2980b9"
             table_html += f"<tr style='background-color:{row_bg};'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#7f8c8d;'>{idx_t}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{t['요원']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#2980b9;'>{t['작전구역']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['출격일']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['진입일 등락률']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['진입금액']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['매도금액']}</td><td style='padding:5px;border:1px solid #eaeded;color:#c0392b;'>{t['총수수료·세금']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['등락폭']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['소요기간']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['순수익률']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['정산내역']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{t['구분']}</td><td style='padding:5px;border:1px solid #eaeded;color:#d35400;font-weight:bold;'>{t['스노우볼 레벨']}</td></tr>"
 
-        table_html += "tbody></table></div>"
+        table_html += "</tbody></table></div>"
         st.markdown(table_html, unsafe_allow_html=True)
 
         # CSV 다운로드 버튼
