@@ -10,8 +10,12 @@ import io
 # --- 1. 페이지 기본 설정 ---
 st.set_page_config(page_title="박가이버 사령부 V10.21", layout="wide", page_icon="🎛️")
 
+# 원화 금액 정수 깔끔 포맷 함수
 def format_money(num):
-    return f"{int(round(num)):,}"
+    try:
+        return f"{int(round(float(num))):,}"
+    except:
+        return str(num)
 
 # --- 2. 사이드바 조종간 (파라미터 입력) ---
 st.sidebar.title("🎛️ 박가이버 사령부 V10.21")
@@ -400,7 +404,7 @@ if run_btn or 'calculated' in st.session_state:
             yearly_html += "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:450px;'><thead style='background-color:#fef9e7;color:#b7950b;'><tr><th style='padding:6px;border:1px solid #f9e79f;'>연도</th><th style='padding:6px;border:1px solid #f9e79f;'>총 교전횟수</th><th style='padding:6px;border:1px solid #f9e79f;'>익절 / 손절</th><th style='padding:6px;border:1px solid #f9e79f;'>연도별 승률</th><th style='padding:6px;border:1px solid #f9e79f;'>연도별 실현 순수익</th></tr></thead><tbody>"
             for ys in yearly_stats:
                 pnl_col = "#c0392b" if ys['profit'] >= 0 else "#2980b9"
-                yearly_html += f"<tr style='background-color:#fff;'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ys['year']}년</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ys['total']}회</td><td style='padding:5px;border:1px solid #eaeded;'>익절 {ys['wins']} / 손절 {ys['losses']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ys['win_rate']:.1f}%</td><td style='padding:5px;border:1px solid #eaeded;color:{pnl_col};font-weight:bold;'>{'+' if ys['profit'] > 0 else ''}{ys['profit']:,}원</td></tr>"
+                yearly_html += f"<tr style='background-color:#fff;'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ys['year']}년</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ys['total']}회</td><td style='padding:5px;border:1px solid #eaeded;'>익절 {ys['wins']} / 손절 {ys['losses']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ys['win_rate']:.1f}%</td><td style='padding:5px;border:1px solid #eaeded;color:{pnl_col};font-weight:bold;'>{'+' if ys['profit'] > 0 else ''}{format_money(ys['profit'])}원</td></tr>"
             yearly_html += "</tbody></table></div>"
         else:
             yearly_html += "<div style='font-size:11px;color:#7f8c8d;text-align:center;padding:5px;'>기록된 연도별 청산 내역이 없습니다.</div>"
@@ -423,7 +427,7 @@ if run_btn or 'calculated' in st.session_state:
         # 🔍 [복원 3] 종목별 독립 성과 분석 카드
         stock_res_html = "<div style='background:#f8f9fa;border:1px solid #d6dbdf;border-radius:6px;padding:12px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#2c3e50;font-size:13px;'>🔍 [종목별 독립 성과 분석] 어떤 주식이 어떻게 움직였나?</h4><div style='display:flex;flex-wrap:wrap;gap:8px;'>"
         for t_code, res in stock_results.items():
-            stock_res_html += f"<div style='flex:1 1 200px;background:white;border:1px solid #d5dbdf;border-top:4px solid #3498db;padding:10px;border-radius:6px;min-width:180px;'><div style='font-weight:bold;color:#2980b9;font-size:13px;margin-bottom:4px;'>{res['name']} ({t_code})</div><div style='font-size:11px;color:#555;line-height:1.4;'>• 승률: <b>{res['win_rate']:.1f}%</b> (익절 {res['win_trades']} / 손절 {res['loss_trades']})<br>• 실현 순익: <b style='color:#c0392b;'>+{res['net_profit']:,}원</b><br>• 납부 수수료·세금: <b style='color:#c0392b;'>-{res['total_fees']:,}원</b><br>• 최종 평가자산: <b>{res['final_equity']:,}원</b><br>• 현금금고 / 코어: {res['reserve_cash']:,}원 / {res['core_shares']}주</div></div>"
+            stock_res_html += f"<div style='flex:1 1 200px;background:white;border:1px solid #d5dbdf;border-top:4px solid #3498db;padding:10px;border-radius:6px;min-width:180px;'><div style='font-weight:bold;color:#2980b9;font-size:13px;margin-bottom:4px;'>{res['name']} ({t_code})</div><div style='font-size:11px;color:#555;line-height:1.4;'>• 승률: <b>{res['win_rate']:.1f}%</b> (익절 {res['win_trades']} / 손절 {res['loss_trades']})<br>• 실현 순익: <b style='color:#c0392b;'>+{format_money(res['net_profit'])}원</b><br>• 납부 수수료·세금: <b style='color:#c0392b;'>-{format_money(res['total_fees'])}원</b><br>• 최종 평가자산: <b>{format_money(res['final_equity'])}원</b><br>• 현금금고 / 코어: {format_money(res['reserve_cash'])}원 / {res['core_shares']}주</div></div>"
         stock_res_html += "</div></div>"
         st.markdown(stock_res_html, unsafe_allow_html=True)
 
@@ -443,7 +447,7 @@ if run_btn or 'calculated' in st.session_state:
 
         st.line_chart(chart_df)
 
-        # 📜 공식 매매 장부
+        # 📜 공식 매매 장부 (실시간 익절=연분홍 / 손절=연파랑 HTML 표)
         st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.21 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
         
         table_html = "<div style='max-height:400px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:750px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
