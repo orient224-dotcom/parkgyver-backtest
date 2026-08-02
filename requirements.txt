@@ -3,4 +3,4 @@ yfinance
 pandas
 python-dateutil
 plotly
-fonts-nanum
+
