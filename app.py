@@ -331,37 +331,14 @@ if run_btn or 'calculated' in st.session_state:
         start_date_str = combined_equity_df.index[0].strftime('%Y-%m-%d')
         end_date_str = combined_equity_df.index[-1].strftime('%Y-%m-%d')
 
-        # --- 4. 대시보드 UI 출력 (Streamlit HTML Markdown) ---
-        st.markdown(f"""
-        <div style='background: #1b4f72; color: white; padding: 12px 15px; border-radius: 6px; margin-bottom: 15px;'>
-            <h3 style='margin: 0; font-size: 16px;'>🎛️ [박가이버 사령부 V10.21 통제실] 전략: {current_strategy_name} ({len(tickers)}개 종목 / 최근 {years}년)</h3>
-        </div>
-        """, unsafe_allow_html=True)
+        # --- 4. 대시보드 UI 출력 ---
+        st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>🎛️ [박가이버 사령부 V10.21 통제실] 전략: {current_strategy_name} ({len(tickers)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
         # 🤖 제미니 분석 보고서 카드
-        st.markdown(f"""
-        <div style='background: #fef9e7; border: 1px solid #f39c12; border-radius: 6px; padding: 14px; margin-bottom: 15px;'>
-            <h4 style='margin: 0 0 8px 0; color: #b7950b; font-size: 14px; font-weight: bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4>
-            <div style='font-size: 12px; color: #7f8c8d; font-weight: bold; margin-bottom: 6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div>
-            <ul style='margin: 0; padding-left: 18px; font-size: 11px; color: #2c3e50; line-height: 1.6;'>
-                <li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li>
-                <li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li>
-                <li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li>
-                <li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
 
-        # 🚨 종목 자동 진단 & 퇴출/교체 권고 리포트
-        diagnosis_html = """
-        <div style='background: #fff5f5; border: 1px solid #feb2b2; border-radius: 6px; padding: 14px; margin-bottom: 15px;'>
-            <h4 style='margin: 0 0 8px 0; color: #c53030; font-size: 14px; font-weight: bold;'>🚨 [제미니 종목 자동 진단 & 퇴출/교체 권고 리포트]</h4>
-            <div style='font-size: 11px; color: #4a5568; margin-bottom: 10px;'>
-                백테스트 데이터를 실시간 스캔하여 보유 기간(90일 초과), 수익 기여도(5% 미만), 손절 횟수(2회 이상) 기준으로 시든 나무를 자동 진단합니다.
-            </div>
-            <div style='display: flex; flex-wrap: wrap; gap: 8px;'>
-        """
-
+        # 🚨 종목 자동 진단 리포트 (HTML 태그 및 줄바꿈 정리)
+        cards_html = ""
         for t_code, res in stock_results.items():
             s_name = res['name']
             net_p = res['net_profit']
@@ -372,115 +349,30 @@ if run_btn or 'calculated' in st.session_state:
             losses = res['loss_trades']
             
             warns = []
-            if avg_days > 90: warns.append("⏱️ 평균 보유기간 90일 초과 (회전율 저하)")
-            if contrib < 5.0: warns.append("🍱 수익 기여도 5% 미만 (자금 효율 저하)")
+            if avg_days > 90: warns.append("⏱️ 평균 보유기간 90일 초과")
+            if contrib < 5.0: warns.append("🍱 수익 기여도 5% 미만")
             if losses >= 2: warns.append("🚨 손절 2회 이상 발생")
             
             if len(warns) == 0:
-                status_tag = "<span style='background:#c6f6d5; color:#22543d; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;'>🟢 우수 유지</span>"
+                status_tag = "<span style='background:#c6f6d5;color:#22543d;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:10px;'>🟢 우수 유지</span>"
                 border_color = "#38a169"
             elif len(warns) == 1:
-                status_tag = "<span style='background:#fefcbf; color:#744210; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;'>🟡 주의 관찰</span>"
+                status_tag = "<span style='background:#fefcbf;color:#744210;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:10px;'>🟡 주의 관찰</span>"
                 border_color = "#d69e2e"
             else:
-                status_tag = "<span style='background:#fed7d7; color:#9b2c2c; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;'>🔴 퇴출/교체 권고</span>"
+                status_tag = "<span style='background:#fed7d7;color:#9b2c2c;padding:2px 6px;border-radius:4px;font-weight:bold;font-size:10px;'>🔴 퇴출/교체 권고</span>"
                 border_color = "#e53e3e"
                 
-            warn_text = "<br>".join([f"• {w}" for w in warns]) if warns else "• 모든 성과 지표 정상 (과수원 효자 종목)"
+            warn_text = " | ".join(warns) if warns else "• 모든 성과 지표 정상"
             
-            diagnosis_html += f"""
-                <div style='flex: 1 1 210px; background: white; border: 1px solid #e2e8f0; border-top: 4px solid {border_color}; padding: 10px; border-radius: 6px; min-width: 190px;'>
-                    <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;'>
-                        <b style='font-size:12px; color:#2d3748;'>{s_name} ({t_code})</b>
-                        {status_tag}
-                    </div>
-                    <div style='font-size:11px; color:#4a5568; line-height:1.4;'>
-                        {warn_text}<br>
-                        <span style='font-size:10px; color:#718096;'>수익기여: {contrib:.1f}% | 평균소요: {avg_days:.1f}일 | 손절: {losses}회</span>
-                    </div>
-                </div>
-            """
-        diagnosis_html += "</div></div>"
-        st.markdown(diagnosis_html, unsafe_allow_html=True)
+            cards_html += f"<div style='flex:1 1 210px;background:white;border:1px solid #e2e8f0;border-top:4px solid {border_color};padding:10px;border-radius:6px;min-width:190px;'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;'><b style='font-size:12px;color:#2d3748;'>{s_name} ({t_code})</b>{status_tag}</div><div style='font-size:11px;color:#4a5568;line-height:1.4;'>{warn_text}<br><span style='font-size:10px;color:#718096;'>수익기여: {contrib:.1f}% | 평균소요: {avg_days:.1f}일 | 손절: {losses}회</span></div></div>"
 
-        # 📖 펼치기 가이드
-        with st.expander("📖 [클릭하여 펼치기] 박가이버 사령부 공식 운영 설명서 및 작전 원리 가이드"):
-            st.markdown(f"""
-            <b>1. 은퇴 과수원 3단 밸런스 전략의 원리</b><br>
-            - 총 씨드머니의 20%는 코어주식(나무)으로 적립하고, 80%는 비상 현금금고 및 {max_agents}개의 요원 물통으로 배분합니다.<br>
-            - -5% 하락 시 요원이 투입되며(최대 {max_agents}명), 반등 시 익절하여 복리 재투자를 실행합니다.<br><br>
-            <b>2. 지수 대비 초과 수익률(Alpha)의 의미</b><br>
-            - 코스피/코스닥 지수의 단순 보유 상승률 대비 우리 오토파일럿 포트폴리오가 얼마나 우수한 시장 초과 수익률을 창출했는가를 정밀 측정합니다.
-            """, unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#fff5f5;border:1px solid #feb2b2;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#c53030;font-size:14px;font-weight:bold;'>🚨 [제미니 종목 자동 진단 & 퇴출/교체 권고 리포트]</h4><div style='font-size:11px;color:#4a5568;margin-bottom:10px;'>보유 기간(90일 초과), 수익 기여도(5% 미만), 손절 횟수(2회 이상) 기준으로 시든 나무를 자동 진단합니다.</div><div style='display:flex;flex-wrap:wrap;gap:8px;'>{cards_html}</div></div>", unsafe_allow_html=True)
 
         # 상단 KPI 카드 세트 1열 & 2열
-        st.markdown(f"""
-        <div style='display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;'>
-            <div style='flex: 1 1 125px; background: #e8f8f5; padding: 12px; border-radius: 6px; border-left: 5px solid #1abc9c; min-width: 110px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>🎯 통합 청산 승률</span>
-                <div style='font-size: 17px; font-weight: 900; color: #2c3e50; margin: 4px 0;'>{overall_win_rate:.1f}%</div>
-                <span style='font-size: 10px; color: #16a085;'>익절 {win_trades_all} / 손절 {loss_trades_all}</span>
-            </div>
-            <div style='flex: 1 1 125px; background: #ebf5fb; padding: 12px; border-radius: 6px; border-left: 5px solid #3498db; min-width: 110px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>⚔️ 총 투입 요원</span>
-                <div style='font-size: 17px; font-weight: 900; color: #2c3e50; margin: 4px 0;'>{total_agent_counter}명</div>
-                <span style='font-size: 10px; color: #2980b9;'>총 {total_cycles_all}회차 / 대기 {total_active_count}명</span>
-            </div>
-            <div style='flex: 1 1 125px; background: #fdf2e9; padding: 12px; border-radius: 6px; border-left: 5px solid #e67e22; min-width: 110px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>🔥 최대 요원 풀출력</span>
-                <div style='font-size: 17px; font-weight: 900; color: #c0392b; margin: 4px 0;'>{full_launch_cycles_all}회 <span style='font-size:10px;'>({full_launch_pct:.1f}%)</span></div>
-                <span style='font-size: 10px; color: #d35400;'>{max_agents}명 풀가동 비중</span>
-            </div>
-            <div style='flex: 1 1 125px; background: #fadbd8; padding: 12px; border-radius: 6px; border-left: 5px solid #c0392b; min-width: 110px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>📉 최대 낙폭지수 (MDD)</span>
-                <div style='font-size: 17px; font-weight: 900; color: #78281f; margin: 4px 0;'>{max_drawdown:.2f}%</div>
-                <span style='font-size: 9.5px; color: #c0392b; font-weight: bold;'>지수: KOSPI {kospi_mdd:.1f}% | KQ {kosdaq_mdd:.1f}%</span>
-            </div>
-            <div style='flex: 1 1 125px; background: #fef9e7; padding: 12px; border-radius: 6px; border-left: 5px solid #f1c40f; min-width: 110px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>🚀 스노우볼 레벨UP</span>
-                <div style='font-size: 17px; font-weight: 900; color: #d35400; margin: 4px 0;'>{total_level_up}회 <span style='font-size:9px; color:#7f8c8d;'>(다운:{total_step_down})</span></div>
-                <span style='font-size: 10px; color: #b7950b;'>복리 예산 스텝 업</span>
-            </div>
-        </div>
+        st.markdown(f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;'><div style='flex:1 1 125px;background:#e8f8f5;padding:12px;border-radius:6px;border-left:5px solid #1abc9c;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🎯 통합 청산 승률</span><div style='font-size:17px;font-weight:900;color:#2c3e50;margin:4px 0;'>{overall_win_rate:.1f}%</div><span style='font-size:10px;color:#16a085;'>익절 {win_trades_all} / 손절 {loss_trades_all}</span></div><div style='flex:1 1 125px;background:#ebf5fb;padding:12px;border-radius:6px;border-left:5px solid #3498db;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>⚔️ 총 투입 요원</span><div style='font-size:17px;font-weight:900;color:#2c3e50;margin:4px 0;'>{total_agent_counter}명</div><span style='font-size:10px;color:#2980b9;'>총 {total_cycles_all}회차 / 대기 {total_active_count}명</span></div><div style='flex:1 1 125px;background:#fdf2e9;padding:12px;border-radius:6px;border-left:5px solid #e67e22;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🔥 최대 요원 풀출력</span><div style='font-size:17px;font-weight:900;color:#c0392b;margin:4px 0;'>{full_launch_cycles_all}회 <span style='font-size:10px;'>({full_launch_pct:.1f}%)</span></div><span style='font-size:10px;color:#d35400;'>{max_agents}명 풀가동 비중</span></div><div style='flex:1 1 125px;background:#fadbd8;padding:12px;border-radius:6px;border-left:5px solid #c0392b;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>📉 최대 낙폭지수 (MDD)</span><div style='font-size:17px;font-weight:900;color:#78281f;margin:4px 0;'>{max_drawdown:.2f}%</div><span style='font-size:9.5px;color:#c0392b;font-weight:bold;'>지수: KOSPI {kospi_mdd:.1f}% | KQ {kosdaq_mdd:.1f}%</span></div><div style='flex:1 1 125px;background:#fef9e7;padding:12px;border-radius:6px;border-left:5px solid #f1c40f;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🚀 스노우볼 레벨UP</span><div style='font-size:17px;font-weight:900;color:#d35400;margin:4px 0;'>{total_level_up}회 <span style='font-size:9px;color:#7f8c8d;'>(다운:{total_step_down})</span></div><span style='font-size:10px;color:#b7950b;'>복리 예산 스텝 업</span></div></div>", unsafe_allow_html=True)
 
-        <div style='display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;'>
-            <div style='flex: 1 1 135px; background: #f0fdf4; padding: 12px; border-radius: 6px; border-left: 5px solid #16a34a; min-width: 120px;'>
-                <span style='font-size: 11px; color: #15803d; font-weight: bold;'>🚀 지수 대비 초과수익 (Alpha)</span>
-                <div style='font-size: 16px; font-weight: 900; color: #166534; margin: 4px 0;'>+{alpha_vs_kospi:.1f}%p</div>
-                <span style='font-size: 9.5px; color: #15803d; font-weight: bold;'>KS({kospi_return:+.1f}%) | KQ({kosdaq_return:+.1f}%) 초과</span>
-            </div>
-            <div style='flex: 1 1 115px; background: #eaf2f8; padding: 12px; border-radius: 6px; border-left: 5px solid #2980b9; min-width: 105px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>💵 비상 현금금고</span>
-                <div style='font-size: 13px; font-weight: 900; color: #1b4f72; margin: 4px 0;'>{format_money(total_reserve_cash)}원</div>
-                <span style='font-size: 10px; color: #5d6d7e;'>안전 예수금</span>
-            </div>
-            <div style='flex: 1 1 115px; background: #fef9e7; padding: 12px; border-radius: 6px; border-left: 5px solid #f39c12; min-width: 105px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>📈 대기주식 평가금</span>
-                <div style='font-size: 13px; font-weight: 900; color: #2c3e50; margin: 4px 0;'>{format_money(total_active_eval)}원</div>
-                <span style='font-size: 10px; color: #7f8c8d;'>대기 요원 평가가</span>
-            </div>
-            <div style='flex: 1 1 115px; background: #fdf2e9; padding: 12px; border-radius: 6px; border-left: 5px solid #e67e22; min-width: 105px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>💰 실현 순수익</span>
-                <div style='font-size: 13px; font-weight: 900; color: #c0392b; margin: 4px 0;'>+{format_money(total_net_profit_all)}원</div>
-                <span style='font-size: 10px; color: #7f8c8d;'>매매 실현 순익</span>
-            </div>
-            <div style='flex: 1 1 115px; background: #f5b7b1; padding: 12px; border-radius: 6px; border-left: 5px solid #c0392b; min-width: 105px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>💸 수수료·세금</span>
-                <div style='font-size: 13px; font-weight: 900; color: #78281f; margin: 4px 0;'>-{format_money(total_fees_paid_all)}원</div>
-                <span style='font-size: 10px; color: #7f8c8d;'>총 납부 비용</span>
-            </div>
-            <div style='flex: 1 1 115px; background: #fef5e7; padding: 12px; border-radius: 6px; border-left: 5px solid #d35400; min-width: 105px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>🚀 총자산 ({portfolio_total_return:+.1f}%)</span>
-                <div style='font-size: 13px; font-weight: 900; color: #2c3e50; margin: 4px 0;'>{format_money(final_portfolio_equity)}원</div>
-                <span style='font-size: 10px; color: #7f8c8d;'>현금+주식+코어</span>
-            </div>
-            <div style='flex: 1 1 95px; background: #f4ecf7; padding: 12px; border-radius: 6px; border-left: 5px solid #9b59b6; min-width: 90px;'>
-                <span style='font-size: 11px; color: #7f8c8d; font-weight: bold;'>🍎 코어주식</span>
-                <div style='font-size: 13px; font-weight: 900; color: #8e44ad; margin: 4px 0;'>{total_core_shares}주</div>
-                <span style='font-size: 10px; color: #7f8c8d;'>{format_money(total_core_eval)}원</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px;'><div style='flex:1 1 135px;background:#f0fdf4;padding:12px;border-radius:6px;border-left:5px solid #16a34a;min-width:120px;'><span style='font-size:11px;color:#15803d;font-weight:bold;'>🚀 지수 대비 초과수익 (Alpha)</span><div style='font-size:16px;font-weight:900;color:#166534;margin:4px 0;'>+{alpha_vs_kospi:.1f}%p</div><span style='font-size:9.5px;color:#15803d;font-weight:bold;'>KS({kospi_return:+.1f}%) | KQ({kosdaq_return:+.1f}%) 초과</span></div><div style='flex:1 1 115px;background:#eaf2f8;padding:12px;border-radius:6px;border-left:5px solid #2980b9;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💵 비상 현금금고</span><div style='font-size:13px;font-weight:900;color:#1b4f72;margin:4px 0;'>{format_money(total_reserve_cash)}원</div><span style='font-size:10px;color:#5d6d7e;'>안전 예수금</span></div><div style='flex:1 1 115px;background:#fef9e7;padding:12px;border-radius:6px;border-left:5px solid #f39c12;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>📈 대기주식 평가금</span><div style='font-size:13px;font-weight:900;color:#2c3e50;margin:4px 0;'>{format_money(total_active_eval)}원</div><span style='font-size:10px;color:#7f8c8d;'>대기 요원 평가가</span></div><div style='flex:1 1 115px;background:#fdf2e9;padding:12px;border-radius:6px;border-left:5px solid #e67e22;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💰 실현 순수익</span><div style='font-size:13px;font-weight:900;color:#c0392b;margin:4px 0;'>+{format_money(total_net_profit_all)}원</div><span style='font-size:10px;color:#7f8c8d;'>매매 실현 순익</span></div><div style='flex:1 1 115px;background:#f5b7b1;padding:12px;border-radius:6px;border-left:5px solid #c0392b;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💸 수수료·세금</span><div style='font-size:13px;font-weight:900;color:#78281f;margin:4px 0;'>-{format_money(total_fees_paid_all)}원</div><span style='font-size:10px;color:#7f8c8d;'>총 납부 비용</span></div><div style='flex:1 1 115px;background:#fef5e7;padding:12px;border-radius:6px;border-left:5px solid #d35400;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🚀 총자산 ({portfolio_total_return:+.1f}%)</span><div style='font-size:13px;font-weight:900;color:#2c3e50;margin:4px 0;'>{format_money(final_portfolio_equity)}원</div><span style='font-size:10px;color:#7f8c8d;'>현금+주식+코어</span></div><div style='flex:1 1 95px;background:#f4ecf7;padding:12px;border-radius:6px;border-left:5px solid #9b59b6;min-width:90px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🍎 코어주식</span><div style='font-size:13px;font-weight:900;color:#8e44ad;margin:4px 0;'>{total_core_shares}주</div><span style='font-size:10px;color:#7f8c8d;'>{format_money(total_core_eval)}원</span></div></div>", unsafe_allow_html=True)
 
         # 차트 출력
         fig, ax = plt.subplots(figsize=(10, 4.8))
