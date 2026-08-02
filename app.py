@@ -7,15 +7,23 @@ from dateutil.relativedelta import relativedelta
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
+import io  # <-- io 모듈 추가 완료
 
 # --- 1. 페이지 기본 설정 및 한글 폰트 세팅 ---
 st.set_page_config(page_title="박가이버 사령부 V10.21", layout="wide", page_icon="🎛️")
 
-# 한글 폰트 설정 (리눅스 서버 기준)
+# 한글 폰트 세팅 (스트림릿 클라우드 완벽 대응)
 font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
 if os.path.exists(font_path):
     fm.fontManager.addfont(font_path)
-    plt.rcParams['font.family'] = 'NanumGothic'
+    plt.rc('font', family='NanumGothic')
+else:
+    nanum_fonts = [f for f in fm.findSystemFonts() if 'nanum' in f.lower() or 'Nanum' in f.lower()]
+    if nanum_fonts:
+        fm.fontManager.addfont(nanum_fonts[0])
+        font_name = fm.FontProperties(fname=nanum_fonts[0]).get_name()
+        plt.rc('font', family=font_name)
+
 plt.rcParams['axes.unicode_minus'] = False
 
 def format_money(num):
@@ -337,7 +345,7 @@ if run_btn or 'calculated' in st.session_state:
         # 🤖 제미니 분석 보고서 카드
         st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
 
-        # 🚨 종목 자동 진단 리포트 (HTML 태그 및 줄바꿈 정리)
+        # 🚨 종목 자동 진단 리포트
         cards_html = ""
         for t_code, res in stock_results.items():
             s_name = res['name']
