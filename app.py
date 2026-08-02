@@ -275,28 +275,28 @@ if run_btn or 'calculated' in st.session_state:
                         'shares': shares, 'target_ret': target_ret
                     })
 
-                active_eval = sum(p['shares'] * close for p in positions)
-                core_eval = core_shares * close
-                realized_pnl = sum([t['raw_profit'] for t in matched_trades])
-                stock_equity = s_capital + realized_pnl + reserve_cash + core_eval + active_eval - (sum(p['shares']*p['entry_price'] for p in positions))
+            active_eval = sum(p['shares'] * close for p in positions)
+            core_eval = core_shares * close
+            realized_pnl = sum([t['raw_profit'] for t in matched_trades])
+            stock_equity = s_capital + realized_pnl + reserve_cash + core_eval + active_eval - (sum(p['shares']*p['entry_price'] for p in positions))
 
-                daily_log.append({'Date': date, 'Stock_Equity': stock_equity})
+            daily_log.append({'Date': date, 'Stock_Equity': stock_equity})
 
-            for p in positions:
-                cur_eval_p = p['shares'] * float(df['Close'].iloc[-1])
-                pnl_p = cur_eval_p - (p['shares'] * p['entry_price'])
-                pnl_pct = (pnl_p / (p['shares'] * p['entry_price'])) * 100
-                holding_days = (end_date - p['entry_dt']).days
+        for p in positions:
+            cur_eval_p = p['shares'] * float(df['Close'].iloc[-1])
+            pnl_p = cur_eval_p - (p['shares'] * p['entry_price'])
+            pnl_pct = (pnl_p / (p['shares'] * p['entry_price'])) * 100
+            holding_days = (end_date - p['entry_dt']).days
 
-                all_active_positions.append({
-                    '작전구역': s_name, '요원명': p['name'], '파견일': p['entry_date'],
-                    'entry_dt': p['entry_dt'], 'holding_days': holding_days,
-                    '진입단가': format_money(p['entry_price']) + "원", '수량': f"{p['shares']}주",
-                    '평가금액': format_money(cur_eval_p) + "원",
-                    '평가손익': f"{'+' if pnl_p >= 0 else ''}{format_money(pnl_p)}원 ({pnl_pct:+.2f}%)",
-                    'is_plus': pnl_p >= 0,
-                    'pnl_val': pnl_p, 'pnl_pct': pnl_pct
-                })
+            all_active_positions.append({
+                '작전구역': s_name, '요원명': p['name'], '파견일': p['entry_date'],
+                'entry_dt': p['entry_dt'], 'holding_days': holding_days,
+                '진입단가': format_money(p['entry_price']) + "원", '수량': f"{p['shares']}주",
+                '평가금액': format_money(cur_eval_p) + "원",
+                '평가손익': f"{'+' if pnl_p >= 0 else ''}{format_money(pnl_p)}원 ({pnl_pct:+.2f}%)",
+                'is_plus': pnl_p >= 0,
+                'pnl_val': pnl_p, 'pnl_pct': pnl_pct
+            })
 
             df_stock_eq = pd.DataFrame(daily_log).set_index('Date')
             combined_equity_df[s_name] = df_stock_eq['Stock_Equity']
@@ -395,8 +395,8 @@ if run_btn or 'calculated' in st.session_state:
         # --- 4. 대시보드 UI 출력 ---
         st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>🎛️ [박가이버 사령부 V10.28 통제실] 전략: {current_strategy_name} ({len(tickers_list)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
-        # 🤖 제미니 분석 보고서 카드
-        st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
+        # 🤖 제미니 분석 보고서 카드 (초기 투자금액 추가 완료!)
+        st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (총 씨드머니)</li><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
 
         # 📖 [복원] 박가이버 사령부 공식 운영 설명서 및 작전 원리 가이드
         with st.expander("📖 [클릭하여 펼치기] 박가이버 사령부 공식 운영 설명서 및 작전 원리 가이드"):
