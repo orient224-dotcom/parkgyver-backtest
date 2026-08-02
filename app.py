@@ -4,27 +4,11 @@ import pandas as pd
 import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
-import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
 import os
-import io  # <-- io 모듈 추가 완료
+import io
 
-# --- 1. 페이지 기본 설정 및 한글 폰트 세팅 ---
+# --- 1. 페이지 기본 설정 ---
 st.set_page_config(page_title="박가이버 사령부 V10.21", layout="wide", page_icon="🎛️")
-
-# 한글 폰트 세팅 (스트림릿 클라우드 완벽 대응)
-font_path = '/usr/share/fonts/truetype/nanum/NanumGothic.ttf'
-if os.path.exists(font_path):
-    fm.fontManager.addfont(font_path)
-    plt.rc('font', family='NanumGothic')
-else:
-    nanum_fonts = [f for f in fm.findSystemFonts() if 'nanum' in f.lower() or 'Nanum' in f.lower()]
-    if nanum_fonts:
-        fm.fontManager.addfont(nanum_fonts[0])
-        font_name = fm.FontProperties(fname=nanum_fonts[0]).get_name()
-        plt.rc('font', family=font_name)
-
-plt.rcParams['axes.unicode_minus'] = False
 
 def format_money(num):
     return f"{int(round(num)):,}"
@@ -319,8 +303,6 @@ if run_btn or 'calculated' in st.session_state:
             bench_df = pd.DataFrame(index=combined_equity_df.index)
             bench_df['KOSPI_Normalized'] = total_capital; bench_df['KOSDAQ_Normalized'] = total_capital; bench_df['All_Cash'] = total_capital
 
-        x_dates = [d.strftime('%Y-%m-%d') for d in combined_equity_df.index]
-
         total_net_profit_all = sum([res['net_profit'] for res in stock_results.values()])
         total_trades_all = sum([res['total_trades'] for res in stock_results.values()])
         win_trades_all = sum([res['win_trades'] for res in stock_results.values()])
@@ -382,33 +364,22 @@ if run_btn or 'calculated' in st.session_state:
 
         st.markdown(f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px;'><div style='flex:1 1 135px;background:#f0fdf4;padding:12px;border-radius:6px;border-left:5px solid #16a34a;min-width:120px;'><span style='font-size:11px;color:#15803d;font-weight:bold;'>🚀 지수 대비 초과수익 (Alpha)</span><div style='font-size:16px;font-weight:900;color:#166534;margin:4px 0;'>+{alpha_vs_kospi:.1f}%p</div><span style='font-size:9.5px;color:#15803d;font-weight:bold;'>KS({kospi_return:+.1f}%) | KQ({kosdaq_return:+.1f}%) 초과</span></div><div style='flex:1 1 115px;background:#eaf2f8;padding:12px;border-radius:6px;border-left:5px solid #2980b9;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💵 비상 현금금고</span><div style='font-size:13px;font-weight:900;color:#1b4f72;margin:4px 0;'>{format_money(total_reserve_cash)}원</div><span style='font-size:10px;color:#5d6d7e;'>안전 예수금</span></div><div style='flex:1 1 115px;background:#fef9e7;padding:12px;border-radius:6px;border-left:5px solid #f39c12;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>📈 대기주식 평가금</span><div style='font-size:13px;font-weight:900;color:#2c3e50;margin:4px 0;'>{format_money(total_active_eval)}원</div><span style='font-size:10px;color:#7f8c8d;'>대기 요원 평가가</span></div><div style='flex:1 1 115px;background:#fdf2e9;padding:12px;border-radius:6px;border-left:5px solid #e67e22;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💰 실현 순수익</span><div style='font-size:13px;font-weight:900;color:#c0392b;margin:4px 0;'>+{format_money(total_net_profit_all)}원</div><span style='font-size:10px;color:#7f8c8d;'>매매 실현 순익</span></div><div style='flex:1 1 115px;background:#f5b7b1;padding:12px;border-radius:6px;border-left:5px solid #c0392b;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💸 수수료·세금</span><div style='font-size:13px;font-weight:900;color:#78281f;margin:4px 0;'>-{format_money(total_fees_paid_all)}원</div><span style='font-size:10px;color:#7f8c8d;'>총 납부 비용</span></div><div style='flex:1 1 115px;background:#fef5e7;padding:12px;border-radius:6px;border-left:5px solid #d35400;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🚀 총자산 ({portfolio_total_return:+.1f}%)</span><div style='font-size:13px;font-weight:900;color:#2c3e50;margin:4px 0;'>{format_money(final_portfolio_equity)}원</div><span style='font-size:10px;color:#7f8c8d;'>현금+주식+코어</span></div><div style='flex:1 1 95px;background:#f4ecf7;padding:12px;border-radius:6px;border-left:5px solid #9b59b6;min-width:90px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🍎 코어주식</span><div style='font-size:13px;font-weight:900;color:#8e44ad;margin:4px 0;'>{total_core_shares}주</div><span style='font-size:10px;color:#7f8c8d;'>{format_money(total_core_eval)}원</span></div></div>", unsafe_allow_html=True)
 
-        # 차트 출력
-        fig, ax = plt.subplots(figsize=(10, 4.8))
-        ax.plot(x_dates, combined_equity_df['Portfolio_Equity'], label=f'오토파일럿 총자산 ({current_strategy_name})', color='#e74c3c', linewidth=2.5)
-        ax.plot(x_dates, bench_df['All_Cash'], label='전액 현금 전략 (Cash 보유)', color='#f1c40f', linewidth=1.5, linestyle=':')
-        ax.plot(x_dates, bench_df['KOSPI_Normalized'], label='KOSPI 지수 (^KS11)', color='#2ecc71', linewidth=1.2, linestyle='-.')
-        ax.plot(x_dates, bench_df['KOSDAQ_Normalized'], label='KOSDAQ 지수 (^KQ11)', color='#9b59b6', linewidth=1.2, linestyle='-')
+        # 📈 [신규] 한글 깨짐 100% 없는 스트림릿 웹 반응형 라인 차트
+        st.subheader("📈 포지션 종목별 & 시장 비교 자산 성장 곡선 (터치 및 마우스 조회 지원)")
+        
+        chart_df = pd.DataFrame(index=combined_equity_df.index)
+        chart_df[f'오토파일럿 총자산 ({current_strategy_name})'] = combined_equity_df['Portfolio_Equity']
+        chart_df['전액 현금 전략'] = bench_df['All_Cash']
+        chart_df['KOSPI 지수'] = bench_df['KOSPI_Normalized']
+        chart_df['KOSDAQ 지수'] = bench_df['KOSDAQ_Normalized']
 
-        stock_colors = ['#3498db', '#e67e22', '#1abc9c', '#8e44ad', '#d35400', '#27ae60', '#c0392b', '#7f8c8d']
         for s_idx, (t_code, res) in enumerate(stock_results.items()):
             s_name = res['name']
             s_eq = combined_equity_df[s_name]
             s_norm = total_capital * (s_eq / s_eq.iloc[0])
-            col_c = stock_colors[s_idx % len(stock_colors)]
-            ax.plot(x_dates, s_norm, label=f'[{s_name}] 개별 종목 자산', color=col_c, linewidth=1.5, linestyle='--')
+            chart_df[f'[{s_name}] 개별자산'] = s_norm
 
-        ax.set_title(f'[V10.21 포지션 종목별 & 시장 비교] {current_strategy_name}', fontsize=12, fontweight='bold', pad=10)
-        ax.set_ylabel('자산 평가액 (원)', fontsize=10, fontweight='bold')
-        ax.legend(loc='upper left', fontsize=7.5, ncol=2)
-        ax.grid(True, linestyle=':', alpha=0.6)
-        ax.yaxis.set_major_formatter('${x:,.0f}')
-
-        step_size = max(1, len(x_dates) // 6)
-        ax.set_xticks(range(0, len(x_dates), step_size))
-        ax.set_xticklabels([x_dates[i] for i in range(0, len(x_dates), step_size)], rotation=15, fontsize=9)
-        plt.tight_layout()
-
-        st.pyplot(fig)
+        st.line_chart(chart_df)
 
         # 매매 장부 데이터프레임
         df_export_data = []
