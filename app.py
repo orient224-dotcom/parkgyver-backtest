@@ -4,13 +4,14 @@ import pandas as pd
 import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
+import matplotlib.pyplot as plt
 import os
 import io
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.21", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.22", layout="wide", page_icon="🎛️")
 
-# 원화 금액 정수 깔끔 포맷 함수
+# 원화 금액 정수 포맷 함수
 def format_money(num):
     try:
         return f"{int(round(float(num))):,}"
@@ -18,7 +19,7 @@ def format_money(num):
         return str(num)
 
 # --- 2. 사이드바 조종간 (파라미터 입력) ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.21")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.22")
 st.sidebar.caption("은퇴 과수원 에디션 - 스트림릿 라이브 웹 통제실")
 
 raw_tickers = st.sidebar.text_input("🎯 종목코드 (쉼표 구분):", value="019210.KQ, 005930.KS, 080220.KQ, 089030.KQ, 319660.KQ, 034020.KS, 074600.KQ")
@@ -41,7 +42,7 @@ total_capital = st.sidebar.number_input("💰 총 씨드머니(원):", value=160
 max_agents = st.sidebar.number_input("⚔️ 종목당 최대 요원 수:", value=2, min_value=1, max_value=10)
 years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value=3, min_value=1, max_value=10)
 
-run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.21 작전 개시!", type="primary")
+run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.22 작전 개시!", type="primary")
 
 # --- 3. 메인 백테스트 연산 엔진 ---
 if run_btn or 'calculated' in st.session_state:
@@ -343,7 +344,7 @@ if run_btn or 'calculated' in st.session_state:
             yearly_stats.sort(key=lambda x: x['year'], reverse=True)
 
         # --- 4. 대시보드 UI 출력 ---
-        st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>🎛️ [박가이버 사령부 V10.21 통제실] 전략: {current_strategy_name} ({len(tickers)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>🎛️ [박가이버 사령부 V10.22 통제실] 전략: {current_strategy_name} ({len(tickers)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
         # 🤖 제미니 분석 보고서 카드
         st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
@@ -425,30 +426,37 @@ if run_btn or 'calculated' in st.session_state:
         st.markdown(active_html, unsafe_allow_html=True)
 
         # 🔍 [복원 3] 종목별 독립 성과 분석 카드
-        stock_res_html = "<div style='background:#f8f9fa;border:1px solid #d6dbdf;border-radius:6px;padding:12px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#2c3e50;font-size:13px;'>🔍 [종목별 독립 성과 분석] 어떤 주식이 어떻게 움직였나?</h4><div style='display:flex;flex-wrap:wrap;gap:8px;'>"
+        stock_res_html = "<div style='background:#f8f9fa;border:1px solid #d6dbdf;border-radius:6px;padding:12px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#2c3e50;font-size:13px;'>🔍 [종목별 독립 성과 분석] 어떤 주식이 어떻게 움직였나?</h4><div style='display:flex;flex-wrap:gap:8px;'>"
         for t_code, res in stock_results.items():
             stock_res_html += f"<div style='flex:1 1 200px;background:white;border:1px solid #d5dbdf;border-top:4px solid #3498db;padding:10px;border-radius:6px;min-width:180px;'><div style='font-weight:bold;color:#2980b9;font-size:13px;margin-bottom:4px;'>{res['name']} ({t_code})</div><div style='font-size:11px;color:#555;line-height:1.4;'>• 승률: <b>{res['win_rate']:.1f}%</b> (익절 {res['win_trades']} / 손절 {res['loss_trades']})<br>• 실현 순익: <b style='color:#c0392b;'>+{format_money(res['net_profit'])}원</b><br>• 납부 수수료·세금: <b style='color:#c0392b;'>-{format_money(res['total_fees'])}원</b><br>• 최종 평가자산: <b>{format_money(res['final_equity'])}원</b><br>• 현금금고 / 코어: {format_money(res['reserve_cash'])}원 / {res['core_shares']}주</div></div>"
         stock_res_html += "</div></div>"
         st.markdown(stock_res_html, unsafe_allow_html=True)
 
-        # 📈 스트림릿 웹 반응형 차트
-        st.subheader("📈 포지션 종목별 & 시장 비교 자산 성장 곡선 (터치 및 마우스 조회 지원)")
-        chart_df = pd.DataFrame(index=combined_equity_df.index)
-        chart_df[f'오토파일럿 총자산 ({current_strategy_name})'] = combined_equity_df['Portfolio_Equity']
-        chart_df['전액 현금 전략'] = bench_df['All_Cash']
-        chart_df['KOSPI 지수'] = bench_df['KOSPI_Normalized']
-        chart_df['KOSDAQ 지수'] = bench_df['KOSDAQ_Normalized']
+        # 📈 [개선] 4개 핵심 비교선 고정형 차트 (개별 종목선 제거로 스마트폰 오작동 영구 방지)
+        st.subheader("📈 오토파일럿 포트폴리오 vs 지수 비교 자산 성장 곡선")
+        
+        x_dates = [d.strftime('%Y-%m-%d') for d in combined_equity_df.index]
+        fig, ax = plt.subplots(figsize=(10, 4.2))
+        ax.plot(x_dates, combined_equity_df['Portfolio_Equity'], label=f'오토파일럿 총자산 ({current_strategy_name})', color='#e74c3c', linewidth=2.2)
+        ax.plot(x_dates, bench_df['All_Cash'], label='전액 현금 전략 (Cash 보유)', color='#f1c40f', linewidth=1.5, linestyle=':')
+        ax.plot(x_dates, bench_df['KOSPI_Normalized'], label='KOSPI 지수 (^KS11)', color='#2ecc71', linewidth=1.2, linestyle='-.')
+        ax.plot(x_dates, bench_df['KOSDAQ_Normalized'], label='KOSDAQ 지수 (^KQ11)', color='#9b59b6', linewidth=1.2, linestyle='-')
 
-        for s_idx, (t_code, res) in enumerate(stock_results.items()):
-            s_name = res['name']
-            s_eq = combined_equity_df[s_name]
-            s_norm = total_capital * (s_eq / s_eq.iloc[0])
-            chart_df[f'[{s_name}] 개별자산'] = s_norm
+        ax.set_title(f'[V10.22 오토파일럿 총자산 & 시장 비교] {current_strategy_name}', fontsize=11, fontweight='bold', pad=10)
+        ax.set_ylabel('자산 평가액 (원)', fontsize=9, fontweight='bold')
+        ax.legend(loc='upper left', fontsize=8, ncol=2)
+        ax.grid(True, linestyle=':', alpha=0.6)
+        ax.yaxis.set_major_formatter('${x:,.0f}')
 
-        st.line_chart(chart_df)
+        step_size = max(1, len(x_dates) // 6)
+        ax.set_xticks(range(0, len(x_dates), step_size))
+        ax.set_xticklabels([x_dates[i] for i in range(0, len(x_dates), step_size)], rotation=15, fontsize=8)
+        plt.tight_layout()
 
-        # 📜 공식 매매 장부 (실시간 익절=연분홍 / 손절=연파랑 HTML 표)
-        st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.21 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
+        st.pyplot(fig)
+
+        # 📜 공식 매매 장부
+        st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.22 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
         
         table_html = "<div style='max-height:400px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:750px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
 
@@ -471,10 +479,10 @@ if run_btn or 'calculated' in st.session_state:
         csv_buffer = io.StringIO()
         df_export.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
         st.download_button(
-            label="📜 엑셀(CSV) V10.21 공식 작전장부 다운로드",
+            label="📜 엑셀(CSV) V10.22 공식 작전장부 다운로드",
             data=csv_buffer.getvalue().encode('utf-8-sig'),
-            file_name=f"박가이버사령부_V10.21_{selected_strategy}.csv",
+            file_name=f"박가이버사령부_V10.22_{selected_strategy}.csv",
             mime="text/csv"
         )
 else:
-    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.21 작전 개시!] 버튼을 눌러주세요.")
+    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.22 작전 개시!] 버튼을 눌러주세요.")
