@@ -4,11 +4,12 @@ import pandas as pd
 import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
+import matplotlib.pyplot as plt
 import os
 import io
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.23", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.24", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -16,13 +17,64 @@ def format_money(num):
     except:
         return str(num)
 
-# --- 2. 사이드바 조종간 (파라미터 입력) ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.23")
+# --- 2. 사이드바 조종간 (종목 검색 및 간편 선택 도입) ---
+st.sidebar.title("🎛️ 박가이버 사령부 V10.24")
 st.sidebar.caption("은퇴 과수원 에디션 - 스트림릿 라이브 웹 통제실")
 
-raw_tickers = st.sidebar.text_input("🎯 종목코드 (쉼표 구분):", value="019210.KQ, 005930.KS, 080220.KQ, 089030.KQ, 319660.KQ, 034020.KS, 074600.KQ")
-raw_names = st.sidebar.text_input("📛 종목이름 (쉼표 구분):", value="와이지원, 삼성전자, 제주반도체, 테크윙, 피에스케이, 두산인프라코어, 원익QNC")
+# 주요 종목 풀 데이터베이스 딕셔너리 (종목명 : 야후 파이낸스 코드)
+stock_database = {
+    "테크윙 (089030.KQ)": "089030.KQ",
+    "피에스케이 (319660.KQ)": "319660.KQ",
+    "제주반도체 (080220.KQ)": "080220.KQ",
+    "삼성전자 (005930.KS)": "005930.KS",
+    "와이지원 (019210.KQ)": "019210.KQ",
+    "두산인프라코어/밥캣등 (034020.KS)": "034020.KS",
+    "원익QNC (074600.KQ)": "074600.KQ",
+    "한미반도체 (042700.KQ)": "042700.KQ",
+    "주성엔지니어링 (036930.KQ)": "036930.KQ",
+    "SK하이닉스 (000660.KS)": "000660.KS",
+    "LG에너지솔루션 (373220.KS)": "373220.KS",
+    "셀트리온 (068270.KS)": "068270.KS"
+}
 
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎯 종목 간편 검색 및 선택")
+
+# 멀티셀렉트 검색 컴포넌트
+default_selected = [
+    "와이지원 (019210.KQ)", "삼성전자 (005930.KS)", "제주반도체 (080220.KQ)", 
+    "테크윙 (089030.KQ)", "피에스케이 (319660.KQ)", "두산인프라코어/밥캣등 (034020.KS)", "원익QNC (074600.KQ)"
+]
+
+selected_stocks = st.sidebar.multiselect(
+    "클릭하거나 검색해서 종목을 담으세요:",
+    options=list(stock_database.keys()),
+    default=default_selected
+)
+
+# 선택된 종목들을 코드와 이름으로 자동 분리
+tickers_list = []
+names_list = []
+
+for s in selected_stocks:
+    code = stock_database[s]
+    name = s.split(" (")[0] # 이름만 추출
+    tickers_list.append(code)
+    names_list.append(name)
+
+# 직접 추가 입력 옵션
+with st.sidebar.expander("➕ 리스트에 없는 종목 직접 추가하기"):
+    custom_input = st.text_input("종목코드 입력 (예: 000660.KS):", value="")
+    custom_name = st.text_input("종목이름 입력 (예: SK하이닉스):", value="")
+    if custom_input and custom_name:
+        if custom_input.upper() not in tickers_list:
+            tickers_list.append(custom_input.strip().upper())
+            names_list.append(custom_name.strip())
+
+raw_tickers = ", ".join(tickers_list)
+raw_names = ", ".join(names_list)
+
+st.sidebar.markdown("---")
 strategy_option = st.sidebar.selectbox(
     "📊 작전전략 선택:",
     [
@@ -40,22 +92,20 @@ total_capital = st.sidebar.number_input("💰 총 씨드머니(원):", value=160
 max_agents = st.sidebar.number_input("⚔️ 종목당 최대 요원 수:", value=2, min_value=1, max_value=10)
 years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value=3, min_value=1, max_value=10)
 
-run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.23 작전 개시!", type="primary")
+run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.24 작전 개시!", type="primary")
 
 # --- 3. 메인 백테스트 연산 엔진 ---
 if run_btn or 'calculated' in st.session_state:
     st.session_state['calculated'] = True
 
+    if not tickers_list:
+        st.warning("⚠️ 작전을 수행할 종목을 최소 1개 이상 선택해 주세요.")
+        st.stop()
+
     buy_fee_rate = buy_fee_val / 100.0
     sell_tax_rate = sell_tax_val / 100.0
 
-    tickers = [t.strip().upper() for t in raw_tickers.split(',') if t.strip()]
-    names = [n.strip() for n in raw_names.split(',') if n.strip()]
-
-    while len(names) < len(tickers):
-        names.append(tickers[len(names)])
-
-    capital_per_stock = total_capital / len(tickers)
+    capital_per_stock = total_capital / len(tickers_list)
 
     strategy_names_map = {
         '3tier': '3단 밸런스 과수원 전략 (60%재투자/20%현금/20%코어)',
@@ -82,8 +132,8 @@ if run_btn or 'calculated' in st.session_state:
         total_agent_counter = 0
         total_fees_paid_all = 0.0
 
-        for idx, ticker in enumerate(tickers):
-            s_name = names[idx]
+        for idx, ticker in enumerate(tickers_list):
+            s_name = names_list[idx]
             s_capital = capital_per_stock
 
             df = yf.download(ticker, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), progress=False, auto_adjust=False)
@@ -342,7 +392,7 @@ if run_btn or 'calculated' in st.session_state:
             yearly_stats.sort(key=lambda x: x['year'], reverse=True)
 
         # --- 4. 대시보드 UI 출력 ---
-        st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>🎛️ [박가이버 사령부 V10.23 통제실] 전략: {current_strategy_name} ({len(tickers)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>🎛️ [박가이버 사령부 V10.24 통제실] 전략: {current_strategy_name} ({len(tickers_list)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
         # 🤖 제미니 분석 보고서 카드
         st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
@@ -430,8 +480,8 @@ if run_btn or 'calculated' in st.session_state:
         stock_res_html += "</div></div>"
         st.markdown(stock_res_html, unsafe_allow_html=True)
 
-        # 📈 [100% 한글 깨짐 없는 스트림릿 순정 웹 차트] (스마트폰 터치 오작동 방지 및 깔끔한 4개선 비교)
-        st.subheader("📈 포트폴리오 총자산 vs 시장 지수 비교 성장 곡선")
+        # 📈 [완벽 해결] 스트림릿 순정 웹 차트 (서버 폰트 영향 0%, 한글 100% 선명하게 출력)
+        st.subheader("📈 오토파일럿 총자산 vs 시장 지수 비교 성장 곡선")
         chart_df = pd.DataFrame(index=combined_equity_df.index)
         chart_df[f'오토파일럿 총자산 ({current_strategy_name})'] = combined_equity_df['Portfolio_Equity']
         chart_df['전액 현금 전략'] = bench_df['All_Cash']
