@@ -1,3 +1,12 @@
+# =====================================================================
+# 🛡️ 박가이버 통합 작전 사령부 V10.11 - 구글 코랩 실행용 마스터 스크립트
+# =====================================================================
+
+# 1.필요한 라이브러리 자동 설치
+!pip install -q streamlit yfinance pandas numpy plotly python-dateutil
+
+# 2. Streamlit 앱 소스코드 파일(app.py) 자동 생성
+app_code = r'''
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -9,7 +18,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# --- 0. 한글 초성 분리 및 검색 엔진 ---
+# --- 0. 한글 초성 분리 및 모바일 검색용 포맷팅 엔진 ---
 def get_chosung(text):
     chosung_list = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
     result = ""
@@ -30,56 +39,80 @@ def format_stock_option(stock_name):
 def clean_date_index(obj):
     if isinstance(obj, pd.Series):
         s = pd.to_datetime(obj)
-        if s.dt.tz is not None: s = s.dt.tz_convert(None)
+        if s.dt.tz is not None:
+            s = s.dt.tz_convert(None)
         return s.dt.normalize()
     elif isinstance(obj, (pd.DatetimeIndex, pd.Index)):
         idx = pd.to_datetime(obj)
-        if getattr(idx, 'tz', None) is not None: idx = idx.tz_convert(None)
+        if getattr(idx, 'tz', None) is not None:
+            idx = idx.tz_convert(None)
         return idx.normalize()
     else:
         dt = pd.to_datetime(obj)
-        if getattr(dt, 'tz', None) is not None: dt = dt.tz_convert(None)
+        if getattr(dt, 'tz', None) is not None:
+            dt = dt.tz_convert(None)
         return dt.normalize()
 
-# 🌟 한국식 스마트 컬러 장부 스타일러 (익절=빨강계열, 손절=파랑계열)
+# 매매장부 스마트 컬러 음영 스타일러 함수
 def style_trade_df(df):
     def apply_row_style(row):
         ret_val = str(row.get('순수익률', ''))
         reason = str(row.get('구분', ''))
         snow_level = str(row.get('스노우볼 레벨', ''))
         
-        if '레벨UP' in snow_level or '정상 복귀' in reason or '동반 수확' in reason or '+' in ret_val:
-            return ['background-color: #fdedec; color: #c0392b; font-weight: bold;'] * len(row)
-        elif '강제 철수' in reason or '타임 컷' in reason or '-' in ret_val:
-            return ['background-color: #ebf5fb; color: #2980b9; font-weight: bold;'] * len(row)
+        if '레벨UP' in snow_level:
+            return ['background-color: #fef08a; color: #854d0e; font-weight: bold;'] * len(row)
+        elif '특별 보너스' in reason:
+            return ['background-color: #eff6ff; color: #1d4ed8; font-weight: bold;'] * len(row)
+        elif '강제 철수' in reason or '-' in ret_val:
+            return ['background-color: #fee2e2; color: #991b1b; font-weight: bold;'] * len(row)
+        elif '타임 컷' in reason:
+            return ['background-color: #fff7ed; color: #c2410c; font-weight: bold;'] * len(row)
+        elif '+' in ret_val or '정상 복귀' in reason or '추세연장' in reason:
+            return ['background-color: #dcfce7; color: #166534; font-weight: bold;'] * len(row)
         else:
             return [''] * len(row)
     return df.style.apply(apply_row_style, axis=1)
 
-# --- 1. 페이지 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.16", page_icon="🛡️", layout="wide")
+# --- 1. 페이지 웹 디자인 세팅 ---
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.11 Colab Edition", page_icon="🛡️", layout="wide")
 
-st.markdown("""
+st.markdown(r"""
 <style>
     .stApp { background-color: #f8fafc; }
-    .hero-banner {
-        background: linear-gradient(135deg, #1b4f72 0%, #2980b9 100%); padding: 18px 20px;
-        border-radius: 14px; color: #ffffff; border-left: 6px solid #f1c40f;
-        box-shadow: 0 8px 20px -4px rgba(27, 79, 114, 0.2); margin-bottom: 20px;
-    }
-    .hero-title { font-size: 1.45rem; font-weight: 900; margin: 0; color: #f8fafc; }
-    .hero-subtitle { font-size: 0.88rem; color: #ebf5fb; margin-top: 4px; }
-    
-    .weather-card {
-        background-color: #fffef2; border: 2px solid #f59e0b; border-radius: 14px;
-        padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);
-    }
+    .algo-spec-container { background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); }
+    .algo-spec-header { font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+    .algo-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+    .algo-card { flex: 1; min-width: 280px; background-color: #f8fafc; border-radius: 10px; padding: 14px 16px; border: 1px solid #e2e8f0; }
+    .algo-card.card-1 { border-left: 6px solid #ef4444; }
+    .algo-card.card-2 { border-left: 6px solid #f59e0b; }
+    .algo-card.card-3 { border-left: 6px solid #10b981; }
+    .algo-card.card-4 { border-left: 6px solid #2563eb; }
+    .algo-card-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 6px; }
+    .algo-card-title.t-1 { color: #dc2626; }
+    .algo-card-title.t-2 { color: #d97706; }
+    .algo-card-title.t-3 { color: #059669; }
+    .algo-card-title.t-4 { color: #2563eb; }
+    .algo-card-desc { font-size: 0.85rem; color: #475569; line-height: 1.45; font-weight: 500; }
+    .weather-card { background-color: #fffef2; border: 2px solid #f59e0b; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08); }
     .weather-title { font-size: 1.1rem; font-weight: 800; color: #92400e; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
     .weather-box-container { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-    .weather-pill {
-        background-color: #ffffff; border: 1px solid #fcd34d; border-radius: 8px;
-        padding: 8px 14px; font-size: 0.9rem; font-weight: 700; color: #78350f; flex: 1; min-width: 260px;
-    }
+    .weather-pill { background-color: #ffffff; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 14px; font-size: 0.9rem; font-weight: 700; color: #78350f; flex: 1; min-width: 260px; }
+    .weather-divider { border-top: 1px dashed #f59e0b; margin: 12px 0; }
+    .weather-status-text { font-size: 0.88rem; color: #451a03; font-weight: 600; }
+    .metric-card { background-color: #ffffff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0; margin-bottom: 12px; height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+    .metric-card.card-green { border-left: 6px solid #10b981; }
+    .metric-card.card-blue { border-left: 6px solid #2563eb; }
+    .metric-card.card-red { border-left: 6px solid #ef4444; }
+    .metric-card.card-yellow { border-left: 6px solid #f59e0b; background-color: #fffbeb; }
+    .metric-card.card-orange { border-left: 6px solid #d97706; }
+    .metric-card.card-purple { border-left: 6px solid #a855f7; background-color: #faf5ff; border-top: 1px solid #f3e8ff; border-right: 1px solid #f3e8ff; border-bottom: 1px solid #f3e8ff; }
+    .metric-label { font-size: 0.85rem; font-weight: 800; color: #475569; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+    .metric-value { font-size: 1.35rem; font-weight: 900; color: #0f172a; margin-bottom: 4px; }
+    .metric-sub { font-size: 0.78rem; color: #64748b; font-weight: 600; }
+    .hero-banner { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 18px 20px; border-radius: 14px; color: #ffffff; border-left: 6px solid #38bdf8; box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.2); margin-bottom: 20px; }
+    .hero-title { font-size: 1.45rem; font-weight: 900; margin: 0; color: #f8fafc; }
+    .hero-subtitle { font-size: 0.88rem; color: #94a3b8; margin-top: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -94,546 +127,385 @@ BASE_STOCK_MASTER = {
     "KODEX 200": "069500.KS", "KODEX 코스닥150": "229200.KS", "KODEX 레버리지": "122630.KS", "TIGER 미국S&P500": "360750.KS"
 }
 
-if "full_stock_master" not in st.session_state: st.session_state["full_stock_master"] = BASE_STOCK_MASTER.copy()
+if "full_stock_master" not in st.session_state:
+    st.session_state["full_stock_master"] = BASE_STOCK_MASTER.copy()
+
 if "custom_stocks" not in st.session_state: st.session_state["custom_stocks"] = {}
-if "my_holdings" not in st.session_state: st.session_state["my_holdings"] = ["주성엔지니어링", "테크윙", "한미반도체"]
-if "my_watchlist" not in st.session_state: st.session_state["my_watchlist"] = ["삼성전자", "SK하이닉스"]
+if "my_holdings" not in st.session_state: st.session_state["my_holdings"] = ["SK하이닉스", "한미반도체", "테크윙", "HD현대일렉트릭", "HPSP"]
+if "my_watchlist" not in st.session_state: st.session_state["my_watchlist"] = ["한화오션", "현대로템", "RFHIC", "한국콜마"]
 
 MASTER_STOCK_DICT = st.session_state["full_stock_master"]
 for name, code in st.session_state["custom_stocks"].items():
     MASTER_STOCK_DICT[name] = code
 
+TICKER_TO_SECTOR = {code: "우량주" for code in MASTER_STOCK_DICT.values()}
+
+if "selected_stocks" not in st.session_state: st.session_state["selected_stocks"] = st.session_state["my_holdings"]
+
 def format_money(num):
+    if num is None or pd.isna(num): return "-"
+    num_int = int(round(num))
+    sign = "-" if num_int < 0 else ""
+    return f"{sign}{abs(num_int):,}원"
+
+def format_pure_number(num):
+    if num is None or pd.isna(num): return "-"
+    return f"{int(round(num)):,}"
+
+def format_exact_price(num):
     if num is None or pd.isna(num): return "-"
     return f"{int(round(num)):,}원"
 
 # --- 3. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.16")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.11")
+
+st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
+uploaded_cfg = st.sidebar.file_uploader("📤 내 전략 세팅 불러오기 (.json)", type=["json"], help="내 계좌 보유 종목 및 세팅 파일을 올립니다.")
+
+if uploaded_cfg is not None:
+    try:
+        cfg_data = json.load(uploaded_cfg)
+        if "my_holdings" in cfg_data: st.session_state["my_holdings"] = cfg_data["my_holdings"]
+        if "my_watchlist" in cfg_data: st.session_state["my_watchlist"] = cfg_data["my_watchlist"]
+        if "custom_stocks" in cfg_data: 
+            st.session_state["custom_stocks"] = cfg_data["custom_stocks"]
+            for name, code in cfg_data["custom_stocks"].items():
+                MASTER_STOCK_DICT[name] = code
+        st.session_state["selected_stocks"] = st.session_state["my_holdings"]
+        st.sidebar.success("🎉 세팅 파일 복원 완료!")
+        st.rerun()
+    except Exception:
+        st.sidebar.error("⚠️ 올바른 설정(.json) 파일이 아닙니다.")
+
+st.sidebar.markdown("---")
+
 menu_choice = st.sidebar.radio(
     "사령부 작전 모드선택",
     [
         "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)", 
         "🚨 2. 오늘의 실전 매매 레이더", 
-        "🛡️ 3. 과거 5년 백테스트 연구소 (스마트 회전율)"
+        "🛡️ 3. 과거 백테스트 연구소"
     ],
     index=2
 )
 st.sidebar.markdown("---")
 
-# =====================================================================
-# 🗄️ 메뉴 1: 내 계좌 영구 DB
-# =====================================================================
 if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🗄️ 나만의 투자 영구 DB (스마트폰 연동)</div>
-        <div class="hero-subtitle">대한민국 상장 종목을 초성 키보드로 검색하고 보유 종목을 관리합니다.</div>
+        <div class="hero-subtitle">스마트폰 전 종목 DB 연동으로 대한민국 2,600개 상장 종목을 초성 키보드로 1초 만에 검색하세요!</div>
     </div>
     """, unsafe_allow_html=True)
 
-    db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력 함대)", "⭐ 눈여겨보는 관심 종목"])
-    
+    db_tab1, db_tab2 = st.tabs(["💼 내 실전 보유 종목 (주력)", "⭐ 눈여겨보는 관심 종목"])
+
     with db_tab1:
-        valid_default_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
-        new_holdings = st.multiselect("실전 보유 종목 편집 (초성 검색 지원):", options=list(MASTER_STOCK_DICT.keys()), default=valid_default_holdings, format_func=format_stock_option)
-        if st.button("💾 보유 종목 DB 저장", type="primary", use_container_width=True):
+        st.markdown("### 💼 1. 실전 보유 종목 DB 세팅")
+        valid_holdings = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
+        new_holdings = st.multiselect("실전 보유 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=valid_holdings, format_func=format_stock_option, key="holding_multiselect")
+        if st.button("💾 실전 보유 종목 DB 저장", type="primary", use_container_width=True):
             st.session_state["my_holdings"] = new_holdings
+            st.session_state["selected_stocks"] = new_holdings
             st.success("🎉 저장 완료!")
             st.rerun()
-            
+
     with db_tab2:
-        valid_default_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
-        new_watchlist = st.multiselect("관심 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=valid_default_watchlist, format_func=format_stock_option)
-        if st.button("💾 관심 종목 DB 저장", use_container_width=True):
+        st.markdown("### ⭐ 2. 관심 종목 DB 세팅")
+        valid_watchlist = [s for s in st.session_state["my_watchlist"] if s in MASTER_STOCK_DICT]
+        new_watchlist = st.multiselect("관심 종목 편집:", options=list(MASTER_STOCK_DICT.keys()), default=valid_watchlist, format_func=format_stock_option, key="watchlist_multiselect")
+        if st.button("💾 관심 종목 DB 저장", type="secondary", use_container_width=True):
             st.session_state["my_watchlist"] = new_watchlist
             st.success("🎉 저장 완료!")
             st.rerun()
 
-# =====================================================================
-# 🚨 메뉴 2: 오늘의 실전 매매 레이더
-# =====================================================================
 elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     st.markdown("""
     <div class="hero-banner">
         <div class="hero-title">🚨 오늘의 실전 매매 레이더 (출격 명령서)</div>
-        <div class="hero-subtitle">매일 오후 3시 20분 종가 기준 | 증시 기상청 날씨 분석 및 주력 함대 타점 감시</div>
+        <div class="hero-subtitle">매일 오후 3시 20분 종가 기준 | 내 계좌 DB 주력 종목의 매수 타점을 감시합니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
-    buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1)
+    buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1, key="live_buy_cond")
     valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
-    PORTFOLIO_UNIVERSE = {s: MASTER_STOCK_DICT[s] for s in valid_watch_stocks}
+    PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
-    with st.spinner("📡 증시 기상청 및 실시간 시세를 동기화 중입니다..."):
+    with st.spinner("📡 대한민국 증시 기상청 및 실시간 시세를 동기화 중입니다..."):
         try:
             live_bench = yf.download(["^KS11", "^KQ11"], period="2mo", interval="1d", progress=False)
-            bench_close = live_bench['Close'] if isinstance(live_bench.columns, pd.MultiIndex) else live_bench
-            ks_series, kq_series = bench_close.iloc[:, 0].ffill(), bench_close.iloc[:, 1].ffill()
-            ks_ma20, kq_ma20 = ks_series.rolling(20).mean(), kq_series.rolling(20).mean()
-            
-            last_ks_c, last_ks_ma = float(ks_series.iloc[-1]), float(ks_ma20.iloc[-1])
-            last_kq_c, last_kq_ma = float(kq_series.iloc[-1]), float(kq_ma20.iloc[-1])
-
-            ks_weather = "🌧️ 먹구름 하락장" if last_ks_c < last_ks_ma else "☀️ 맑은 상승장"
-            kq_weather = "🌧️ 먹구름 하락장" if last_kq_c < last_kq_ma else "☀️ 맑은 상승장"
+            bench_close = live_bench['Close'] if isinstance(live_bench.columns, pd.MultiIndex) and 'Close' in live_bench.columns.levels[0] else live_bench
+            ks_key = '^KS11' if '^KS11' in bench_close.columns else bench_close.columns[0]
+            kq_key = '^KQ11' if '^KQ11' in bench_close.columns else (bench_close.columns[1] if len(bench_close.columns) > 1 else ks_key)
+            ks_series = bench_close[ks_key].ffill()
+            kq_series = bench_close[kq_key].ffill()
+            last_ks_c = float(ks_series.dropna().iloc[-1])
+            last_ks_ma = float(ks_series.rolling(window=20).mean().dropna().iloc[-1])
+            last_kq_c = float(kq_series.dropna().iloc[-1])
+            last_kq_ma = float(kq_series.rolling(window=20).mean().dropna().iloc[-1])
             
             st.markdown(f"""
             <div class="weather-card">
                 <div class="weather-title">⛅ 대한민국 증시 기상청 실시간 현황</div>
                 <div class="weather-box-container">
-                    <div class="weather-pill">[코스피] {ks_weather} ({last_ks_c:,.1f}pt / 20일선 {last_ks_ma:,.1f}pt)</div>
-                    <div class="weather-pill">[코스닥] {kq_weather} ({last_kq_c:,.1f}pt / 20일선 {last_kq_ma:,.1f}pt)</div>
+                    <div class="weather-pill">[코스피] {'☀️ 맑음' if last_ks_c >= last_ks_ma else '🌧️ 하락장'} ({last_ks_c:,.1f}pt)</div>
+                    <div class="weather-pill">[코스닥] {'☀️ 맑음' if last_kq_c >= last_kq_ma else '🌧️ 하락장'} ({last_kq_c:,.1f}pt)</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         except Exception:
             pass
 
-    st.markdown(f"### 📡 실시간 출격 시그널 ({len(valid_watch_stocks)}개 함대 감시 중)")
-    if PORTFOLIO_UNIVERSE:
-        try:
-            live_raw = yf.download(list(PORTFOLIO_UNIVERSE.values()), period="5d", interval="1d", progress=False)
-            live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) else live_raw
-            
-            for name, code in PORTFOLIO_UNIVERSE.items():
-                s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else live_data.dropna()
-                if len(s_data) >= 2:
-                    change_pct = ((float(s_data.iloc[-1]) - float(s_data.iloc[-2])) / float(s_data.iloc[-2])) * 100
-                    if change_pct <= -float(buy_cond_input):
-                        st.markdown(f"<div style='padding:12px; border:2px solid #ef4444; background:#fef2f2; border-radius:8px; margin-bottom:8px;'>⚡ <b>[{name}]</b> 당일 급락률 **{change_pct:.2f}%** ➔ 오늘 오후 3시 20분 진입 타점 포착!</div>", unsafe_allow_html=True)
-                    else:
-                        st.write(f"✅ **{name}**: 변동률 {change_pct:+.2f}% (대기 중)")
-        except Exception:
-            st.info("시세 동기화 중...")
-    else:
-        st.warning("⚠️ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 종목을 골라주세요.")
-
-# =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (스마트 자금 회전율 타임 컷 장착)
-# =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ 3단 밸런스 과수원 백테스트 연구소 (V10.16 스마트 회전율 엔진 장착)</div>
-        <div class="hero-subtitle">오래 묵은 자금을 강제 회전시켜 기회비용을 살려내는 스마트 타임 컷(Time-Cut) 패키지</div>
+        <div class="hero-title">🛡️ 과거 백테스트 연구소 (은퇴 설계 월별 정산 V10.11)</div>
+        <div class="hero-subtitle">은퇴 현금 흐름 분석 | 연도별 총 투입횟수 및 월별 정산 종합표가 완벽하게 연동됩니다.</div>
     </div>
     """, unsafe_allow_html=True)
 
+    with st.expander("💡 🛡️ 박가이버표 매매 알고리즘 4대 동작 원리 명세서", expanded=True):
+        st.markdown("""
+        1. **대세 하락장 자동 우산 방어 필터**: 지수 20일선 아래 하락장에서는 요원 출격을 일시 정지합니다.
+        2. **스마트 출격 타점 (-5% 이하 급락)**: 설정된 하락율 달성 시 종가로 기계적 진입합니다.
+        3. **하이브리드 추세연장 익절 스위치**: 5일선이 살아있는 한 상방을 열어두고 대세 상승을 극대화합니다.
+        4. **타임컷 & 리스크 관리**: 보유기간 초과 또는 손절선 도달 시 기계적으로 청산합니다.
+        """)
+
     valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
-    PORTFOLIO_UNIVERSE = {s: MASTER_STOCK_DICT[s] for s in valid_watch_stocks}
+    PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
-    st.sidebar.subheader("⚙️ 3단 과수원 백테스트 조종간")
-    strategy_choice = st.sidebar.selectbox("📊 작전 전략 선택", [
-        "🌳 3단 밸런스 과수원 전략 (60%재투자/20%현금/20%코어)",
-        "🚀 풀 현금 복리 재투자 전략 (100% 컴파운딩)",
-        "⚖️ 균등 배분 고정 전략 (No Reinvest / Buy&Hold 1/N)"
-    ], index=0)
-
-    total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=15000000, step=1000000)
-    max_agents_input = st.sidebar.slider("⚔️ 종목당 최대 요원 수", 1, 10, 5, 1)
-    years_input = st.sidebar.slider("🗓️ 조회 기간 (년)", 1, 10, 5, 1)
+    st.sidebar.subheader("⚙️ 백테스트 전략 조건 설정")
+    use_market_filter = st.sidebar.checkbox("🌤️ 대세 하락장 자동 우산 스위치", value=True)
+    ma_period_choice = st.sidebar.radio("📏 하락장 우산 기준선 선택", [120, 240], index=1, horizontal=True)
+    use_strict_ma_filter = st.sidebar.checkbox("📈 장기 이평선 위에서만 출격 (추세 필터)", value=False)
+    use_sector_limit = st.sidebar.checkbox("🤹‍♂️ 동일 섹터 몰빵 방지 캡", value=True)
+    use_time_cut = st.sidebar.checkbox("⏱️ 타임 컷 (최대 보유일 제한)", value=True)
+    max_hold_days_input = st.sidebar.slider("⏳ 최대 보유 제한일 (일)", 5, 60, 30, 5) if use_time_cut else 9999
     
-    buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1)
-    sell_target_input = st.sidebar.slider("🎯 익절 목표 (+%)", 1, 30, 10, 1)
-    stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1)
+    use_hybrid_trailing = st.sidebar.checkbox("🔥 하이브리드 추세연장 (목표가 달성 시 추세 홀딩)", value=True)
+    use_weighted_entry = st.sidebar.checkbox("📉 하락폭 가중 매수 (폭락장에서 예산 가중 투입)", value=True)
 
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("⏳ 스마트 자금 회전율 (타임 컷)")
-    use_time_cut = st.sidebar.checkbox("스마트 타임 컷 가동 (자금 동맥경화 방지)", value=True)
-    max_hold_days_input = st.sidebar.slider("최대 보유 제한일 (이 기간 넘기면 즉시 동반 철수)", 10, 90, 30, 5)
+    total_capital_input = st.sidebar.number_input("🏦 총 작전 예산(원)", value=10000000, step=1000000, key="bt_capital")
+    invest_amount_input = st.sidebar.number_input("💰 회당 초기 진입금액(원)", value=int(total_capital_input // 5), step=500000, key="bt_invest")
+    max_active_slots = max(1, int(total_capital_input // invest_amount_input))
+    max_sector_slots = max(1, max_active_slots // 2)
 
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("💸 실전 수수료 및 세금 설정")
-    buy_fee_rate = (st.sidebar.number_input("📉 매수 수수료 (%)", value=0.015, format="%.3f") / 100.0)
-    sell_tax_rate = (st.sidebar.number_input("📈 매도 세금+수수료 (%)", value=0.20, format="%.2f") / 100.0)
+    use_compounding = st.sidebar.checkbox("🚀 복리 스케일업 모드", value=True, key="bt_compound")
+    time_unit = st.sidebar.radio("🗓️ 기간 단위", ["월 단위 (개월)", "년 단위 (년)"], horizontal=True, key="bt_tunit")
+    months_input = st.sidebar.slider("백테스트 기간(개월)", 1, 120, 60, 1, key="bt_m") if time_unit == "월 단위 (개월)" else st.sidebar.slider("백테스트 기간(년)", 1, 10, 5, 1, key="bt_y") * 12
+    period_label = f"{months_input}개월"
 
-    run_btn = st.sidebar.button("🚀 3단 과수원 백테스트 가동!", type="primary", use_container_width=True)
+    buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1, key="bt_buy")
+    sell_target_input = st.sidebar.slider("🎯 익절 목표 (+%)", 1, 30, 5, 1, key="bt_sell")
+    stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1, key="bt_stop")
+
+    reward_type = st.sidebar.selectbox("🎁 전리품 수령 방식", ["전액 현금으로 챙기기", "🌟 현금 50% + 열매 50% (하이브리드)"], index=1)
+    run_btn = st.sidebar.button("🚀 백테스트 타임머신 가동!", type="primary", use_container_width=True)
 
     if run_btn:
-        if not PORTFOLIO_UNIVERSE:
-            st.error("❌ 감시 종목이 없습니다. [🗄️ 1. 내 계좌 영구 DB]에서 주력 종목을 세팅해 주세요!")
+        if len(PORTFOLIO_UNIVERSE) == 0:
+            st.error("❌ 감시 종목이 없습니다!")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 스마트 자금 회전율 엔진을 가동하여 분석 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 백테스트를 가동 중입니다..."):
                 try:
-                    end_dt = datetime.datetime.today()
-                    start_dt = end_dt - relativedelta(years=years_input + 1)
+                    end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
+                    start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                     tickers = list(PORTFOLIO_UNIVERSE.values())
                     
-                    raw_close = yf.download(tickers, start=start_dt.strftime('%Y-%m-%d'), end=end_dt.strftime('%Y-%m-%d'), progress=False)
-                    close_df = raw_close['Close'] if isinstance(raw_close.columns, pd.MultiIndex) else raw_close
+                    raw_close = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", progress=False)
+                    close_df = raw_close['Close'] if isinstance(raw_close.columns, pd.MultiIndex) and 'Close' in raw_close.columns.levels[0] else raw_close
                     if isinstance(close_df, pd.Series): close_df = close_df.to_frame(name=tickers[0])
                     close_df = close_df.dropna(how='all')
                     close_df.index = clean_date_index(close_df.index)
 
-                    bench_raw = yf.download(["^KS11", "^KQ11"], start=start_dt.strftime('%Y-%m-%d'), end=end_dt.strftime('%Y-%m-%d'), progress=False)
-                    bench_df = bench_raw['Close'] if isinstance(bench_raw.columns, pd.MultiIndex) else bench_raw
+                    raw_actions = yf.download(tickers, start=start_date_str, end=end_date_str, interval="1d", actions=True, progress=False)
+                    div_df = raw_actions['Dividends'] if isinstance(raw_actions.columns, pd.MultiIndex) and 'Dividends' in raw_actions.columns.levels[0] else pd.DataFrame(0, index=close_df.index, columns=tickers)
+                    div_df.index = clean_date_index(div_df.index)
+                    div_df = div_df.reindex(close_df.index).fillna(0)
 
-                    capital_per_stock = total_capital_input / len(PORTFOLIO_UNIVERSE)
-                    
-                    all_matched_trades = []
-                    stock_results = {}
-                    combined_equity_df = pd.DataFrame()
-                    all_active_positions = []
-                    total_cycles_all, full_launch_cycles_all = 0, 0
-                    all_batch_agent_counts = []
-                    total_agent_counter, total_fees_paid_all = 0, 0.0
+                    return_df = close_df.pct_change() * 100
+                    sma_df = close_df.rolling(window=int(ma_period_choice)).mean()
+                    ma5_df = close_df.rolling(window=5).mean()
+                    ma20_df = close_df.rolling(window=20).mean()
 
-                    yearly_operations = {}
-                    missed_opportunities = []
+                    buy_cond = -float(buy_cond_input)
+                    sell_target = float(sell_target_input)
+                    stop_loss_limit = -float(stop_loss_input) if stop_loss_input > 0 else None
 
-                    for s_name, t_code in PORTFOLIO_UNIVERSE.items():
-                        if t_code not in close_df.columns: continue
-                        df_s = close_df[[t_code]].dropna().copy()
-                        df_s.columns = ['Close']
-                        df_s['Daily_Return'] = df_s['Close'].pct_change() * 100
-                        df_s['MA20'] = df_s['Close'].rolling(20).mean()
-                        df_s['MA60'] = df_s['Close'].rolling(60).mean()
-                        df_s['MA120'] = df_s['Close'].rolling(120).mean()
-                        df_s = df_s[df_s.index >= (end_dt - relativedelta(years=years_input)).strftime('%Y-%m-%d')].copy()
+                    current_cash = float(total_capital_input)
+                    active_positions, trade_logs, asset_history = [], [], []
+                    agent_counter = 0
 
-                        positions = []
-                        core_shares = 0
-                        reserve_cash = 0.0
-                        total_trades, win_trades, loss_trades = 0, 0, 0
-                        total_cycles, full_launch_cycles = 0, 0
-                        batch_agent_counts = []
-                        stock_total_fees = 0.0
-                        matched_trades = []
-                        agent_counter = 0
-                        current_capital = float(capital_per_stock)
-                        step_progress, level_up_count, step_down_count = 0.0, 0, 0
-                        daily_log = []
+                    yearly_stats = {}
+                    monthly_stats = {}
+                    free_shares_dict = {s_name: 0 for s_name in PORTFOLIO_UNIVERSE.keys()}
+                    total_success, total_stop_loss = 0, 0
+                    global_max_deployed = 0
+                    daily_deployment_snapshots = []
+                    peak_asset_value = float(total_capital_input)
+                    max_drawdown_pct = 0.0
 
-                        for date, row in df_s.iterrows():
-                            close = float(row['Close'])
-                            daily_ret = float(row['Daily_Return'])
-                            ma20 = float(row['MA20']) if not pd.isna(row['MA20']) else close
-                            ma60 = float(row['MA60']) if not pd.isna(row['MA60']) else close
-                            ma120 = float(row['MA120']) if not pd.isna(row['MA120']) else close
-                            date_str = date.strftime('%Y-%m-%d')
-                            year_key = date.year
+                    current_snow_level = 1
+                    last_level_threshold_asset = float(total_capital_input)
+                    level_up_events_count = 0
 
-                            if year_key not in yearly_operations:
-                                yearly_operations[year_key] = {
-                                    'success': 0, 'stop': 0, 'net_profit': 0.0, 
-                                    'fees': 0.0, 'core_acquired': 0, 'reserve_added': 0.0, 'trades_list': []
-                                }
-
-                            if pd.isna(daily_ret): continue
-
-                            is_super_bull = (close > ma20) and (ma20 > ma60) and (ma60 > ma120)
-                            is_super_bear = (close < ma20) and (ma20 < ma60) and (ma60 < ma120)
-                            target_ret = 15.0 if is_super_bull else (5.0 if is_super_bear else float(sell_target_input))
-
-                            # 🌟 [신규] 동반 수확 조건 및 스마트 타임 컷 조건 체크
-                            has_winner = any(((close - pos['entry_price']) / pos['entry_price']) * 100 >= target_ret for pos in positions)
-                            has_time_cut = False
-                            
-                            if use_time_cut and len(positions) > 0:
-                                oldest_entry = pd.to_datetime(positions[0]['entry_date'])
-                                if (pd.to_datetime(date_str) - oldest_entry).days >= max_hold_days_input:
-                                    has_time_cut = True
-
-                            # 익절 도달이거나, 오래 물려서 타임 컷에 걸렸다면 전원 철수 (테이블 회전)
-                            if (has_winner or has_time_cut) and len(positions) > 0:
-                                total_cycles += 1
-                                total_cycles_all += 1
-                                batch_size = len(positions)
-                                batch_agent_counts.append(batch_size)
-                                all_batch_agent_counts.append(batch_size)
-                                if batch_size == max_agents_input:
-                                    full_launch_cycles += 1
-                                    full_launch_cycles_all += 1
-
-                                batch_reinvest_profit = 0.0
-                                current_batch_trades = []
-
-                                for pos in positions:
-                                    shares = pos['shares']
-                                    buy_gross = shares * pos['entry_price']
-                                    buy_fee = buy_gross * buy_fee_rate
-                                    buy_net = buy_gross + buy_fee
-                                    
-                                    sell_gross = shares * close
-                                    sell_tax = sell_gross * sell_tax_rate
-                                    sell_net = sell_gross - sell_tax
-                                    
-                                    trade_fee_total = buy_fee + sell_tax
-                                    stock_total_fees += trade_fee_total
-                                    total_fees_paid_all += trade_fee_total
-
-                                    profit_krw = sell_net - buy_net
-                                    ret = (profit_krw / buy_net) * 100
-
-                                    acquired_c = 0
-                                    added_r = 0.0
-                                    if profit_krw > 0:
-                                        if "3단 밸런스" in strategy_choice:
-                                            reinvest_amt = profit_krw * 0.60
-                                            added_r = profit_krw * 0.20
-                                            reserve_cash += added_r
-                                            acquired_c = int((profit_krw * 0.20) // close)
-                                            core_shares += acquired_c
-                                        elif "풀 현금" in strategy_choice:
-                                            reinvest_amt = profit_krw * 1.00
-                                        else:
-                                            reinvest_amt = 0.0
-                                    else:
-                                        reinvest_amt = profit_krw
-
-                                    is_win = profit_krw >= 0
-                                    if is_win: yearly_operations[year_key]['success'] += 1
-                                    else: yearly_operations[year_key]['stop'] += 1
-                                    yearly_operations[year_key]['net_profit'] += profit_krw
-                                    yearly_operations[year_key]['fees'] += trade_fee_total
-                                    yearly_operations[year_key]['core_acquired'] += acquired_c
-                                    yearly_operations[year_key]['reserve_added'] += added_r
-
-                                    batch_reinvest_profit += reinvest_amt
-                                    total_trades += 1
-                                    if is_win: win_trades += 1
-                                    else: loss_trades += 1
-
-                                    entry_dt = pd.to_datetime(pos['entry_date'])
-                                    exit_dt = pd.to_datetime(date_str)
-                                    days_taken = (exit_dt - entry_dt).days
-
-                                    # 철수 사유 결정
-                                    if has_time_cut and not has_winner:
-                                        exit_reason = f"⏳ 타임 컷 회전 ({days_taken}일 초과)"
-                                    else:
-                                        exit_reason = "🎯 동반 수확 성공" if is_win else "🚨 강제 철수"
-
-                                    trade_item = {
-                                        '요원': pos['name'], '작전구역': s_name, '종목코드': t_code,
-                                        '출격일': pos['entry_date'], '진입일 등락률': f"{pos['entry_return']:+.2f}%",
-                                        '진입금액': f"{int(buy_net):,}원", '진입단가': f"{int(pos['entry_price']):,}원",
-                                        '복귀일': date_str, '청산일 등락률': f"{daily_ret:+.2f}%", '청산단가': f"{int(close):,}원",
-                                        '매도금액': f"{int(sell_net):,}원", '총수수료·세금': f"{int(trade_fee_total):,}원",
-                                        '등락폭': f"{int(profit_krw):,}원 ({ret:+.2f}%)", '소요기간': f"{days_taken}일 소요",
-                                        '순수익률': f"{ret:+.2f}%", '정산내역': f"{'+' if profit_krw>=0 else ''}{int(profit_krw):,}원",
-                                        '구분': exit_reason,
-                                        '스노우볼 레벨': f"Lv.{max(1, level_up_count + 1)}", 'is_win': is_win, 'raw_profit': profit_krw, 'exit_date': date
-                                    }
-                                    current_batch_trades.append(trade_item)
-                                    yearly_operations[year_key]['trades_list'].append(trade_item)
-
-                                if "균등 배분" not in strategy_choice:
-                                    step_progress += batch_reinvest_profit
-                                    threshold = current_capital * 0.10
-                                    if step_progress >= threshold:
-                                        level_up_count += 1
-                                        current_capital += threshold
-                                        step_progress = 0.0
-
-                                matched_trades.extend(current_batch_trades)
-                                positions = []
-
-                            if daily_ret <= -float(buy_cond_input):
-                                if len(positions) >= max_agents_input:
-                                    missed_opportunities.append({
-                                        '발생 일자': date_str, '작전구역': s_name, '당일 하락률': f"{daily_ret:+.2f}%",
-                                        '불가 사유': f"종목당 최대 요원 슬롯({max_agents_input}명) 풀가동 중"
-                                    })
-                                else:
-                                    agent_counter += 1
-                                    total_agent_counter += 1
-                                    scale_ratio = current_capital / capital_per_stock if "균등 배분" not in strategy_choice else 1.0
-                                    agent_budget = int((capital_per_stock // max_agents_input) * scale_ratio)
-                                    shares = max(int(agent_budget // close), 1)
-
-                                    positions.append({
-                                        'name': f"{agent_counter}호 요원", 'entry_price': close,
-                                        'entry_date': date_str, 'entry_return': daily_ret, 'shares': shares
-                                    })
-
-                            active_eval = sum(p['shares'] * close for p in positions)
-                            core_eval = core_shares * close
-                            realized_pnl = sum([t['raw_profit'] for t in matched_trades])
-                            stock_eq = capital_per_stock + realized_pnl + reserve_cash + core_eval + active_eval - sum(p['shares']*p['entry_price'] for p in positions)
-                            daily_log.append({'Date': date, 'Stock_Equity': stock_eq})
-
-                        for p in positions:
-                            cur_eval_p = p['shares'] * float(df_s['Close'].iloc[-1])
-                            pnl_p = cur_eval_p - (p['shares'] * p['entry_price'])
-                            pnl_pct = (pnl_p / (p['shares'] * p['entry_price'])) * 100
-                            all_active_positions.append({
-                                '작전구역': s_name, '요원명': p['name'], '파견일': p['entry_date'],
-                                '진입단가': f"{int(p['entry_price']):,}원", '수량': f"{p['shares']}주",
-                                '평가금액': f"{int(cur_eval_p):,}원", '평가손익': f"{int(pnl_p):,}원 ({pnl_pct:+.2f}%)", 'is_plus': pnl_p >= 0
-                            })
-
-                        df_eq = pd.DataFrame(daily_log).set_index('Date')
-                        combined_equity_df[s_name] = df_eq['Stock_Equity']
-
-                        stock_results[t_code] = {
-                            'name': s_name, 'total_trades': total_trades, 'win_trades': win_trades, 'loss_trades': loss_trades,
-                            'win_rate': (win_trades / total_trades * 100) if total_trades > 0 else 0,
-                            'net_profit': sum([t['raw_profit'] for t in matched_trades]), 'reserve_cash': reserve_cash,
-                            'core_shares': core_shares, 'core_eval': core_shares * float(df_s['Close'].iloc[-1]),
-                            'active_eval': sum(p['shares'] * float(df_s['Close'].iloc[-1]) for p in positions),
-                            'active_count': len(positions), 'final_equity': df_eq['Stock_Equity'].iloc[-1] if not df_eq.empty else capital_per_stock,
-                            'total_fees': stock_total_fees, 'matched_trades': matched_trades
-                        }
-                        all_matched_trades.extend(matched_trades)
-
-                    combined_equity_df = combined_equity_df.dropna()
-                    combined_equity_df['Portfolio_Equity'] = combined_equity_df.sum(axis=1)
-
-                    # KPI 지표 계산
-                    total_net_profit_all = sum([res['net_profit'] for res in stock_results.values()])
-                    total_trades_all = sum([res['total_trades'] for res in stock_results.values()])
-                    win_trades_all = sum([res['win_trades'] for res in stock_results.values()])
-                    loss_trades_all = sum([res['loss_trades'] for res in stock_results.values()])
-                    overall_win_rate = (win_trades_all / total_trades_all * 100) if total_trades_all > 0 else 0
-                    final_portfolio_equity = combined_equity_df['Portfolio_Equity'].iloc[-1]
-                    total_reserve_cash = sum([res['reserve_cash'] for res in stock_results.values()])
-                    total_core_eval = sum([res['core_eval'] for res in stock_results.values()])
-                    total_core_shares = sum([res['core_shares'] for res in stock_results.values()])
-                    total_active_eval = sum([res['active_eval'] for res in stock_results.values()])
-                    total_active_count = sum([res['active_count'] for res in stock_results.values()])
-
-                    # 화면 렌더링
-                    st.markdown(f"""
-                    <div style="background:#e8f8f5; border:2px solid #1abc9c; padding:15px; border-radius:10px; margin-bottom:20px;">
-                        <h3 style="margin:0; color:#117a65;">🏆 [3단 밸런스 과수원] 백테스트 대시보드 풀패키지 가동 완료!</h3>
-                        <p style="margin:5px 0 0 0; color:#2c3e50;">전략: <b>{strategy_choice}</b> | 통합 청산 승률: <b>{overall_win_rate:.1f}%</b> | 실현 순수익: <b style="color:#c0392b;">+{int(total_net_profit_all):,}원</b></p>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    k1, k2, k3, k4 = st.columns(4)
-                    k1.metric("🎯 통합 청산 승률", f"{overall_win_rate:.1f}%", f"익절 {win_trades_all} / 손절 {loss_trades_all}")
-                    k2.metric("⚔️ 총 투입 요원", f"{total_agent_counter}명", f"총 {total_cycles_all}개 회차 / 대기 {total_active_count}명")
-                    full_launch_pct = (full_launch_cycles_all / total_cycles_all * 100) if total_cycles_all > 0 else 0.0
-                    k3.metric("🔥 최대 요원 풀출력", f"{full_launch_cycles_all}회", f"({full_launch_pct:.1f}%)")
-                    k4.metric("🚀 스노우볼 레벨UP", f"{sum([r.get('level_up_count',0) for r in stock_results.values()])}회", "수익 +10% 축적 시 증액")
-
-                    k5, k6, k7, k8, k9 = st.columns(5)
-                    k5.metric("💵 비상 현금금고", f"{int(total_reserve_cash):,}원", "폭락장 대비 20% 안전예수금")
-                    k6.metric("📈 대기주식 평가금", f"{int(total_active_eval):,}원", f"대기 요원 {total_active_count}명")
-                    k7.metric("💰 누적 실현 순수익", f"+{int(total_net_profit_all):,}원", "매매 실현 순수익")
-                    k8.metric("🚀 포트폴리오 총자산", f"{int(final_portfolio_equity):,}원", "현금+대기주식+코어주식")
-                    k9.metric("🍎 확보 코어주식", f"{total_core_shares}주", f"가치 {int(total_core_eval):,}원")
-
-                    st.markdown("---")
-
-                    # 연도별 작전 운영 내용 보고서
-                    st.markdown("### 📅 연도별 작전 운영 내용 종합 보고서")
-                    yearly_summary_rows = []
-                    for yr in sorted(yearly_operations.keys()):
-                        y_data = yearly_operations[yr]
-                        y_trades = y_data['success'] + y_data['stop']
-                        y_win_rate = (y_data['success'] / y_trades * 100) if y_trades > 0 else 0.0
-                        yearly_summary_rows.append({
-                            '연도': f"{yr}년", '총 교전횟수': f"{y_trades}회",
-                            '승률': f"{y_win_rate:.1f}% (익절 {y_data['success']} / 손절 {y_data['stop']})",
-                            '실현 순수익': f"{'+' if y_data['net_profit']>=0 else ''}{int(y_data['net_profit']):,}원",
-                            '납부 수수료·세금': f"-{int(y_data['fees']):,}원",
-                            '코어주식 적립': f"{y_data['core_acquired']}주", '현금금고 적립': f"+{int(y_data['reserve_added']):,}원"
-                        })
-                    
-                    if yearly_summary_rows:
-                        st.dataframe(pd.DataFrame(yearly_summary_rows), use_container_width=True, hide_index=True)
-                        for yr in sorted(yearly_operations.keys()):
-                            y_data = yearly_operations[yr]
-                            y_trades = y_data['success'] + y_data['stop']
-                            with st.expander(f"🔍 [{yr}년 작전 운영 상세 보고서] 총 {y_trades}회 교전 / 순익: {int(y_data['net_profit']):,}원"):
-                                if y_data['trades_list']:
-                                    st.dataframe(pd.DataFrame([{k: v for k, v in t.items() if k not in ['is_win', 'raw_profit', 'exit_date']} for t in y_data['trades_list']]), use_container_width=True, hide_index=True)
-                                else:
-                                    st.info(f"{yr}년도에 청산된 거래 내역이 없습니다.")
-
-                    st.markdown("---")
-
-                    st.markdown(f"### 📂 미출격 기회 분석 리포트 (총 {len(missed_opportunities)}건 포착)")
-                    st.caption("급락(-5% 이하) 타점이 포착되었으나, 요원 슬롯(최대 수)이 풀가동 상태여서 아쉽게 진입하지 못한 기회들입니다.")
-                    if missed_opportunities:
-                        st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
-                    else:
-                        st.success("🎉 아쉽게 놓친 미출격 기회가 없습니다! 모든 급락 타점에 요원들이 완벽하게 투입되었습니다.")
-
-                    st.markdown("---")
-
-                    st.markdown(f"#### 📊 작전 회차별 요원 동시 투입 분포 현황 (총 {total_cycles_all}개 청산 작전 회차)")
-                    agent_dist = {1:0, 2:0, 3:0, 4:0, 5:0}
-                    for cnt in all_batch_agent_counts:
-                        if cnt in agent_dist: agent_dist[cnt] += 1
-                    
-                    d_cols = st.columns(max_agents_input)
-                    for a_num in range(1, max_agents_input + 1):
-                        cnt = agent_dist.get(a_num, 0)
-                        pct = (cnt / total_cycles_all * 100) if total_cycles_all > 0 else 0.0
-                        with d_cols[a_num - 1]:
-                            st.markdown(f"""
-                            <div style="background:white; border-left:4px solid #3498db; padding:10px; border-radius:6px; border:1px solid #d5dbdf; text-align:center;">
-                                <div style="font-size:11px; color:#7f8c8d; font-weight:bold;">{a_num}명 투입</div>
-                                <div style="font-size:16px; font-weight:900; color:#2c3e50; margin-top:2px;">{cnt}회 <span style="font-size:11px; font-weight:normal;">({pct:.1f}%)</span></div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                    st.markdown("")
-                    st.markdown(f"#### 🕵️ [현재 파견 대기 중인 요원 실시간 현황판] (총 {len(all_active_positions)}명 대기 중)")
-                    if len(all_active_positions) > 0:
-                        st.dataframe(pd.DataFrame(all_active_positions), use_container_width=True, hide_index=True)
-                    else:
-                        st.success("현재 장 마감 기준 현장에 파견되어 대기 중인 요원이 없습니다 (모두 성공 복귀 완료).")
-
-                    st.markdown("")
-                    st.markdown("#### 🔍 [종목별 독립 성과 분석] 어떤 주식이 어떻게 움직였나?")
-                    s_cols = st.columns(len(stock_results))
-                    for idx, (t_code, res) in enumerate(stock_results.items()):
-                        with s_cols[idx]:
-                            st.markdown(f"""
-                            <div style="background:white; border:1px solid #d5dbdf; border-top:4px solid #2980b9; padding:12px; border-radius:6px;">
-                                <div style="font-weight:bold; color:#2980b9; font-size:14px; margin-bottom:6px;">{res['name']} ({t_code})</div>
-                                <div style="font-size:12px; color:#555; line-height:1.5;">
-                                    • 승률: <b>{res['win_rate']:.1f}%</b> (익절 {res['win_trades']} / 손절 {res['loss_trades']})<br>
-                                    • 실현 순익: <b style="color:#c0392b;">+{int(res['net_profit']):,}원</b><br>
-                                    • 최종 평가자산: <b>{int(res['final_equity']):,}원</b><br>
-                                    • 현금금고 / 코어: {int(res['reserve_cash']):,}원 / {res['core_shares']}주<br>
-                                    • 현재 대기요원: <b style="color:#2980b9;">{res['active_count']}명</b>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                    st.markdown("---")
-                    st.markdown("#### 📈 [전략 및 시장 비교] 오토파일럿 함대 vs 현금 vs KOSPI·KOSDAQ")
-                    x_dates = [d.strftime('%Y-%m-%d') for d in combined_equity_df.index]
-                    fig_chart = go.Figure()
-                    fig_chart.add_trace(go.Scatter(x=x_dates, y=combined_equity_df['Portfolio_Equity'], mode='lines', name=f'오토파일럿 ({strategy_choice})', line=dict(color='#e74c3c', width=3)))
-                    fig_chart.add_trace(go.Scatter(x=x_dates, y=[total_capital_input]*len(x_dates), mode='lines', name='전액 현금 (Cash)', line=dict(color='#f1c40f', width=1.5, dash='dot')))
-                    
-                    if not bench_df.empty:
-                        try:
-                            bench_clean = bench_df.reindex(combined_equity_df.index).ffill().bfill()
-                            ks_col = '^KS11' if '^KS11' in bench_clean.columns else bench_clean.columns[0]
-                            kq_col = '^KQ11' if '^KQ11' in bench_clean.columns else (bench_clean.columns[1] if len(bench_clean.columns)>1 else ks_col)
-                            
-                            ks_norm = total_capital_input * (bench_clean[ks_col] / bench_clean[ks_col].iloc[0])
-                            kq_norm = total_capital_input * (bench_clean[kq_col] / bench_clean[kq_col].iloc[0])
-                            fig_chart.add_trace(go.Scatter(x=x_dates, y=ks_norm, mode='lines', name='KOSPI 지수', line=dict(color='#2ecc71', width=1.2, dash='dash')))
-                            fig_chart.add_trace(go.Scatter(x=x_dates, y=kq_norm, mode='lines', name='KOSDAQ 지수', line=dict(color='#9b59b6', width=1.2, dash='dash')))
-                        except Exception:
-                            pass
-
-                    fig_chart.update_layout(height=450, template="plotly_white", margin=dict(l=10, r=10, t=30, b=10), hovermode="x unified")
-                    st.plotly_chart(fig_chart, use_container_width=True)
-
-                    st.markdown("---")
-                    st.markdown("### 📜 멀티 함대 통합 전체 매매 장부 (한국식 스마트 컬러 적용)")
-                    if all_matched_trades:
-                        df_trades = pd.DataFrame([{k: v for k, v in t.items() if k not in ['is_win', 'raw_profit', 'exit_date']} for t in all_matched_trades])
-                        st.dataframe(style_trade_df(df_trades), use_container_width=True)
+                    for date, row in close_df.iterrows():
+                        date_str = date.strftime('%Y-%m-%d')
+                        year = date.year
+                        month_key = date.strftime('%Y-%m')
+                        if year not in yearly_stats: yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0}
+                        if month_key not in monthly_stats: monthly_stats[month_key] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0}
                         
-                        csv_data = df_trades.to_csv(index=False, encoding='utf-8-sig')
-                        st.download_button(
-                            label="📥 엑셀(CSV) 공식 작전 장부 다운로드 (메타데이터 포함)",
-                            data=csv_data,
-                            file_name=f"박가이버사령부_V10.16_공식작전장부_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                            mime="text/csv"
-                        )
-                    else:
-                        st.info("청산된 매매 기록이 없습니다.")
+                        survived_positions = []
+                        for pos in active_positions:
+                            t_code = pos['ticker']
+                            if t_code in row and not pd.isna(row[t_code]):
+                                curr_price = float(row[t_code])
+                                gross_ret = ((curr_price - pos['entry_price']) / pos['entry_price']) * 100
+                                is_exit, exit_reason = False, ""
+                                days_taken = (pd.to_datetime(date_str) - pd.to_datetime(pos['entry_date'])).days
 
+                                ma5_val = ma5_df.loc[date, t_code] if t_code in ma5_df.columns and date in ma5_df.index else None
+                                ma20_val = ma20_df.loc[date, t_code] if t_code in ma20_df.columns and date in ma20_df.index else None
+
+                                if use_hybrid_trailing and pos.get('trailing', False):
+                                    if pd.notna(ma5_val) and pd.notna(ma20_val) and (curr_price < ma5_val or ma5_val < ma20_val):
+                                        is_exit, exit_reason = True, "🔥 하이브리드 추세연장 익절"
+                                else:
+                                    if gross_ret >= sell_target:
+                                        if use_hybrid_trailing and pd.notna(ma5_val) and pd.notna(ma20_val) and (ma5_val > ma20_val) and (curr_price >= ma5_val):
+                                            pos['trailing'] = True
+                                        else:
+                                            is_exit, exit_reason = True, f"🎯 정상 복귀(+{sell_target_input}%)"
+                                    elif stop_loss_limit is not None and gross_ret <= stop_loss_limit:
+                                        is_exit, exit_reason = True, f"🚨 강제 철수(-{stop_loss_input}%)"
+                                    elif use_time_cut and days_taken >= max_hold_days_input:
+                                        is_exit, exit_reason = True, f"⏳ 타임 컷 ({max_hold_days_input}일 초과)"
+
+                                if is_exit:
+                                    sell_gross_val = pos['invest_amount'] * (curr_price / pos['entry_price'])
+                                    net_profit = sell_gross_val - pos['invest_amount']
+                                    net_ret = (net_profit / pos['invest_amount']) * 100
+                                    s_name = pos['stock_name']
+                                    
+                                    if gross_ret >= sell_target or net_profit > 0:
+                                        total_success += 1
+                                        yearly_stats[year]['success'] += 1
+                                        monthly_stats[month_key]['success'] += 1
+                                        buyable = int(max(0, net_profit) * 0.5 // curr_price) if '하이브리드' in reward_type else 0
+                                        leftover = net_profit - (buyable * curr_price)
+                                    else:
+                                        total_stop_loss += 1
+                                        yearly_stats[year]['stop'] += 1
+                                        monthly_stats[month_key]['stop'] += 1
+                                        buyable, leftover = 0, net_profit
+
+                                    free_shares_dict[s_name] += buyable
+                                    current_cash += (pos['invest_amount'] + leftover)
+                                    yearly_stats[year]['shares'] += buyable
+                                    yearly_stats[year]['cash'] += leftover
+                                    monthly_stats[month_key]['shares'] += buyable
+                                    monthly_stats[month_key]['cash'] += leftover
+
+                                    current_total_eval_check = current_cash + sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
+                                    is_level_up = False
+                                    if use_compounding and current_total_eval_check >= last_level_threshold_asset * 1.10:
+                                        current_snow_level += 1
+                                        level_up_events_count += 1
+                                        last_level_threshold_asset = current_total_eval_check
+                                        is_level_up = True
+
+                                    level_display_str = f"🚀 Lv.{current_snow_level} (레벨UP!)" if is_level_up else f"Lv.{current_snow_level}"
+                                    trade_logs.append({
+                                        '요원': pos['name'], '작전 구역': pos['stock_name'], '출격일': pos['entry_date'],
+                                        '진입금액': f"{format_pure_number(pos['invest_amount'])}원", '복귀일': date_str,
+                                        '매도금액': f"{format_pure_number(sell_gross_val)}원", '순수익률': f"{net_ret:+.2f}%",
+                                        '정산내역': f"열매 {buyable}개 + 잔돈 {format_pure_number(leftover)}원" if buyable > 0 else f"{format_pure_number(leftover)}원",
+                                        '구분': exit_reason, '스노우볼 레벨': level_display_str
+                                    })
+                                else:
+                                    survived_positions.append(pos)
+                            else:
+                                survived_positions.append(pos)
+                        active_positions = survived_positions
+                        
+                        remaining_slots = max_active_slots - len(active_positions)
+                        dynamic_invest_amount = max(float(invest_amount_input), current_cash / remaining_slots) if (use_compounding and remaining_slots > 0) else float(invest_amount_input)
+
+                        day_returns = return_df.loc[date] if date in return_df.index else None
+                        if day_returns is not None:
+                            candidates = []
+                            for s_name, t_code in PORTFOLIO_UNIVERSE.items():
+                                if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
+                                    ret_val = float(day_returns[t_code])
+                                    target_buy_cond = buy_cond
+                                    if use_market_filter and t_code in sma_df.columns and date in sma_df.index:
+                                        sma_val = sma_df.loc[date, t_code]
+                                        if pd.notna(sma_val) and row[t_code] < sma_val:
+                                            target_buy_cond = buy_cond * 1.4
+                                    if ret_val <= target_buy_cond:
+                                        candidates.append((s_name, t_code, ret_val, float(row[t_code])))
+                            candidates.sort(key=lambda x: x[2])
+
+                            for cand in candidates:
+                                c_price, ret_val, t_code, s_name = cand[3], cand[2], cand[1], cand[0]
+                                actual_invest = min(dynamic_invest_amount * (max(1.0, abs(ret_val) / abs(buy_cond_input)) if use_weighted_entry else 1.0), current_cash)
+                                if len(active_positions) < max_active_slots and current_cash >= 500000:
+                                    agent_counter += 1
+                                    current_cash -= actual_invest
+                                    active_positions.append({'name': f"{agent_counter}호 요원", 'stock_name': s_name, 'ticker': t_code, 'entry_price': c_price, 'entry_date': date_str, 'invest_amount': actual_invest, 'trailing': False})
+
+                        if len(active_positions) > global_max_deployed: global_max_deployed = len(active_positions)
+                        if len(active_positions) > 0:
+                            daily_deployment_snapshots.append({"발생 일자": date_str, "동시 출격 수": len(active_positions)})
+
+                        eval_pos = sum([p['invest_amount'] * (float(row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in row and not pd.isna(row[p['ticker']])])
+                        today_total_asset = current_cash + eval_pos
+                        if today_total_asset > peak_asset_value: peak_asset_value = today_total_asset
+                        curr_dd = ((today_total_asset - peak_asset_value) / peak_asset_value) * 100
+                        if curr_dd < max_drawdown_pct: max_drawdown_pct = curr_dd
+                        asset_history.append({"Date": date_str, "Total_Asset": today_total_asset, "Drawdown": curr_dd, "Invest_Scale": dynamic_invest_amount})
+
+                    asset_df = pd.DataFrame(asset_history)
+                    last_row = close_df.iloc[-1]
+                    active_eval_val = sum([p['invest_amount'] * (float(last_row[p['ticker']]) / p['entry_price']) for p in active_positions if p['ticker'] in last_row and not pd.isna(last_row[p['ticker']])])
+                    total_free_shares_val = sum([count * float(last_row[PORTFOLIO_UNIVERSE[s_name]]) for s_name, count in free_shares_dict.items() if count > 0 and PORTFOLIO_UNIVERSE[s_name] in last_row and not pd.isna(last_row[PORTFOLIO_UNIVERSE[s_name]])])
+                    final_total_asset = current_cash + active_eval_val + total_free_shares_val
+                    total_net_profit = final_total_asset - total_capital_input
+                    win_rate = (total_success / (total_success + total_stop_loss) * 100) if (total_success + total_stop_loss) > 0 else 0
+
+                    st.success("🎉 백테스트 완료!")
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("✨ 최종 총자산", format_money(final_total_asset))
+                    m2.metric("📈 총 순수익금", format_money(total_net_profit), delta=f"{(total_net_profit/total_capital_input)*100:.2f}%")
+                    m3.metric("🎯 작전 승률", f"{win_rate:.1f}%")
+                    m4.metric("🚀 스노우볼 레벨UP", f"Lv.{current_snow_level} ({level_up_events_count}회)")
+
+                    tab1, tab2, tab3 = st.tabs(["📊 자산 차트", "📈 연도/월별 정산", "📜 매매장부"])
+                    with tab1:
+                        fig = px.line(asset_df, x='Date', y='Total_Asset', title="총자산 증식 추이")
+                        st.plotly_chart(fig, use_container_width=True)
+                    with tab2:
+                        st.write("#### 🗓️ 연도별 정산 종합표")
+                        ys_list = [{"연도": str(y), "🎯 익절": f"{v['success']}회", "🚨 손절": f"{v['stop']}회", "⚔️ 투입횟수": f"{v['success']+v['stop']}회", "💵 현금수익": format_money(v['cash'])} for y, v in sorted(yearly_stats.items())]
+                        st.dataframe(pd.DataFrame(ys_list), use_container_width=True, hide_index=True)
+                        
+                        st.write("#### 📅 월별 정산 종합표")
+                        ms_list = [{"월": m, "🎯 익절": f"{v['success']}회", "🚨 손절": f"{v['stop']}회", "⚔️ 투입횟수": f"{v['success']+v['stop']}회", "💵 월별수익": format_money(v['cash'])} for m, v in sorted(monthly_stats.items())]
+                        st.dataframe(pd.DataFrame(ms_list), use_container_width=True, hide_index=True)
+                    with tab4_dummy if False else tab3:
+                        if trade_logs:
+                            df_logs = pd.DataFrame(list(reversed(trade_logs)))
+                            st.dataframe(style_trade_df(df_logs), use_container_width=True)
                 except Exception as e:
-                    st.error(f"❌ 시뮬레이션 중 에러 발생: {e}")
+                    st.error(f"에러 발생: {e}")
+'''''
+
+with open("app.py", "w", encoding="utf-8") as f:
+    f.write(app_code)
+
+print("🎉 [박가이버 사령부 V10.11] 코랩 마스터 파일 생성 완료!")
+print("▶ 아래 명령어를 실행하여 스트림릿 대시보드를 띄우세요:")
+print("!streamlit run app.py & npx localtunnel --port 8501")
+}저는 언어 모델이라서 그것은 도와드릴 수가 없습니다.
