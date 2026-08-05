@@ -116,7 +116,7 @@ def render_subscriber_guide():
         1. **🕒 1분 컷 '순수 종가 매매':** 근무 시간에는 주식 창을 완전히 봉인하고, 매일 오후 3시 20분에 접속해 레이더 신호 확인 후 동시호가 매수!
         2. **🚁 전원 동반 탈출 ('헬기 복귀'):** 출격 요원 중 단 1명이라도 목표가를 터치하면 전 부대원 동반 청산하여 계좌 회전율 극대화!
         3. **🧠 지능형 날씨 판독기:** 정배열(상승장)엔 **+10%**, 역배열/박스권엔 **+5%**로 목표가 자동 조절!
-        4. **🌊 기상청 태풍 경보 시스템:** *"우리 배가 아무리 튼튼해도, 바다 전체에 '초대형 태풍 주의보'가 발령되면 배를 항구에 묶어두고 출항하지 않는다!"* 코스피/코스닥이 200일선 아래로 무너지면 신규 출격을 전면 차단하고 현금을 지킵니다!
+        4. **🌊 기상청 태풍 경보 시스템:** *"우리 배가 아무리 튼튼해도, 바다 전체에 '초대형 태풍 주의보'가 발령되면 출항하지 않는다!"* 코스피가 200일선 아래로 무너지면 신규 출격을 차단하고 현금을 지킵니다!
         5. **⛄ 스노우볼 레벨UP:** 자산이 +10% 찰 때마다 1회 출격 예산이 10%씩 커지는 복리의 마법!
         """)
 
@@ -279,13 +279,13 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
             st.info("💡 실시간 시세를 동기화하는 중입니다.")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (기상청 태풍 경보 시스템 탑재)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (태풍 경보 시스템 탑재)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ V10.3 과거 5년 백테스트 연구소 (태풍 경보 방어 시스템 탑재)</div>
-        <div class="hero-subtitle">실전 검증 | 🌊 기상청 태풍 경보 시스템(코스피 200일선 방어), 전원 동반 탈출, 지능형 목표가, 스노우볼 탑재</div>
+        <div class="hero-title">🛡️ V10.3 과거 5년 백테스트 연구소 (태풍 방어판)</div>
+        <div class="hero-subtitle">실전 검증 | 🌊 기상청 태풍 경보 시스템(코스피 200일선 방어), 전원 동반 탈출, 지능형 목표가 탑재</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -300,9 +300,9 @@ else:
         st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 종목을 먼저 골라주세요.")
 
     st.sidebar.subheader("⚙️ 백테스트 전략 조건 설정")
-    use_typhoon_warning = st.sidebar.checkbox("🚨 KOSPI/KOSDAQ '기상청 태풍 경보 시스템'", value=True, help="시장 전체(코스피)가 200일선 아래로 내려앉아 '태풍 주의보'가 발령되면 신규 출격을 전면 차단하고 항구(현금)에 대피합니다!")
+    use_typhoon_warning = st.sidebar.checkbox("🚨 KOSPI '기상청 태풍 경보 시스템'", value=True, help="코스피 지수가 200일선 아래로 내려앉으면 신규 출격을 전면 차단하고 현금(항구)에 대피합니다!")
     
-    use_smart_target = st.sidebar.checkbox("🧠 지능형 자동 목표가 (날씨에 따른 변환)", value=True)
+    use_smart_target = st.sidebar.checkbox("🧠 지능형 자동 목표가 (날씨 연동)", value=True)
     sell_target_input = 5.0
     if not use_smart_target:
         sell_target_input = st.sidebar.slider("🎯 고정 익절 목표 (+%)", 1, 30, 5, 1)
@@ -314,7 +314,7 @@ else:
     max_active_slots = st.sidebar.slider("전체 파견 슬롯 (최대 요원 수)", 2, 10, 5)
     max_sector_slots = max(1, max_active_slots // 2)
 
-    use_compounding = st.sidebar.checkbox("🚀 복리 스케일업 (자산 10% 증가 시 레벨업)", value=True)
+    use_compounding = st.sidebar.checkbox("🚀 복리 스케일업 (자산 10% 증가시 레벨업)", value=True)
     buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1)
     stop_loss_input = st.sidebar.slider("🚨 손절 기준 (-%)", 0, 50, 15, 1)
 
@@ -331,7 +331,7 @@ else:
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 1번 메뉴에서 보유 종목을 골라주세요.")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 태풍 경보 시스템(코스피 200일선), 동반 청산 및 4대 정밀 리포트를 계산 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 태풍 경보 시스템(코스피 200일선) 및 4대 정밀 리포트를 계산 중입니다..."):
                 end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                 start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                 tickers = list(PORTFOLIO_UNIVERSE.values())
@@ -358,12 +358,13 @@ else:
                 except:
                     pass
 
-                # Calculate KOSPI 200 MA for Typhoon Warning System
+                # Calculate KOSPI 200 MA for Typhoon Warning
                 kospi_series = pd.Series(dtype=float)
+                kospi_ma200 = pd.Series(dtype=float)
                 if not bench_df.empty:
                     ks_col = '^KS11' if '^KS11' in bench_df.columns else bench_df.columns[0]
                     kospi_series = bench_df[ks_col].reindex(close_df.index).ffill().bfill()
-                kospi_ma200 = kospi_series.rolling(window=200).mean()
+                    kospi_ma200 = kospi_series.rolling(window=200).mean()
 
                 return_df = close_df.pct_change() * 100
                 ma20_df = close_df.rolling(window=20).mean()
@@ -399,7 +400,7 @@ else:
                     if year not in yearly_stats:
                         yearly_stats[year] = {'success': 0, 'stop': 0, 'shares': 0, 'cash': 0, 'share_val': 0.0}
 
-                    # Check Typhoon Warning Status for today
+                    # Check Typhoon Warning
                     is_typhoon_warning = False
                     if use_typhoon_warning and not kospi_series.empty and date in kospi_series.index and date in kospi_ma200.index:
                         k_val = kospi_series.loc[date]
