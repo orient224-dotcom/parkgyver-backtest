@@ -4,10 +4,12 @@ import pandas as pd
 import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
+import matplotlib.pyplot as plt
+import os
 import io
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.28 (실전 에디션)", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.28", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -15,9 +17,9 @@ def format_money(num):
     except:
         return str(num)
 
-# --- 2. 사이드바 조종간 ---
+# --- 2. 사이드바 조종간 (종목 간편 검색 및 선택) ---
 st.sidebar.title("🎛️ 박가이버 사령부 V10.28")
-st.sidebar.caption("은퇴 과수원 에디션 - 실전 & 백테스트 웹 통제실")
+st.sidebar.caption("은퇴 과수원 에디션 - 스트림릿 라이브 웹 통제실")
 
 stock_database = {
     "테크윙 (089030.KQ)": "089030.KQ",
@@ -35,7 +37,7 @@ stock_database = {
 }
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎯 실전 및 백테스트 종목 선택")
+st.sidebar.subheader("🎯 종목 간편 검색 및 선택")
 
 default_selected = [
     "와이지원 (019210.KQ)", "삼성전자 (005930.KS)", "제주반도체 (080220.KQ)", 
@@ -43,7 +45,7 @@ default_selected = [
 ]
 
 selected_stocks = st.sidebar.multiselect(
-    "관찰 및 매매할 종목을 선택하세요:",
+    "클릭하거나 검색해서 종목을 담으세요:",
     options=list(stock_database.keys()),
     default=default_selected
 )
@@ -88,7 +90,7 @@ years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value
 
 run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.28 작전 개시!", type="primary")
 
-# --- 🚨 [신규] 오후 3:20 PM 실전 매수/매도 신호등 모듈 ---
+# --- 🚨 오후 3:20 PM 실전 매수/매도 신호등 모듈 ---
 st.markdown("<div style='background:#154360;color:white;padding:12px;border-radius:6px;margin-bottom:12px;'><h3 style='margin:0;font-size:16px;'>🚨 [오후 3:20 PM 실전 작전 지시서] 실시간 신호등 통제실</h3></div>", unsafe_allow_html=True)
 
 live_col1, live_col2 = st.columns([1, 3])
@@ -108,16 +110,14 @@ if scan_live_btn:
         for idx, t_code in enumerate(tickers_list):
             s_name = names_list[idx]
             try:
-                # 최근 5일간 데이터 수집
                 ticker_obj = yf.Ticker(t_code)
                 hist = ticker_obj.history(period="5d")
                 
                 if len(hist) >= 2:
-                    prev_close = float(hist['Close'].iloc[-2])  # 전일 종가
-                    curr_price = float(hist['Close'].iloc[-1])  # 현재가 (또는 당일 종가)
+                    prev_close = float(hist['Close'].iloc[-2])
+                    curr_price = float(hist['Close'].iloc[-1])
                     daily_ret = ((curr_price - prev_close) / prev_close) * 100
 
-                    # 1호 요원 매수 조건 검토 (-5.0% 이하 하락 시)
                     if daily_ret <= -5.0:
                         buy_budget = (total_capital / len(tickers_list)) / max_agents
                         est_shares = max(int(buy_budget // curr_price), 1)
@@ -141,8 +141,6 @@ if scan_live_btn:
                 st.error(f"⚠️ {s_name}({t_code}) 실시간 데이터 수집 실패: {e}")
 
         st.markdown("---")
-        
-        # 1. 매수 신호 출력
         if buy_orders:
             st.markdown("<h4 style='color:#c0392b;margin-bottom:8px;'>🔴 [오늘 시장가 매수 실행 대상 종목]</h4>", unsafe_allow_html=True)
             for b in buy_orders:
@@ -150,7 +148,6 @@ if scan_live_btn:
         else:
             st.success("🟢 **[매수 신호 없음]** 오늘 -5% 이상 급락한 종목이 없습니다. 전액 현금을 안전하게 유지합니다.")
 
-        # 2. 관망 목록 출력
         if hold_stocks:
             with st.expander("⚪ [오늘 관망/대기 종목 현황 보기]"):
                 hold_df = pd.DataFrame(hold_stocks)
@@ -443,23 +440,6 @@ if run_btn or 'calculated' in st.session_state:
         start_date_str = combined_equity_df.index[0].strftime('%Y-%m-%d')
         end_date_str = combined_equity_df.index[-1].strftime('%Y-%m-%d')
 
-        # --- 📅 연도별 성적표 집계 ---
-        yearly_stats = []
-        if len(all_matched_trades) > 0:
-            temp_df = pd.DataFrame(all_matched_trades)
-            temp_df['Year'] = pd.to_datetime(temp_df['exit_date']).dt.year
-            for yr, group in temp_df.groupby('Year'):
-                yr_total = len(group)
-                yr_wins = group['is_win'].sum()
-                yr_losses = yr_total - yr_wins
-                yr_win_rate = (yr_wins / yr_total * 100) if yr_total > 0 else 0
-                yr_profit = group['raw_profit'].sum()
-                yearly_stats.append({
-                    'year': yr, 'total': yr_total, 'wins': yr_wins, 'losses': yr_losses,
-                    'win_rate': yr_win_rate, 'profit': yr_profit
-                })
-            yearly_stats.sort(key=lambda x: x['year'], reverse=True)
-
         # --- 4. 백테스트 결과 UI 출력 ---
         st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>📊 [백테스트 종합 분석] 전략: {current_strategy_name} ({len(tickers_list)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
@@ -509,6 +489,32 @@ if run_btn or 'calculated' in st.session_state:
             core_cards_html += f"<div style='flex:1 1 180px;background:white;border:1px solid #d2b4de;border-top:4px solid #9b59b6;padding:10px;border-radius:6px;min-width:160px;'><b style='font-size:12px;color:#512e5f;'>{res['name']}</b><div style='font-size:11px;color:#2c3e50;margin-top:4px;'>• 적립 코어: <b>{res['core_shares']}주</b><br>• 평가금액: <b>{format_money(res['core_eval'])}원</b></div></div>"
         core_cards_html += "</div></div>"
         st.markdown(core_cards_html, unsafe_allow_html=True)
+
+        # --- 🏆 장기 체류 요원 TOP 3 경보 순위표 ---
+        sorted_active_positions = sorted(all_active_positions, key=lambda x: x['holding_days'], reverse=True)
+        top3_long_term = sorted_active_positions[:3] if len(sorted_active_positions) >= 3 else sorted_active_positions
+
+        top3_cards_html = "<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🚨 [장기 체류 요원 TOP 3 경보 순위표] (청산 검토 대상)</h4><div style='font-size:11px;color:#7f8c8d;margin-bottom:10px;'>파견 이후 가장 오래 머물며 묶여있는 장기 체류 요원 순위입니다. (30일 초과 시 주의 필요)</div><div style='display:flex;flex-wrap:wrap;gap:8px;'>"
+        for rank, p in enumerate(top3_long_term, 1):
+            badge_color = "#e74c3c" if p['holding_days'] >= 30 else "#f39c12"
+            top3_cards_html += f"<div style='flex:1 1 200px;background:white;border:1px solid #f9e79f;border-top:4px solid {badge_color};padding:10px;border-radius:6px;min-width:180px;'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;'><b style='font-size:12px;color:#7d6608;'>🏆 {rank}위 - {p['작전구역']}</b><span style='background:{badge_color};color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:bold;'>{p['holding_days']}일 체류</span></div><div style='font-size:11px;color:#2c3e50;'>• 요원명: <b>{p['요원명']}</b><br>• 파견일: {p['파견일']}<br>• 평가손익: <b style='color:#c0392b;'>{p['평가손익']}</b></div></div>"
+        top3_cards_html += "</div></div>"
+        st.markdown(top3_cards_html, unsafe_allow_html=True)
+
+        # 🕵️ 현재 파견 대기 중인 요원 실시간 현황판
+        active_html = f"<div style='background:#fdfefe;border:1px solid #3498db;border-radius:6px;padding:12px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#2980b9;font-size:13px;'>🕵️ [현재 파견 대기 중인 요원 실시간 현황판] (총 {len(all_active_positions)}명 대기 중 | 30일 이상 체류 시 노란색 경고 색상 표시)</h4>"
+        if len(all_active_positions) > 0:
+            active_html += "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:550px;'><thead style='background-color:#ebf5fb;color:#2980b9;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원명</th><th style='padding:6px;border:1px solid #d5dbdf;'>파견일</th><th style='padding:6px;border:1px solid #d5dbdf;'>체류일수</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입단가</th><th style='padding:6px;border:1px solid #d5dbdf;'>수량</th><th style='padding:6px;border:1px solid #d5dbdf;'>현재평가금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>평가손익</th></tr></thead><tbody>"
+            for idx_ap, ap in enumerate(all_active_positions, 1):
+                pnl_color = "#c0392b" if ap['is_plus'] else "#2980b9"
+                row_bg = "#fef9e7" if ap['holding_days'] >= 30 else "#ffffff"
+
+                active_html += f"<tr style='background-color:{row_bg};'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#7f8c8d;'>{idx_ap}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['작전구역']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['요원명']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['파견일']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['holding_days']}일</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['진입단가']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['수량']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['평가금액']}</td><td style='padding:5px;border:1px solid #eaeded;color:{pnl_color};font-weight:bold;'>{ap['평가손익']}</td></tr>"
+            active_html += "</tbody></table></div>"
+        else:
+            active_html += "<div style='font-size:11px;color:#7f8c8d;text-align:center;padding:5px;'>현재 장 마감 기준 현장에 파견되어 대기 중인 요원이 없습니다.</div>"
+        active_html += "</div>"
+        st.markdown(active_html, unsafe_allow_html=True)
 
         # 📈 스트림릿 순정 웹 차트
         st.subheader("📈 오토파일럿 총자산 vs 시장 지수 비교 성장 곡선")
