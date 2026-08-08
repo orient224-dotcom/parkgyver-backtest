@@ -28,7 +28,7 @@ def clean_date_index(obj):
         return dt.normalize()
 
 # --- 1. 페이지 웹 디자인 세팅 ---
-st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.4 Strategy Compare", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="박가이버 통합 작전 사령부 V10.5 Golden Filter", page_icon="🛡️", layout="wide")
 
 st.markdown("""
 <style>
@@ -50,7 +50,7 @@ st.markdown("""
         padding: 22px 24px;
         border-radius: 16px;
         color: #ffffff;
-        border-left: 8px solid #38bdf8;
+        border-left: 8px solid #f59e0b;
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.25);
         margin-bottom: 20px;
     }
@@ -110,18 +110,18 @@ def format_exact_price(num):
 
 # --- 3. 구독자 가이드 (펼침 UI) ---
 def render_subscriber_guide():
-    with st.expander("📖 [당귀다TV] 박가이버 작전 사령부 V10.4 1분 탑승 가이드 (필독!)", expanded=False):
+    with st.expander("📖 [당귀다TV] 박가이버 작전 사령부 V10.5 1분 탑승 가이드 (필독!)", expanded=False):
         st.markdown("""
         ### 🛡️ 4050 바쁜 직장인을 위한 '본업 집중형' 퀀트 투자 수칙
         1. **🕒 1분 컷 '순수 종가 매매':** 근무 시간에는 주식 창을 완전히 봉인하고, 매일 오후 3시 20분에 접속해 레이더 신호 확인 후 동시호가 매수!
         2. **🚁 전원 동반 탈출 ('헬기 복귀'):** 출격 요원 중 단 1명이라도 목표가를 터치하면 전 부대원 동반 청산하여 계좌 회전율 극대화!
-        3. **🧠 지능형 날씨 판독기:** 정배열(상승장)엔 **+10%**, 역배열/박스권엔 **+5%**로 목표가 자동 조절!
-        4. **🌊 기상청 태풍 경보 시스템:** *"우리 배가 아무리 튼튼해도, 바다 전체에 '초대형 태풍 주의보'가 발령되면 출항하지 않는다!"* 코스피가 200일선 아래로 무너지면 신규 출격을 차단하고 현금을 지킵니다!
-        5. **⛄ 스노우볼 레벨UP:** 자산이 +10% 찰 때마다 1회 출격 예산이 10%씩 커지는 복리의 마법!
+        3. **🌟 V10.5 황금 필터 장착:** 역배열 하락 추세 종목 차단 & 이격도 과열 종목 차단으로 물림 방지!
+        4. **🌊 기상청 태풍 경보 시스템:** 코스피가 200일선 아래로 무너지면 신규 출격을 차단하고 현금을 지킵니다!
+        5. **⛄ 스노우볼 레벨UP:** 자산이 10% 찰 때마다 1회 출격 예산이 10%씩 커지는 복리의 마법!
         """)
 
 # --- 4. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.4")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.5")
 st.sidebar.subheader("💾 나만의 작전 세팅 (휴대폰 관리)")
 uploaded_cfg = st.sidebar.file_uploader("📤 내 세팅 불러오기 (.json)", type=["json"])
 if uploaded_cfg:
@@ -242,13 +242,18 @@ if menu_choice == "🗄️ 1. 내 계좌 영구 DB (보유 & 관심)":
     )
 
 # =====================================================================
-# 🚨 메뉴 2: 오늘의 실전 매매 레이더
+# 🚨 메뉴 2: 오늘의 실전 매매 레이더 (V10.5 황금 필터 적용)
 # =====================================================================
 elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
-    st.markdown("""<div class="hero-banner"><div class="hero-title">🚨 오늘의 실전 매매 레이더 (출격 명령서)</div></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="hero-banner"><div class="hero-title">🚨 오늘의 실전 매매 레이더 (V10.5 출격 명령서)</div></div>""", unsafe_allow_html=True)
     render_subscriber_guide()
     
+    st.sidebar.subheader("🛡️ 매수(진입) 황금 필터 V10.5")
+    use_trend_filter = st.sidebar.checkbox("📈 60일/120일선 정배열 (역배열 차단)", value=True, help="주가가 지속 하락하는 역배열 종목의 진입을 막아 지하실 물림을 방지합니다.")
+    use_disparity_filter = st.sidebar.checkbox("🔥 20일선 이격도 115% 과열 차단", value=True, help="단기 폭등하여 이격도가 극심하게 벌어진 꼭지점에서의 매수를 차단합니다.")
+    
     buy_cond_input = st.sidebar.slider("🛒 진입 기준 (-% 하락 시)", 1, 20, 5, 1)
+    
     valid_watch_stocks = [s for s in st.session_state["my_holdings"] if s in MASTER_STOCK_DICT]
     PORTFOLIO_UNIVERSE = {s_name: MASTER_STOCK_DICT[s_name] for s_name in valid_watch_stocks if s_name in MASTER_STOCK_DICT}
 
@@ -258,9 +263,14 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
     if len(PORTFOLIO_UNIVERSE) > 0:
         try:
             live_tickers = list(PORTFOLIO_UNIVERSE.values())
-            live_raw = yf.download(live_tickers, period="5d", interval="1d", progress=False)
+            # 120일선 계산을 위해 1년 치 데이터를 불러옵니다.
+            live_raw = yf.download(live_tickers, period="1y", interval="1d", progress=False)
             live_data = live_raw['Close'] if isinstance(live_raw.columns, pd.MultiIndex) and 'Close' in live_raw.columns.levels[0] else (live_raw['Close'] if 'Close' in live_raw.columns else live_raw)
             
+            ma20_live = live_data.rolling(window=20).mean()
+            ma60_live = live_data.rolling(window=60).mean()
+            ma120_live = live_data.rolling(window=120).mean()
+
             buy_signals = []
             for name, code in PORTFOLIO_UNIVERSE.items():
                 s_data = live_data[code].dropna() if isinstance(live_data, pd.DataFrame) and code in live_data.columns else (live_data.dropna() if isinstance(live_data, pd.Series) else pd.Series())
@@ -268,24 +278,46 @@ elif menu_choice == "🚨 2. 오늘의 실전 매매 레이더":
                     today_p = float(s_data.iloc[-1])
                     yester_p = float(s_data.iloc[-2])
                     change_pct = ((today_p - yester_p) / yester_p) * 100
+                    
                     if change_pct <= -float(buy_cond_input):
-                        buy_signals.append(f"🛒 **[{name}]** 당일 변동률: **{change_pct:.2f}%** (진입 타점 포착! 오늘 3시 20분 동시호가 출격 시그널)")
+                        m20 = float(ma20_live[code].iloc[-1]) if code in ma20_live.columns else None
+                        m60 = float(ma60_live[code].iloc[-1]) if code in ma60_live.columns else None
+                        m120 = float(ma120_live[code].iloc[-1]) if code in ma120_live.columns else None
+                        
+                        is_valid = True
+                        blocked_reason = ""
+                        
+                        if use_trend_filter and m60 and m120 and m20:
+                            if not (m60 > m120 or m20 > m60):
+                                is_valid = False
+                                blocked_reason = "❌ [출격 보류] 역배열 하락 추세 (칼날 회피)"
+                        
+                        if is_valid and use_disparity_filter and m20:
+                            if (today_p / m20) >= 1.15:
+                                is_valid = False
+                                blocked_reason = "❌ [출격 보류] 이격도 과열 115% 이상 (상투 방지)"
+                        
+                        if is_valid:
+                            buy_signals.append(f"🛒 **[{name}]** 변동률: **{change_pct:.2f}%** ➡️ ✅ **진입 타점 포착! (안전 필터 통과)**")
+                        else:
+                            st.warning(f"⚠️ **[{name}]** {change_pct:.2f}% 급락 조건 충족, 그러나 {blocked_reason}")
             
+            st.markdown("### 📝 사령부 최종 브리핑")
             if buy_signals:
-                st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다!**\n\n" + "\n\n".join(buy_signals))
+                st.error("⚡ **오늘 실전 진입 타점에 포착된 종목이 있습니다! (동시호가 매수 준비)**\n\n" + "\n\n".join(buy_signals))
             else:
-                st.success("✅ **현재 내 계좌 DB 종목 중 당일 급락 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
-        except:
-            st.info("💡 실시간 시세를 동기화하는 중입니다.")
+                st.success("✅ **현재 필터를 통과한 안전한 출격 종목이 없습니다.** 사령부 요원들은 출격 대기 상태를 유지합니다.")
+        except Exception as e:
+            st.info(f"💡 실시간 시세를 동기화하는 중입니다. 잠시 후 다시 시도해주세요. ({str(e)})")
 
 # =====================================================================
-# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (전략 비교 시스템 탑재)
+# 🛡️ 메뉴 3: 과거 5년 백테스트 연구소 (V10.5 황금 필터 장착)
 # =====================================================================
 else:
     st.markdown("""
     <div class="hero-banner">
-        <div class="hero-title">🛡️ V10.4 과거 5년 백테스트 연구소 (전략 비교 에디션)</div>
-        <div class="hero-subtitle">열매퀀트 고회전율 모델(동반탈출) vs 추세 추종(트레일링 스탑) 모델의 성과를 직접 비교해 보세요!</div>
+        <div class="hero-title">🛡️ V10.5 과거 5년 백테스트 연구소 (황금 필터 장착)</div>
+        <div class="hero-subtitle">역배열과 과열 구간을 피했을 때 내 계좌가 얼마나 단단하게 우상향하는지 확인하세요!</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -299,15 +331,17 @@ else:
     else:
         st.error("⚠️ **[감시 종목 경보]** 장전된 종목이 없습니다! 메뉴 [🗄️ 1. 내 계좌 영구 DB]에서 종목을 먼저 골라주세요.")
 
+    st.sidebar.subheader("🛡️ 매수(진입) 황금 필터 V10.5")
+    use_trend_filter = st.sidebar.checkbox("📈 60일/120일선 정배열 (역배열 차단)", value=True)
+    use_disparity_filter = st.sidebar.checkbox("🔥 20일선 이격도 115% 과열 차단", value=True)
+    use_typhoon_warning = st.sidebar.checkbox("🚨 KOSPI 200일선 태풍 경보 차단", value=True)
+
     st.sidebar.subheader("⚙️ 매도(청산) 전략 모델 선택")
     strategy_mode = st.sidebar.radio(
         "어떤 전략으로 시뮬레이션 할까요?",
         ["🍎 1. 과수원 스노우볼 (지능형 목표가 + 동반탈출)", "📈 2. 추세 추종 (고점 대비 하락 시 매도)"],
-        index=0,
-        help="열매퀀트의 '고회전율 모델'과 일반적인 '추세 추종 모델'의 수익률을 비교해 보세요!"
+        index=0
     )
-
-    use_typhoon_warning = st.sidebar.checkbox("🚨 KOSPI '기상청 태풍 경보 시스템'", value=True, help="코스피 지수가 200일선 아래로 내려앉으면 신규 출격을 전면 차단하고 현금(항구)에 대피합니다!")
 
     if "과수원 스노우볼" in strategy_mode:
         use_smart_target = st.sidebar.checkbox("🧠 지능형 자동 목표가 (날씨 연동)", value=True)
@@ -317,7 +351,6 @@ else:
         use_batch_exit = st.sidebar.checkbox("🚁 전원 동반 탈출 (연쇄 청산 활성화)", value=True)
         trailing_stop_pct = None
     else:
-        st.sidebar.info("💡 추세 추종 모드: 수익이 날 때 계속 끌고 가며, 최고점 대비 설정된 비율만큼 떨어지면 매도합니다. (전원 동반탈출은 비활성화됩니다.)")
         trailing_stop_pct = st.sidebar.slider("📉 트레일링 스탑 (최고점 대비 하락 -%)", 1, 20, 5, 1)
         use_batch_exit = False
         use_smart_target = False
@@ -342,11 +375,11 @@ else:
     years_val = st.sidebar.slider("백테스트 기간(년)", 1, 10, 5, 1)
     months_input = years_val * 12
 
-    if st.sidebar.button("🚀 V10.4 전략 비교 타임머신 가동!", type="primary", use_container_width=True):
+    if st.sidebar.button("🚀 V10.5 황금 필터 장착 후 가동!", type="primary", use_container_width=True):
         if len(PORTFOLIO_UNIVERSE) == 0:
             st.error("❌ 감시 종목이 없습니다. 1번 메뉴에서 보유 종목을 골라주세요.")
         else:
-            with st.spinner("📡 슈퍼컴퓨터가 선택하신 전략 모델을 바탕으로 시뮬레이션을 가동 중입니다..."):
+            with st.spinner("📡 슈퍼컴퓨터가 최적의 V10.5 필터를 적용하여 시뮬레이션을 가동 중입니다..."):
                 end_date_str = datetime.datetime.today().strftime('%Y-%m-%d')
                 start_date_str = (datetime.datetime.today() - relativedelta(months=months_input)).strftime('%Y-%m-%d')
                 tickers = list(PORTFOLIO_UNIVERSE.values())
@@ -586,11 +619,30 @@ else:
                         else:
                             agent_budget = int(base_capital // max_active_slots)
                             candidates = []
+                            
+                            # V10.5 필터 검증 루프
                             for s_name, t_code in PORTFOLIO_UNIVERSE.items():
                                 if not any(p['ticker'] == t_code for p in active_positions) and t_code in day_returns and not pd.isna(day_returns[t_code]):
                                     ret_val = float(day_returns[t_code])
                                     if ret_val <= buy_cond:
-                                        candidates.append((s_name, t_code, ret_val, float(row[t_code])))
+                                        c_price = float(row[t_code])
+                                        m20 = float(ma20_df.loc[date, t_code]) if t_code in ma20_df.columns and not pd.isna(ma20_df.loc[date, t_code]) else None
+                                        m60 = float(ma60_df.loc[date, t_code]) if t_code in ma60_df.columns and not pd.isna(ma60_df.loc[date, t_code]) else None
+                                        m120 = float(ma120_df.loc[date, t_code]) if t_code in ma120_df.columns and not pd.isna(ma120_df.loc[date, t_code]) else None
+                                        
+                                        # 필터 1. 정배열 확인
+                                        if use_trend_filter:
+                                            if not (m60 and m120 and m20) or not (m60 > m120 or m20 > m60):
+                                                missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": "❌ 역배열(하락추세) 차단"})
+                                                continue
+                                        
+                                        # 필터 2. 이격도 과열 차단
+                                        if use_disparity_filter:
+                                            if not m20 or (c_price / m20) >= 1.15:
+                                                missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": "🔥 이격도 과열(115% 이상) 차단"})
+                                                continue
+                                        
+                                        candidates.append((s_name, t_code, ret_val, c_price))
                             
                             candidates.sort(key=lambda x: x[2])
                             
@@ -599,7 +651,7 @@ else:
                                 if use_sector_limit:
                                     c_sector = TICKER_TO_SECTOR.get(t_code, "기타")
                                     if sum(1 for p in active_positions if TICKER_TO_SECTOR.get(p['ticker'], "기타") == c_sector) >= max_sector_slots:
-                                        missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": f"섹터({c_sector}) 쏠림 방지 캡"})
+                                        missed_opportunities.append({"발생 일자": date_str, "미출격 종목": s_name, "당일 하락률": f"{ret_val:.2f}%", "불가 사유": f"🤹‍♂️ 섹터({c_sector}) 쏠림 방지 캡"})
                                         continue
                                 
                                 if len(active_positions) >= max_active_slots:
@@ -670,11 +722,11 @@ else:
 
                 st.markdown(f"""
                 <div style="border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">
-                    <h2 style="margin: 0; color: #0f172a; font-weight: 800;">🏆 백테스트 최종 성과 대시보드</h2>
+                    <h2 style="margin: 0; color: #0f172a; font-weight: 800;">🏆 V10.5 백테스트 최종 성과 대시보드</h2>
                     <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #475569; font-weight: 700;">
                         📅 검증 기간: <b>{start_date_str} ~ {end_date_str} ({years_val}년)</b> | 
                         🚀 스노우볼 레벨UP: <b style="color: #ef4444;">총 {level_up_count}회 달성</b> |
-                        🚨 태풍 경보 방어: <b style="color: #dc2626;">총 {typhoon_blocked_count}일</b>
+                        🚨 태풍 방어: <b style="color: #dc2626;">총 {typhoon_blocked_count}일</b>
                     </p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -715,7 +767,7 @@ else:
 
                 tab1, tab2, tab3, tab4 = st.tabs([
                     "📊 1. 자산 성장 & MDD 차트", 
-                    "🔍 2. 자금 회전율 & 미출격 진단", 
+                    "🔍 2. 황금 필터 미출격 방어 진단", 
                     "📈 3. 종목/연도별 손익분석", 
                     "📜 4. 현장 투입요원 & 매매장부"
                 ])
@@ -732,16 +784,16 @@ else:
                     st.plotly_chart(fig, use_container_width=True)
 
                 with tab2:
-                    st.write("### 🔍 회전율 & 미출격 타점 분석 리포트")
+                    st.write("### 🔍 회전율 & V10.5 황금 필터 방어 리포트")
                     st.warning(f"📊 기간 중 최대 동시 출격 수: **총 {global_max_deployed}개 종목** (전체 슬롯: {max_active_slots}개) | 🚨 태풍 경보 방어 차단: 총 {typhoon_blocked_count}일")
                     if daily_deployment_snapshots:
                         snap_df = pd.DataFrame(daily_deployment_snapshots)
                         st.write("▼ **역대 최고 자금 몰림(피크) 발생 일자 및 출격 목록:**")
                         st.dataframe(snap_df[snap_df['동시 출격 수'] == global_max_deployed].drop_duplicates(subset=['발생 일자']), use_container_width=True, hide_index=True)
                     st.markdown("---")
-                    st.write("### 🚫 현금/슬롯/섹터/태풍 경보로 놓쳐버린 출격 타점 추적기")
+                    st.write("### 🚫 신규 필터로 인한 위험 회피 추적기 (안전벨트 작동 내역)")
                     if missed_opportunities:
-                        st.error(f"🚨 타점이 맞았으나 제한으로 놓친 기회: 총 {len(missed_opportunities)}회")
+                        st.error(f"🚨 하락 타점은 맞았으나 V10.5 필터 및 안전 제한으로 차단된 기회: 총 {len(missed_opportunities)}회")
                         st.dataframe(pd.DataFrame(missed_opportunities), use_container_width=True, hide_index=True)
                     else:
                         st.success("🎉 한 번도 현금이나 슬롯이 부족해서 출격 기회를 놓친 적이 없습니다!")
@@ -792,7 +844,7 @@ else:
                         st.download_button(
                             label="📥 엑셀(CSV) 매매장부 다운로드",
                             data=csv_data,
-                            file_name=f"당귀다TV_매매장부_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
+                            file_name=f"당귀다TV_V10.5_매매장부_{datetime.datetime.now().strftime('%Y%m%d')}.csv",
                             mime="text/csv",
                             use_container_width=True
                         )
