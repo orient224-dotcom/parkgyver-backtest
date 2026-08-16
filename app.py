@@ -88,6 +88,10 @@ total_capital = st.sidebar.number_input("💰 총 씨드머니(원):", value=160
 max_agents = st.sidebar.number_input("⚔️ 종목당 최대 요원 수:", value=2, min_value=1, max_value=10)
 years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value=3, min_value=1, max_value=10)
 
+st.sidebar.markdown("---")
+# 🌟 [추가됨] 20일선 추세 필터 옵션
+use_ma20_filter = st.sidebar.checkbox("🛡️ 20일선 아래 매수 금지 (추세 필터)", value=True)
+
 run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.28 작전 개시!", type="primary")
 
 # --- 🚨 오후 3:20 PM 실전 매수/매도 신호등 모듈 ---
@@ -110,25 +114,40 @@ if scan_live_btn:
         for idx, t_code in enumerate(tickers_list):
             s_name = names_list[idx]
             try:
+                # 🌟 20일선 계산을 위해 조회 기간을 5d에서 2mo로 변경
                 ticker_obj = yf.Ticker(t_code)
-                hist = ticker_obj.history(period="5d")
+                hist = ticker_obj.history(period="2mo")
                 
-                if len(hist) >= 2:
+                if len(hist) >= 20:
+                    hist['MA20'] = hist['Close'].rolling(window=20).mean()
                     prev_close = float(hist['Close'].iloc[-2])
                     curr_price = float(hist['Close'].iloc[-1])
+                    curr_ma20 = float(hist['MA20'].iloc[-1])
                     daily_ret = ((curr_price - prev_close) / prev_close) * 100
 
                     if daily_ret <= -5.0:
-                        buy_budget = (total_capital / len(tickers_list)) / max_agents
-                        est_shares = max(int(buy_budget // curr_price), 1)
-                        buy_orders.append({
-                            '종목': s_name,
-                            '코드': t_code,
-                            '현재가': format_money(curr_price) + "원",
-                            '당일등락률': f"{daily_ret:+.2f}%",
-                            '추천수량': f"{est_shares}주",
-                            '예상주문금액': format_money(est_shares * curr_price) + "원"
-                        })
+                        # 🌟 20일선 필터 판별 로직 추가
+                        is_above_ma20 = (curr_price >= curr_ma20)
+                        
+                        if (not use_ma20_filter) or is_above_ma20:
+                            buy_budget = (total_capital / len(tickers_list)) / max_agents
+                            est_shares = max(int(buy_budget // curr_price), 1)
+                            buy_orders.append({
+                                '종목': s_name,
+                                '코드': t_code,
+                                '현재가': format_money(curr_price) + "원",
+                                '당일등락률': f"{daily_ret:+.2f}%",
+                                '추천수량': f"{est_shares}주",
+                                '예상주문금액': format_money(est_shares * curr_price) + "원"
+                            })
+                        else:
+                            hold_stocks.append({
+                                '종목': s_name,
+                                '코드': t_code,
+                                '현재가': format_money(curr_price) + "원",
+                                '당일등락률': f"{daily_ret:+.2f}%",
+                                '상태': "대기 (급락조건 만족하나 20일선 하회로 매수 보류)"
+                            })
                     else:
                         hold_stocks.append({
                             '종목': s_name,
@@ -146,7 +165,7 @@ if scan_live_btn:
             for b in buy_orders:
                 st.error(f"🎯 **{b['종목']} ({b['코드']})** | 현재가: **{b['현재가']}** ({b['당일등락률']}) ➔ **1호 요원 매수 발사!** (추천 수량: **{b['추천수량']}** / 예상 금액: {b['예상주문금액']})")
         else:
-            st.success("🟢 **[매수 신호 없음]** 오늘 -5% 이상 급락한 종목이 없습니다. 전액 현금을 안전하게 유지합니다.")
+            st.success("🟢 **[매수 신호 없음]** 출격 조건을 만족하는 종목이 없습니다. 전액 현금을 안전하게 유지합니다.")
 
         if hold_stocks:
             with st.expander("⚪ [오늘 관망/대기 종목 현황 보기]"):
@@ -327,17 +346,21 @@ if run_btn or 'calculated' in st.session_state:
                     matched_trades.extend(current_batch_trades)
                     positions = []
 
+                # 🌟 백테스트용 20일선 필터 판별 로직 적용
                 if daily_return <= -5.0 and len(positions) < max_agents:
-                    agent_counter += 1; total_agent_counter += 1
-                    scale_ratio = current_capital / s_capital if selected_strategy != 'equal_alloc' else 1.0
-                    agent_budget = int((s_capital // max_agents) * scale_ratio)
-                    shares = max(int(agent_budget // close), 1)
+                    is_above_ma20 = (close >= ma20)
+                    
+                    if (not use_ma20_filter) or is_above_ma20:
+                        agent_counter += 1; total_agent_counter += 1
+                        scale_ratio = current_capital / s_capital if selected_strategy != 'equal_alloc' else 1.0
+                        agent_budget = int((s_capital // max_agents) * scale_ratio)
+                        shares = max(int(agent_budget // close), 1)
 
-                    positions.append({
-                        'name': f"{agent_counter}호 요원", 'entry_price': close,
-                        'entry_date': date_str, 'entry_dt': date, 'entry_return': daily_return,
-                        'shares': shares, 'target_ret': target_ret
-                    })
+                        positions.append({
+                            'name': f"{agent_counter}호 요원", 'entry_price': close,
+                            'entry_date': date_str, 'entry_dt': date, 'entry_return': daily_return,
+                            'shares': shares, 'target_ret': target_ret
+                        })
 
                 active_eval = sum(p['shares'] * close for p in positions)
                 core_eval = core_shares * close
@@ -443,8 +466,10 @@ if run_btn or 'calculated' in st.session_state:
         # --- 4. 백테스트 결과 UI 출력 ---
         st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>📊 [백테스트 종합 분석] 전략: {current_strategy_name} ({len(tickers_list)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
+        filter_status = 'ON (20일선 하회 시 진입 차단)' if use_ma20_filter else 'OFF (전체 진입)'
+        
         # 🤖 제미니 분석 보고서 카드
-        st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (과수원을 처음 일군 총 씨앗돈)</li><li><b>대상 종목 및 기간:</b> {raw_tickers} ({raw_names}) / 최근 {years}년 ({start_date_str} ~ {end_date_str})</li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (과수원을 처음 일군 총 씨앗돈)</li><li><b>추세 필터 (안전장치):</b> <b>{filter_status}</b></li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
 
         # 🚨 종목 자동 진단 리포트
         cards_html = ""
