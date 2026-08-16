@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.30", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.31", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -21,8 +21,8 @@ def format_money(num):
         return str(num)
 
 # --- 2. 사이드바 조종간 (종목 간편 검색 및 선택) ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.30")
-st.sidebar.caption("은퇴 과수원 에디션 - 6자리 종목코드 최적화")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.31")
+st.sidebar.caption("은퇴 과수원 에디션 - 손실경보/회전율 최적화")
 
 # 💡 KS, KQ 꼬리표를 모두 제거한 깔끔한 데이터베이스
 stock_database = {
@@ -95,7 +95,7 @@ years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value
 st.sidebar.markdown("---")
 use_ma20_filter = st.sidebar.checkbox("🛡️ 20일선 아래 매수 금지 (추세 필터)", value=True)
 
-run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.30 작전 개시!", type="primary")
+run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.31 작전 개시!", type="primary")
 
 # --- 🚨 오후 3:20 PM 실전 매수/매도 신호등 모듈 ---
 st.markdown("<div style='background:#154360;color:white;padding:12px;border-radius:6px;margin-bottom:12px;'><h3 style='margin:0;font-size:16px;'>🚨 [오후 3:20 PM 실전 작전 지시서] 실시간 신호등 통제실</h3></div>", unsafe_allow_html=True)
@@ -384,14 +384,13 @@ if run_btn or 'calculated' in st.session_state:
                 pnl_p = cur_eval_p - (p['shares'] * p['entry_price'])
                 pnl_pct = (pnl_p / (p['shares'] * p['entry_price'])) * 100
                 holding_days = (end_date - p['entry_dt']).days
-                # 🌟 진입금액 계산 추가
                 entry_amount = p['shares'] * p['entry_price']
 
                 all_active_positions.append({
                     '작전구역': s_name, '요원명': p['name'], '파견일': p['entry_date'],
                     'entry_dt': p['entry_dt'], 'holding_days': holding_days,
                     '진입단가': format_money(p['entry_price']) + "원", '수량': f"{p['shares']}주",
-                    '진입금액': format_money(entry_amount) + "원",  # 🌟 추가된 진입금액
+                    '진입금액': format_money(entry_amount) + "원",
                     '평가금액': format_money(cur_eval_p) + "원",
                     '평가손익': f"{'+' if pnl_p >= 0 else ''}{format_money(pnl_p)}원 ({pnl_pct:+.2f}%)",
                     'is_plus': pnl_p >= 0,
@@ -506,7 +505,6 @@ if run_btn or 'calculated' in st.session_state:
                 stock_trades = [t for t in all_matched_trades if t['종목코드'] == t_code]
                 avg_days = np.mean([int(str(t['소요기간']).replace('일 소요','').strip()) for t in stock_trades]) if stock_trades else 0
                 
-                # 종합 판정 로직
                 if net_p < 0 or avg_days > 90 or (win_r < 50 and tot_t > 0):
                     status_tag = "<span style='background:#fdedec;color:#c0392b;padding:3px 8px;border-radius:4px;font-weight:bold;'>🔴 교체 권고</span>"
                     row_bg = "#fdedec"
@@ -529,13 +527,12 @@ if run_btn or 'calculated' in st.session_state:
             core_cards_html += "</div></div>"
             st.markdown(core_cards_html, unsafe_allow_html=True)
 
-            # --- 🌟 2. 장기 체류 요원 TOP 3 경보 순위표 (경고 색상 세분화) ---
+            # --- 🌟 2. 장기 체류 요원 TOP 3 경보 순위표 (손실 경고 추가) ---
             sorted_active_positions = sorted(all_active_positions, key=lambda x: x['holding_days'], reverse=True)
             top3_long_term = sorted_active_positions[:3] if len(sorted_active_positions) >= 3 else sorted_active_positions
 
             top3_cards_html = "<div style='background:#fdf2e9;border:1px solid #e67e22;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#d35400;font-size:14px;font-weight:bold;'>🚨 [장기 체류 요원 TOP 3 경보 순위표] (청산 검토 대상)</h4><div style='font-size:11px;color:#7f8c8d;margin-bottom:10px;'>파견 이후 가장 오래 머물며 묶여있는 장기 체류 요원 순위입니다. (90일 이상 🚨 / 60일 이상 🔥 / 20일 이상 ⚠️)</div><div style='display:flex;flex-wrap:wrap;gap:8px;'>"
             for rank, p in enumerate(top3_long_term, 1):
-                # 기간별 시각 경고 색상 로직
                 if p['holding_days'] >= 90:
                     badge_color = "#e74c3c" # 빨강
                     icon = "🚨"
@@ -549,12 +546,23 @@ if run_btn or 'calculated' in st.session_state:
                     badge_color = "#2ecc71" # 초록
                     icon = "✅"
 
-                top3_cards_html += f"<div style='flex:1 1 200px;background:white;border:1px solid #fadbd8;border-top:4px solid {badge_color};padding:10px;border-radius:6px;min-width:180px;'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;'><b style='font-size:12px;color:#7d6608;'>🏆 {rank}위 - {p['작전구역']}</b><span style='background:{badge_color};color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:bold;'>{icon} {p['holding_days']}일 체류</span></div><div style='font-size:11px;color:#2c3e50;'>• 요원명: <b>{p['요원명']}</b><br>• 파견일: {p['파견일']}<br>• 평가손익: <b style='color:#c0392b;'>{p['평가손익']}</b></div></div>"
+                # 손실률에 따른 경고 태그 (TOP 3용)
+                pnl_pct_val = p['pnl_pct']
+                if pnl_pct_val <= -25.0:
+                    loss_tag = "<br><span style='color:#e74c3c;font-weight:bold;font-size:11px;'>🚨 -25% 돌파 (강제철수 검토)</span>"
+                elif pnl_pct_val <= -20.0:
+                    loss_tag = "<br><span style='color:#e67e22;font-weight:bold;font-size:11px;'>🔥 -20% 돌파 (비중조절 경고)</span>"
+                elif pnl_pct_val <= -15.0:
+                    loss_tag = "<br><span style='color:#f39c12;font-weight:bold;font-size:11px;'>⚠️ -15% 돌파 (손실주의)</span>"
+                else:
+                    loss_tag = ""
+
+                top3_cards_html += f"<div style='flex:1 1 200px;background:white;border:1px solid #fadbd8;border-top:4px solid {badge_color};padding:10px;border-radius:6px;min-width:180px;'><div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;'><b style='font-size:12px;color:#7d6608;'>🏆 {rank}위 - {p['작전구역']}</b><span style='background:{badge_color};color:white;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:bold;'>{icon} {p['holding_days']}일 체류</span></div><div style='font-size:11px;color:#2c3e50;'>• 요원명: <b>{p['요원명']}</b><br>• 파견일: {p['파견일']}<br>• 평가손익: <b style='color:#c0392b;'>{p['평가손익']}</b>{loss_tag}</div></div>"
             top3_cards_html += "</div></div>"
             st.markdown(top3_cards_html, unsafe_allow_html=True)
 
-            # --- 🌟 3. 현재 파견 대기 중인 요원 실시간 현황판 (진입금액 표기 + 3단 경보 색상 반영) ---
-            active_html = f"<div style='background:#fdfefe;border:1px solid #3498db;border-radius:6px;padding:12px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#2980b9;font-size:13px;'>🕵️ [현재 파견 대기 중인 요원 실시간 현황판] (총 {len(all_active_positions)}명 대기 중)</h4><div style='font-size:11px;color:#7f8c8d;margin-bottom:10px;'>체류일수 경보 기준: 90일 이상 🚨(빨강) / 60일 이상 🔥(주황) / 20일 이상 ⚠️(노랑) / 정상 ✅(흰색)</div>"
+            # --- 🌟 3. 현재 파견 대기 중인 요원 실시간 현황판 (손실률 경보 뱃지 추가) ---
+            active_html = f"<div style='background:#fdfefe;border:1px solid #3498db;border-radius:6px;padding:12px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#2980b9;font-size:13px;'>🕵️ [현재 파견 대기 중인 요원 실시간 현황판] (총 {len(all_active_positions)}명 대기 중)</h4><div style='font-size:11px;color:#7f8c8d;margin-bottom:10px;'>⏱️ 체류경보 기준: 90일 이상 🚨 / 60일 이상 🔥 / 20일 이상 ⚠️<br>📉 손실경보 기준: -25% 이상 🚨 / -20% 이상 🔥 / -15% 이상 ⚠️</div>"
             if len(all_active_positions) > 0:
                 active_html += "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:600px;'><thead style='background-color:#ebf5fb;color:#2980b9;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>상태</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원명</th><th style='padding:6px;border:1px solid #d5dbdf;'>파견일</th><th style='padding:6px;border:1px solid #d5dbdf;'>체류일수</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입단가</th><th style='padding:6px;border:1px solid #d5dbdf;'>수량</th><th style='padding:6px;border:1px solid #d5dbdf;background:#d4e6f1;'>진입금액(총액)</th><th style='padding:6px;border:1px solid #d5dbdf;'>현재평가금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>평가손익</th></tr></thead><tbody>"
                 for idx_ap, ap in enumerate(all_active_positions, 1):
@@ -562,19 +570,30 @@ if run_btn or 'calculated' in st.session_state:
                     
                     # 기간별 테이블 배경색 경보 로직
                     if ap['holding_days'] >= 90:
-                        row_bg = "#fdedec" # 빨강 계열
+                        row_bg = "#fdedec"
                         s_icon = "🚨"
                     elif ap['holding_days'] >= 60:
-                        row_bg = "#fdebd0" # 주황 계열
+                        row_bg = "#fdebd0"
                         s_icon = "🔥"
                     elif ap['holding_days'] >= 20:
-                        row_bg = "#fef9e7" # 노랑 계열
+                        row_bg = "#fef9e7"
                         s_icon = "⚠️"
                     else:
-                        row_bg = "#ffffff" # 정상
+                        row_bg = "#ffffff"
                         s_icon = "✅"
 
-                    active_html += f"<tr style='background-color:{row_bg};'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#7f8c8d;'>{idx_ap}</td><td style='padding:5px;border:1px solid #eaeded;font-size:14px;'>{s_icon}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['작전구역']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['요원명']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['파견일']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['holding_days']}일</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['진입단가']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['수량']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#1e8449;'>{ap['진입금액']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['평가금액']}</td><td style='padding:5px;border:1px solid #eaeded;color:{pnl_color};font-weight:bold;'>{ap['평가손익']}</td></tr>"
+                    # 🌟 신규: 평가손익 손실률 3단계 시각 경보 뱃지 로직
+                    pnl_pct_val = ap['pnl_pct']
+                    if pnl_pct_val <= -25.0:
+                        loss_badge = "<br><span style='background:#e74c3c;color:white;padding:2px 4px;border-radius:3px;font-size:10px;display:inline-block;margin-top:3px;'>🚨 손실 -25%↓</span>"
+                    elif pnl_pct_val <= -20.0:
+                        loss_badge = "<br><span style='background:#e67e22;color:white;padding:2px 4px;border-radius:3px;font-size:10px;display:inline-block;margin-top:3px;'>🔥 손실 -20%↓</span>"
+                    elif pnl_pct_val <= -15.0:
+                        loss_badge = "<br><span style='background:#f39c12;color:white;padding:2px 4px;border-radius:3px;font-size:10px;display:inline-block;margin-top:3px;'>⚠️ 손실 -15%↓</span>"
+                    else:
+                        loss_badge = ""
+
+                    active_html += f"<tr style='background-color:{row_bg};'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#7f8c8d;'>{idx_ap}</td><td style='padding:5px;border:1px solid #eaeded;font-size:14px;'>{s_icon}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['작전구역']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['요원명']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['파견일']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{ap['holding_days']}일</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['진입단가']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['수량']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#1e8449;'>{ap['진입금액']}</td><td style='padding:5px;border:1px solid #eaeded;'>{ap['평가금액']}</td><td style='padding:5px;border:1px solid #eaeded;color:{pnl_color};font-weight:bold;vertical-align:middle;'>{ap['평가손익']}{loss_badge}</td></tr>"
                 active_html += "</tbody></table></div>"
             else:
                 active_html += "<div style='font-size:11px;color:#7f8c8d;text-align:center;padding:5px;'>현재 장 마감 기준 현장에 파견되어 대기 중인 요원이 없습니다.</div>"
@@ -592,7 +611,7 @@ if run_btn or 'calculated' in st.session_state:
             st.line_chart(chart_df)
 
             # 📜 공식 매매 장부
-            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.30 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.31 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
             
             table_html = "<div style='max-height:400px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:750px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
 
@@ -615,12 +634,12 @@ if run_btn or 'calculated' in st.session_state:
             csv_buffer = io.StringIO()
             df_export.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
             st.download_button(
-                label="📜 엑셀(CSV) V10.30 공식 작전장부 다운로드",
+                label="📜 엑셀(CSV) V10.31 공식 작전장부 다운로드",
                 data=csv_buffer.getvalue().encode('utf-8-sig'),
-                file_name=f"박가이버사령부_V10.30_{selected_strategy}.csv",
+                file_name=f"박가이버사령부_V10.31_{selected_strategy}.csv",
                 mime="text/csv"
             )
         else:
             st.error("❌ 분석할 수 있는 데이터가 없습니다. 종목 코드를 확인해 주세요.")
 else:
-    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.30 작전 개시!] 버튼을 눌러주세요.")
+    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.31 작전 개시!] 버튼을 눌러주세요.")
