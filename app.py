@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.31", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.33", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -20,11 +20,10 @@ def format_money(num):
     except:
         return str(num)
 
-# --- 2. 사이드바 조종간 (종목 간편 검색 및 선택) ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.31")
-st.sidebar.caption("은퇴 과수원 에디션 - 손실경보/회전율 최적화")
+# --- 2. 사이드바 조종간 ---
+st.sidebar.title("🎛️ 박가이버 사령부 V10.33")
+st.sidebar.caption("은퇴 과수원 에디션 - 지수폭락 감시 락 탑재")
 
-# 💡 KS, KQ 꼬리표를 모두 제거한 깔끔한 데이터베이스
 stock_database = {
     "테크윙 (089030)": "089030",
     "피에스케이 (319660)": "319660",
@@ -39,6 +38,9 @@ stock_database = {
     "LG에너지솔루션 (373220)": "373220",
     "셀트리온 (068270)": "068270"
 }
+
+# 코스피 소속 종목 코드 (지수 락 연동용)
+KS_CODES = ['005930', '034020', '000660', '373220', '068270']
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 종목 간편 검색 및 선택")
@@ -93,11 +95,19 @@ max_agents = st.sidebar.number_input("⚔️ 종목당 최대 요원 수:", valu
 years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value=3, min_value=1, max_value=10)
 
 st.sidebar.markdown("---")
-use_ma20_filter = st.sidebar.checkbox("🛡️ 20일선 아래 매수 금지 (추세 필터)", value=True)
+st.sidebar.subheader("🛡️ 리스크 제어 3중 안전장치")
 
-run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.31 작전 개시!", type="primary")
+# 🌟 신규: 시장 지수 폭락 감시 락 옵션
+use_market_ma20_filter = st.sidebar.checkbox("🚨 지수 폭락 감시 락 (KOSPI/KQ 20일선 붕괴시 매수금지)", value=True)
+use_ma20_filter = st.sidebar.checkbox("🛡️ 개별주 20일선 아래 매수 금지 (추세 필터)", value=True)
 
-# --- 🚨 오후 3:20 PM 실전 매수/매도 신호등 모듈 ---
+# 비상 탈출 옵션
+emergency_cut_active = st.sidebar.checkbox("🚨 비상 탈출 손절(Emergency Cut) 가동", value=True)
+emergency_cut_pct = st.sidebar.number_input("비상 탈출 손실 기준선 (%)", value=20.0, step=5.0, min_value=5.0, max_value=50.0)
+
+run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.33 작전 개시!", type="primary")
+
+# --- 🚨 오후 3:20 PM 실전 신호등 모듈 ---
 st.markdown("<div style='background:#154360;color:white;padding:12px;border-radius:6px;margin-bottom:12px;'><h3 style='margin:0;font-size:16px;'>🚨 [오후 3:20 PM 실전 작전 지시서] 실시간 신호등 통제실</h3></div>", unsafe_allow_html=True)
 
 live_col1, live_col2 = st.columns([1, 3])
@@ -116,8 +126,35 @@ if scan_live_btn:
         
         start_2mo = (datetime.datetime.today() - relativedelta(months=2)).strftime('%Y-%m-%d')
 
+        try:
+            k_hist = fdr.DataReader('KS11', start_2mo)
+            kd_hist = fdr.DataReader('KQ11', start_2mo)
+            k_hist['MA20'] = k_hist['Close'].rolling(20).mean()
+            kd_hist['MA20'] = kd_hist['Close'].rolling(20).mean()
+            
+            k_curr = float(k_hist['Close'].iloc[-1])
+            k_ma20 = float(k_hist['MA20'].iloc[-1])
+            kd_curr = float(kd_hist['Close'].iloc[-1])
+            kd_ma20 = float(kd_hist['MA20'].iloc[-1])
+            
+            is_ks_safe = (k_curr >= k_ma20)
+            is_kd_safe = (kd_curr >= kd_ma20)
+        except:
+            is_ks_safe = True
+            is_kd_safe = True
+
+        # 시장 폭락 경고 알림
+        if use_market_ma20_filter:
+            warn_msg = []
+            if not is_ks_safe: warn_msg.append("KOSPI 20일선 붕괴")
+            if not is_kd_safe: warn_msg.append("KOSDAQ 20일선 붕괴")
+            if warn_msg:
+                st.warning(f"🚨 **[기상 특보] 지수 폭락 경보 발령 중! ({', '.join(warn_msg)})** - 해당 시장 종목의 신규 진입이 차단됩니다.")
+
         for idx, t_code in enumerate(tickers_list):
             s_name = names_list[idx]
+            is_ks = t_code in KS_CODES
+            
             try:
                 hist = fdr.DataReader(t_code, start_2mo)
                 
@@ -130,8 +167,10 @@ if scan_live_btn:
 
                     if daily_ret <= -5.0:
                         is_above_ma20 = (curr_price >= curr_ma20)
+                        market_safe = is_ks_safe if is_ks else is_kd_safe
+                        if not use_market_ma20_filter: market_safe = True
                         
-                        if (not use_ma20_filter) or is_above_ma20:
+                        if ((not use_ma20_filter) or is_above_ma20) and market_safe:
                             buy_budget = (total_capital / len(tickers_list)) / max_agents
                             est_shares = max(int(buy_budget // curr_price), 1)
                             buy_orders.append({
@@ -143,12 +182,18 @@ if scan_live_btn:
                                 '예상주문금액': format_money(est_shares * curr_price) + "원"
                             })
                         else:
+                            reason = ""
+                            if use_market_ma20_filter and not market_safe:
+                                reason = "지수 20일선 붕괴(시장위험)"
+                            elif use_ma20_filter and not is_above_ma20:
+                                reason = "개별 20일선 하회"
+                                
                             hold_stocks.append({
                                 '종목': s_name,
                                 '코드': t_code,
                                 '현재가': format_money(curr_price) + "원",
                                 '당일등락률': f"{daily_ret:+.2f}%",
-                                '상태': "대기 (급락조건 만족하나 20일선 하회로 매수 보류)"
+                                '상태': f"대기 ({reason}로 진입 보류)"
                             })
                     else:
                         hold_stocks.append({
@@ -159,7 +204,7 @@ if scan_live_btn:
                             '상태': "대기 (매수 조건 미충족)"
                         })
             except Exception as e:
-                st.error(f"⚠️ {s_name}({t_code}) 실시간 데이터 수집 실패: {e}")
+                st.error(f"⚠️ {s_name}({t_code}) 데이터 수집 실패: {e}")
 
         st.markdown("---")
         if buy_orders:
@@ -187,6 +232,7 @@ if run_btn or 'calculated' in st.session_state:
     buy_fee_rate = buy_fee_val / 100.0
     sell_tax_rate = sell_tax_val / 100.0
     capital_per_stock = total_capital / len(tickers_list)
+    emergency_threshold = -abs(emergency_cut_pct) if emergency_cut_active else -999.0
 
     strategy_names_map = {
         '3tier': '3단 밸런스 과수원 전략 (60%재투자/20%현금/20%코어)',
@@ -205,6 +251,8 @@ if run_btn or 'calculated' in st.session_state:
         try:
             kospi_df = fdr.DataReader('KS11', start_str, end_str)
             kosdaq_df = fdr.DataReader('KQ11', start_str, end_str)
+            kospi_df['MA20'] = kospi_df['Close'].rolling(window=20).mean()
+            kosdaq_df['MA20'] = kosdaq_df['Close'].rolling(window=20).mean()
         except:
             kospi_df = pd.DataFrame()
             kosdaq_df = pd.DataFrame()
@@ -223,6 +271,7 @@ if run_btn or 'calculated' in st.session_state:
         for idx, ticker in enumerate(tickers_list):
             s_name = names_list[idx]
             s_capital = capital_per_stock
+            is_ks = ticker in KS_CODES
 
             try:
                 df = fdr.DataReader(ticker, start_str, end_str)
@@ -269,9 +318,15 @@ if run_btn or 'calculated' in st.session_state:
                 is_super_bear = (close < ma20) and (ma20 < ma60) and (ma60 < ma120)
                 target_ret = 15.0 if is_super_bull else (5.0 if is_super_bear else 10.0)
 
+                # 1. 익절 조건 달성 판별
                 has_winner = any(((close - pos['entry_price']) / pos['entry_price']) * 100 >= pos['target_ret'] for pos in positions)
+                
+                # 2. 비상 탈출 손절 조건 판별
+                has_emergency_cut = False
+                if emergency_cut_active and len(positions) > 0:
+                    has_emergency_cut = any(((close - pos['entry_price']) / pos['entry_price']) * 100 <= emergency_threshold for pos in positions)
 
-                if has_winner:
+                if has_winner or has_emergency_cut:
                     total_cycles += 1
                     total_cycles_all += 1
                     batch_size = len(positions)
@@ -323,6 +378,8 @@ if run_btn or 'calculated' in st.session_state:
                             else: agent_perf_dist[batch_size]['losses'] += 1
 
                         duration_days = (date - pos['entry_dt']).days if 'entry_dt' in pos else 0
+                        
+                        trade_label = "🎯 정상 복귀(+5%)" if is_win else f"🚨 비상 탈출({emergency_threshold:.0f}%)"
 
                         current_batch_trades.append({
                             '요원': pos['name'], '작전구역': s_name, '종목코드': ticker,
@@ -334,7 +391,7 @@ if run_btn or 'calculated' in st.session_state:
                             '등락폭': f"{'+' if close >= pos['entry_price'] else ''}{format_money(close - pos['entry_price'])}원 ({ret:+.2f}%)",
                             '소요기간': f"{duration_days}일 소요", '순수익률': f"{ret:+.2f}%",
                             '정산내역': f"{'+' if profit_krw >= 0 else ''}{format_money(profit_krw)}원",
-                            '구분': "🎯 정상 복귀(+5%)" if is_win else "🚨 강제 철수(-15%)",
+                            '구분': trade_label,
                             'is_win': is_win, 'raw_profit': profit_krw, 'exit_date': date
                         })
 
@@ -357,10 +414,28 @@ if run_btn or 'calculated' in st.session_state:
                     matched_trades.extend(current_batch_trades)
                     positions = []
 
+                # 🌟 시장 지수 폭락 감시 락 검증 로직
+                market_safe = True
+                if use_market_ma20_filter:
+                    try:
+                        if is_ks:
+                            if date in kospi_df.index:
+                                k_c = float(kospi_df.loc[date, 'Close'].iloc[0]) if isinstance(kospi_df.loc[date, 'Close'], pd.Series) else float(kospi_df.loc[date, 'Close'])
+                                k_m = float(kospi_df.loc[date, 'MA20'].iloc[0]) if isinstance(kospi_df.loc[date, 'MA20'], pd.Series) else float(kospi_df.loc[date, 'MA20'])
+                                if not pd.isna(k_m) and k_c < k_m: market_safe = False
+                        else:
+                            if date in kosdaq_df.index:
+                                kd_c = float(kosdaq_df.loc[date, 'Close'].iloc[0]) if isinstance(kosdaq_df.loc[date, 'Close'], pd.Series) else float(kosdaq_df.loc[date, 'Close'])
+                                kd_m = float(kosdaq_df.loc[date, 'MA20'].iloc[0]) if isinstance(kosdaq_df.loc[date, 'MA20'], pd.Series) else float(kosdaq_df.loc[date, 'MA20'])
+                                if not pd.isna(kd_m) and kd_c < kd_m: market_safe = False
+                    except:
+                        pass
+
+                # 신규 매수 진입 로직
                 if daily_return <= -5.0 and len(positions) < max_agents:
                     is_above_ma20 = (close >= ma20)
                     
-                    if (not use_ma20_filter) or is_above_ma20:
+                    if ((not use_ma20_filter) or is_above_ma20) and market_safe:
                         agent_counter += 1; total_agent_counter += 1
                         scale_ratio = current_capital / s_capital if selected_strategy != 'equal_alloc' else 1.0
                         agent_budget = int((s_capital // max_agents) * scale_ratio)
@@ -480,17 +555,19 @@ if run_btn or 'calculated' in st.session_state:
             # --- 4. 백테스트 결과 UI 출력 ---
             st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>📊 [백테스트 종합 분석] 전략: {current_strategy_name} ({len(tickers_list)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
-            filter_status = 'ON (20일선 하회 시 진입 차단)' if use_ma20_filter else 'OFF (전체 진입)'
+            market_lock_status = 'ON (지수 폭락 감시)' if use_market_ma20_filter else 'OFF'
+            filter_status = 'ON (개별주 추세방어)' if use_ma20_filter else 'OFF'
+            cut_status = f'ON ({emergency_threshold:.0f}% 강제 탈출)' if emergency_cut_active else 'OFF'
             
-            st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (과수원을 처음 일군 총 씨앗돈)</li><li><b>추세 필터 (안전장치):</b> <b>{filter_status}</b></li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록 (동기간 KOSPI MDD {kospi_mdd:.1f}%, KOSDAQ MDD {kosdaq_mdd:.1f}% 대비 압도적 방어력 증명)</li><li><b>스노우볼 복리 레벨UP:</b> 순수익 누적 임계치 도달 시 요원 진입 예산 단계적 증액 (현재 레벨업 {total_level_up}회)</li></ul></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (총 씨드)</li><li><b>시장 락 & 추세 필터:</b> <b>시장지수 {market_lock_status}</b> / <b>개별주 {filter_status}</b></li><li><b>비상 탈출 손절(Emergency Cut):</b> <b>{cut_status}</b></li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록</li></ul></div>", unsafe_allow_html=True)
 
             # 상단 KPI 카드 세트
-            st.markdown(f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;'><div style='flex:1 1 125px;background:#e8f8f5;padding:12px;border-radius:6px;border-left:5px solid #1abc9c;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🎯 통합 청산 승률</span><div style='font-size:17px;font-weight:900;color:#2c3e50;margin:4px 0;'>{overall_win_rate:.1f}%</div><span style='font-size:10px;color:#16a085;'>익절 {win_trades_all} / 손절 {loss_trades_all}</span></div><div style='flex:1 1 125px;background:#ebf5fb;padding:12px;border-radius:6px;border-left:5px solid #3498db;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>⚔️ 총 투입 요원</span><div style='font-size:17px;font-weight:900;color:#2c3e50;margin:4px 0;'>{total_agent_counter}명</div><span style='font-size:10px;color:#2980b9;'>총 {total_cycles_all}회차 / 대기 {total_active_count}명</span></div><div style='flex:1 1 125px;background:#fdf2e9;padding:12px;border-radius:6px;border-left:5px solid #e67e22;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🔥 최대 요원 풀출력</span><div style='font-size:17px;font-weight:900;color:#c0392b;margin:4px 0;'>{full_launch_cycles_all}회 <span style='font-size:10px;'>({full_launch_pct:.1f}%)</span></div><span style='font-size:10px;color:#d35400;'>{max_agents}명 풀가동 비중</span></div><div style='flex:1 1 125px;background:#fadbd8;padding:12px;border-radius:6px;border-left:5px solid #c0392b;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>📉 최대 낙폭지수 (MDD)</span><div style='font-size:17px;font-weight:900;color:#78281f;margin:4px 0;'>{max_drawdown:.2f}%</div><span style='font-size:9.5px;color:#c0392b;font-weight:bold;'>지수: KOSPI {kospi_mdd:.1f}% | KQ {kosdaq_mdd:.1f}%</span></div><div style='flex:1 1 125px;background:#fef9e7;padding:12px;border-radius:6px;border-left:5px solid #f1c40f;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🚀 스노우볼 레벨UP</span><div style='font-size:17px;font-weight:900;color:#d35400;margin:4px 0;'>{total_level_up}회 <span style='font-size:9px;color:#7f8c8d;'>(다운:{total_step_down})</span></div><span style='font-size:10px;color:#b7950b;'>복리 예산 스텝 업</span></div></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;'><div style='flex:1 1 125px;background:#e8f8f5;padding:12px;border-radius:6px;border-left:5px solid #1abc9c;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🎯 통합 청산 승률</span><div style='font-size:17px;font-weight:900;color:#2c3e50;margin:4px 0;'>{overall_win_rate:.1f}%</div><span style='font-size:10px;color:#16a085;'>익절 {win_trades_all} / 손절 {loss_trades_all}</span></div><div style='flex:1 1 125px;background:#ebf5fb;padding:12px;border-radius:6px;border-left:5px solid #3498db;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>⚔️ 총 투입 요원</span><div style='font-size:17px;font-weight:900;color:#2c3e50;margin:4px 0;'>{total_agent_counter}명</div><span style='font-size:10px;color:#2980b9;'>총 {total_cycles_all}회차 / 대기 {total_active_count}명</span></div><div style='flex:1 1 125px;background:#fdf2e9;padding:12px;border-radius:6px;border-left:5px solid #e67e22;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🔥 최대 요원 풀출력</span><div style='font-size:17px;font-weight:900;color:#c0392b;margin:4px 0;'>{full_launch_cycles_all}회 <span style='font-size:10px;'>({full_launch_pct:.1f}%)</span></div><span style='font-size:10px;color:#d35400;'>{max_agents}명 풀가동 비중</span></div><div style='flex:1 1 125px;background:#fadbd8;padding:12px;border-radius:6px;border-left:5px solid #c0392b;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>📉 최대 낙폭지수 (MDD)</span><div style='font-size:17px;font-weight:900;color:#78281f;margin:4px 0;'>{max_drawdown:.2f}%</div><span style='font-size:9.5px;color:#c0392b;font-weight:bold;'>지수: KS {kospi_mdd:.1f}% | KQ {kosdaq_mdd:.1f}%</span></div><div style='flex:1 1 125px;background:#fef9e7;padding:12px;border-radius:6px;border-left:5px solid #f1c40f;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🚀 스노우볼 레벨UP</span><div style='font-size:17px;font-weight:900;color:#d35400;margin:4px 0;'>{total_level_up}회 <span style='font-size:9px;color:#7f8c8d;'>(다운:{total_step_down})</span></div><span style='font-size:10px;color:#b7950b;'>복리 예산 스텝 업</span></div></div>", unsafe_allow_html=True)
 
-            st.markdown(f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px;'><div style='flex:1 1 135px;background:#f0fdf4;padding:12px;border-radius:6px;border-left:5px solid #16a34a;min-width:120px;'><span style='font-size:11px;color:#15803d;font-weight:bold;'>🚀 지수 대비 초과수익 (Alpha)</span><div style='font-size:16px;font-weight:900;color:#166534;margin:4px 0;'>+{alpha_vs_kospi:.1f}%p</div><span style='font-size:9.5px;color:#15803d;font-weight:bold;'>KS({kospi_return:+.1f}%) | KQ({kosdaq_return:+.1f}%) 초과</span></div><div style='flex:1 1 115px;background:#eaf2f8;padding:12px;border-radius:6px;border-left:5px solid #2980b9;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💵 비상 현금금고</span><div style='font-size:13px;font-weight:900;color:#1b4f72;margin:4px 0;'>{format_money(total_reserve_cash)}원</div><span style='font-size:10px;color:#5d6d7e;'>안전 예수금</span></div><div style='flex:1 1 115px;background:#fef9e7;padding:12px;border-radius:6px;border-left:5px solid #f39c12;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>📈 대기주식 평가금</span><div style='font-size:13px;font-weight:900;color:#2c3e50;margin:4px 0;'>{format_money(total_active_eval)}원</div><span style='font-size:10px;color:#7f8c8d;'>대기 요원 평가가</span></div><div style='flex:1 1 115px;background:#fdf2e9;padding:12px;border-radius:6px;border-left:5px solid #e67e22;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💰 실현 순수익</span><div style='font-size:13px;font-weight:900;color:#c0392b;margin:4px 0;'>+{format_money(total_net_profit_all)}원</div><span style='font-size:10px;color:#7f8c8d;'>매매 실현 순익</span></div><div style='flex:1 1 115px;background:#f5b7b1;padding:12px;border-radius:6px;border-left:5px solid #c0392b;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💸 수수료·세금</span><div style='font-size:13px;font-weight:900;color:#78281f;margin:4px 0;'>-{format_money(total_fees_paid_all)}원</div><span style='font-size:10px;color:#7f8c8d;'>총 납부 비용</span></div><div style='flex:1 1 115px;background:#fef5e7;padding:12px;border-radius:6px;border-left:5px solid #d35400;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🚀 총자산 ({portfolio_total_return:+.1f}%)</span><div style='font-size:13px;font-weight:900;color:#2c3e50;margin:4px 0;'>{format_money(final_portfolio_equity)}원</div><span style='font-size:10px;color:#7f8c8d;'>현금+주식+코어</span></div><div style='flex:1 1 95px;background:#f4ecf7;padding:12px;border-radius:6px;border-left:5px solid #9b59b6;min-width:90px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🍎 코어주식</span><div style='font-size:13px;font-weight:900;color:#8e44ad;margin:4px 0;'>{total_core_shares}주</div><span style='font-size:10px;color:#7f8c8d;'>{format_money(total_core_eval)}원</span></div></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px;'><div style='flex:1 1 135px;background:#f0fdf4;padding:12px;border-radius:6px;border-left:5px solid #16a34a;min-width:120px;'><span style='font-size:11px;color:#15803d;font-weight:bold;'>🚀 지수 대비 초과수익 (Alpha)</span><div style='font-size:16px;font-weight:900;color:#166534;margin:4px 0;'>+{alpha_vs_kospi:.1f}%p</div><span style='font-size:9.5px;color:#15803d;font-weight:bold;'>KS({kospi_return:+.1f}%) | KQ({kosdaq_return:+.1f}%) 초과</span></div><div style='flex:1 1 115px;background:#eaf2f8;padding:12px;border-radius:6px;border-left:5px solid #2980b9;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💵 비상 현금금고</span><div style='font-size:13px;font-weight:900;color:#1b4f72;margin:4px 0;'>{format_money(total_reserve_cash)}원</div><span style='font-size:10px;color:#5d6d7e;'>안전 예수금</span></div><div style='flex:1 1 115px;background:#fef9e7;padding:12px;border-radius:6px;border-left:5px solid #f39c12;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>📈 대기주식 평가금</span><div style='font-size:13px;font-weight:900;color:#2c3e50;margin:4px 0;'>{format_money(total_active_eval)}원</div><span style='font-size:10px;color:#7f8c8d;'>대기 요원 평가가</span></div><div style='flex:1 1 115px;background:#fdf2e9;padding:12px;border-radius:6px;border-left:5px solid #e67e22;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💰 실현 순수익</span><div style='font-size:13px;font-weight:900;color:#c0392b;margin:4px 0;'>{'+' if total_net_profit_all>0 else ''}{format_money(total_net_profit_all)}원</div><span style='font-size:10px;color:#7f8c8d;'>매매 실현 순익</span></div><div style='flex:1 1 115px;background:#f5b7b1;padding:12px;border-radius:6px;border-left:5px solid #c0392b;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>💸 수수료·세금</span><div style='font-size:13px;font-weight:900;color:#78281f;margin:4px 0;'>-{format_money(total_fees_paid_all)}원</div><span style='font-size:10px;color:#7f8c8d;'>총 납부 비용</span></div><div style='flex:1 1 115px;background:#fef5e7;padding:12px;border-radius:6px;border-left:5px solid #d35400;min-width:105px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🚀 총자산 ({portfolio_total_return:+.1f}%)</span><div style='font-size:13px;font-weight:900;color:#2c3e50;margin:4px 0;'>{format_money(final_portfolio_equity)}원</div><span style='font-size:10px;color:#7f8c8d;'>현금+주식+코어</span></div><div style='flex:1 1 95px;background:#f4ecf7;padding:12px;border-radius:6px;border-left:5px solid #9b59b6;min-width:90px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🍎 코어주식</span><div style='font-size:13px;font-weight:900;color:#8e44ad;margin:4px 0;'>{total_core_shares}주</div><span style='font-size:10px;color:#7f8c8d;'>{format_money(total_core_eval)}원</span></div></div>", unsafe_allow_html=True)
 
-            # 🌟 1. 종목별 종합 성적표 (옥석 가리기)
-            rc_html = f"<div style='background:#fdfefe;border:1px solid #1abc9c;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#117a65;font-size:14px;font-weight:bold;'>📊 [종목별 종합 성적표] 옥석 가리기 현황판 (유지 / 교체 판단용)</h4>"
+            # 종목별 종합 성적표
+            rc_html = f"<div style='background:#fdfefe;border:1px solid #1abc9c;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#117a65;font-size:14px;font-weight:bold;'>📊 [종목별 종합 성적표] 옥석 가리기 현황판</h4>"
             rc_html += "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:12px;min-width:650px;'><thead style='background-color:#e8f8f5;color:#117a65;'><tr><th style='padding:8px;border:1px solid #d5dbdf;'>종목명 (코드)</th><th style='padding:8px;border:1px solid #d5dbdf;'>총 매매 (승/패)</th><th style='padding:8px;border:1px solid #d5dbdf;'>승률</th><th style='padding:8px;border:1px solid #d5dbdf;'>누적 순수익</th><th style='padding:8px;border:1px solid #d5dbdf;'>수익 기여도</th><th style='padding:8px;border:1px solid #d5dbdf;'>평균 체류기간</th><th style='padding:8px;border:1px solid #d5dbdf;'>종합 판정</th></tr></thead><tbody>"
             
             for t_code, res in stock_results.items():
@@ -520,38 +597,37 @@ if run_btn or 'calculated' in st.session_state:
             rc_html += "</tbody></table></div></div>"
             st.markdown(rc_html, unsafe_allow_html=True)
 
-            # 🍎 종목별 코어주식 적립 현황판
+            # 종목별 코어주식 적립 현황판
             core_cards_html = f"<div style='background:#f4ecf7;border:1px solid #9b59b6;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#8e44ad;font-size:14px;font-weight:bold;'>🍎 [종목별 코어주식(나무) 적립 현황판] (총 적립: {total_core_shares}주)</h4><div style='font-size:11px;color:#4a5568;margin-bottom:10px;'>각 작전구역별로 복리 재투자 수익을 통해 영구 적립된 코어 주식(나무) 현황입니다.</div><div style='display:flex;flex-wrap:wrap;gap:8px;'>"
             for t_code, res in stock_results.items():
                 core_cards_html += f"<div style='flex:1 1 180px;background:white;border:1px solid #d2b4de;border-top:4px solid #9b59b6;padding:10px;border-radius:6px;min-width:160px;'><b style='font-size:12px;color:#512e5f;'>{res['name']}</b><div style='font-size:11px;color:#2c3e50;margin-top:4px;'>• 적립 코어: <b>{res['core_shares']}주</b><br>• 평가금액: <b>{format_money(res['core_eval'])}원</b></div></div>"
             core_cards_html += "</div></div>"
             st.markdown(core_cards_html, unsafe_allow_html=True)
 
-            # --- 🌟 2. 장기 체류 요원 TOP 3 경보 순위표 (손실 경고 추가) ---
+            # TOP 3 장기 체류 순위표
             sorted_active_positions = sorted(all_active_positions, key=lambda x: x['holding_days'], reverse=True)
             top3_long_term = sorted_active_positions[:3] if len(sorted_active_positions) >= 3 else sorted_active_positions
 
             top3_cards_html = "<div style='background:#fdf2e9;border:1px solid #e67e22;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#d35400;font-size:14px;font-weight:bold;'>🚨 [장기 체류 요원 TOP 3 경보 순위표] (청산 검토 대상)</h4><div style='font-size:11px;color:#7f8c8d;margin-bottom:10px;'>파견 이후 가장 오래 머물며 묶여있는 장기 체류 요원 순위입니다. (90일 이상 🚨 / 60일 이상 🔥 / 20일 이상 ⚠️)</div><div style='display:flex;flex-wrap:wrap;gap:8px;'>"
             for rank, p in enumerate(top3_long_term, 1):
                 if p['holding_days'] >= 90:
-                    badge_color = "#e74c3c" # 빨강
+                    badge_color = "#e74c3c"
                     icon = "🚨"
                 elif p['holding_days'] >= 60:
-                    badge_color = "#e67e22" # 주황
+                    badge_color = "#e67e22"
                     icon = "🔥"
                 elif p['holding_days'] >= 20:
-                    badge_color = "#f1c40f" # 노랑
+                    badge_color = "#f1c40f"
                     icon = "⚠️"
                 else:
-                    badge_color = "#2ecc71" # 초록
+                    badge_color = "#2ecc71"
                     icon = "✅"
 
-                # 손실률에 따른 경고 태그 (TOP 3용)
                 pnl_pct_val = p['pnl_pct']
                 if pnl_pct_val <= -25.0:
-                    loss_tag = "<br><span style='color:#e74c3c;font-weight:bold;font-size:11px;'>🚨 -25% 돌파 (강제철수 검토)</span>"
+                    loss_tag = "<br><span style='color:#e74c3c;font-weight:bold;font-size:11px;'>🚨 -25% 돌파 (강제철수)</span>"
                 elif pnl_pct_val <= -20.0:
-                    loss_tag = "<br><span style='color:#e67e22;font-weight:bold;font-size:11px;'>🔥 -20% 돌파 (비중조절 경고)</span>"
+                    loss_tag = "<br><span style='color:#e67e22;font-weight:bold;font-size:11px;'>🔥 -20% 돌파 (비중조절)</span>"
                 elif pnl_pct_val <= -15.0:
                     loss_tag = "<br><span style='color:#f39c12;font-weight:bold;font-size:11px;'>⚠️ -15% 돌파 (손실주의)</span>"
                 else:
@@ -561,14 +637,13 @@ if run_btn or 'calculated' in st.session_state:
             top3_cards_html += "</div></div>"
             st.markdown(top3_cards_html, unsafe_allow_html=True)
 
-            # --- 🌟 3. 현재 파견 대기 중인 요원 실시간 현황판 (손실률 경보 뱃지 추가) ---
-            active_html = f"<div style='background:#fdfefe;border:1px solid #3498db;border-radius:6px;padding:12px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#2980b9;font-size:13px;'>🕵️ [현재 파견 대기 중인 요원 실시간 현황판] (총 {len(all_active_positions)}명 대기 중)</h4><div style='font-size:11px;color:#7f8c8d;margin-bottom:10px;'>⏱️ 체류경보 기준: 90일 이상 🚨 / 60일 이상 🔥 / 20일 이상 ⚠️<br>📉 손실경보 기준: -25% 이상 🚨 / -20% 이상 🔥 / -15% 이상 ⚠️</div>"
+            # 실시간 대기 요원 현황판
+            active_html = f"<div style='background:#fdfefe;border:1px solid #3498db;border-radius:6px;padding:12px;margin-bottom:15px;'><h4 style='margin:0 0 10px 0;color:#2980b9;font-size:13px;'>🕵️ [현재 파견 대기 중인 요원 실시간 현황판] (총 {len(all_active_positions)}명 대기 중)</h4><div style='font-size:11px;color:#7f8c8d;margin-bottom:10px;'>⏱️ 체류경보: 90일 이상 🚨 / 60일 이상 🔥 / 20일 이상 ⚠️<br>📉 손실경보: -25% 이상 🚨 / -20% 이상 🔥 / -15% 이상 ⚠️</div>"
             if len(all_active_positions) > 0:
                 active_html += "<div style='overflow-x:auto;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:600px;'><thead style='background-color:#ebf5fb;color:#2980b9;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>상태</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원명</th><th style='padding:6px;border:1px solid #d5dbdf;'>파견일</th><th style='padding:6px;border:1px solid #d5dbdf;'>체류일수</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입단가</th><th style='padding:6px;border:1px solid #d5dbdf;'>수량</th><th style='padding:6px;border:1px solid #d5dbdf;background:#d4e6f1;'>진입금액(총액)</th><th style='padding:6px;border:1px solid #d5dbdf;'>현재평가금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>평가손익</th></tr></thead><tbody>"
                 for idx_ap, ap in enumerate(all_active_positions, 1):
                     pnl_color = "#c0392b" if ap['is_plus'] else "#2980b9"
                     
-                    # 기간별 테이블 배경색 경보 로직
                     if ap['holding_days'] >= 90:
                         row_bg = "#fdedec"
                         s_icon = "🚨"
@@ -582,7 +657,6 @@ if run_btn or 'calculated' in st.session_state:
                         row_bg = "#ffffff"
                         s_icon = "✅"
 
-                    # 🌟 신규: 평가손익 손실률 3단계 시각 경보 뱃지 로직
                     pnl_pct_val = ap['pnl_pct']
                     if pnl_pct_val <= -25.0:
                         loss_badge = "<br><span style='background:#e74c3c;color:white;padding:2px 4px;border-radius:3px;font-size:10px;display:inline-block;margin-top:3px;'>🚨 손실 -25%↓</span>"
@@ -600,7 +674,7 @@ if run_btn or 'calculated' in st.session_state:
             active_html += "</div>"
             st.markdown(active_html, unsafe_allow_html=True)
 
-            # 📈 스트림릿 순정 웹 차트
+            # 웹 차트
             st.subheader("📈 오토파일럿 총자산 vs 시장 지수 비교 성장 곡선")
             chart_df = pd.DataFrame(index=combined_equity_df.index)
             chart_df[f'오토파일럿 총자산 ({current_strategy_name})'] = combined_equity_df['Portfolio_Equity']
@@ -610,8 +684,8 @@ if run_btn or 'calculated' in st.session_state:
 
             st.line_chart(chart_df)
 
-            # 📜 공식 매매 장부
-            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.31 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
+            # 공식 매매 장부
+            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.33 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
             
             table_html = "<div style='max-height:400px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:750px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
 
@@ -623,7 +697,7 @@ if run_btn or 'calculated' in st.session_state:
             table_html += "</tbody></table></div>"
             st.markdown(table_html, unsafe_allow_html=True)
 
-            # CSV 다운로드 버튼
+            # CSV 다운로드
             df_export_data = []
             for t in all_matched_trades:
                 clean_row = {k: v for k, v in t.items() if k not in ['is_win', 'raw_profit', 'exit_date']}
@@ -634,12 +708,12 @@ if run_btn or 'calculated' in st.session_state:
             csv_buffer = io.StringIO()
             df_export.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
             st.download_button(
-                label="📜 엑셀(CSV) V10.31 공식 작전장부 다운로드",
+                label="📜 엑셀(CSV) V10.33 공식 작전장부 다운로드",
                 data=csv_buffer.getvalue().encode('utf-8-sig'),
-                file_name=f"박가이버사령부_V10.31_{selected_strategy}.csv",
+                file_name=f"박가이버사령부_V10.33_{selected_strategy}.csv",
                 mime="text/csv"
             )
         else:
             st.error("❌ 분석할 수 있는 데이터가 없습니다. 종목 코드를 확인해 주세요.")
 else:
-    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.31 작전 개시!] 버튼을 눌러주세요.")
+    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.33 작전 개시!] 버튼을 눌러주세요.")
