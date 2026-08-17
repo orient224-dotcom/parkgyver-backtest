@@ -30,7 +30,7 @@ stock_database = {
     "제주반도체 (080220)": "080220",
     "삼성전자 (005930)": "005930",
     "와이지원 (019210)": "019210",
-    "두산인프라코어/밥캣등 (034020)": "034020",
+    "두산에너빌리티 (034020)": "034020",
     "원익QNC (074600)": "074600",
     "한미반도체 (042700)": "042700",
     "주성엔지니어링 (036930)": "036930",
@@ -47,7 +47,7 @@ st.sidebar.subheader("🎯 종목 간편 검색 및 선택")
 
 default_selected = [
     "와이지원 (019210)", "삼성전자 (005930)", "제주반도체 (080220)", 
-    "테크윙 (089030)", "피에스케이 (319660)", "두산인프라코어/밥캣등 (034020)", "원익QNC (074600)"
+    "테크윙 (089030)", "피에스케이 (319660)", "원익QNC (074600)"
 ]
 
 selected_stocks = st.sidebar.multiselect(
@@ -90,9 +90,9 @@ selected_strategy = strategy_option[1]
 
 buy_fee_val = st.sidebar.number_input("📉 매수수수료(%):", value=0.015, step=0.005, format="%.3f")
 sell_tax_val = st.sidebar.number_input("📈 매도세금+수수료(%):", value=0.20, step=0.01, format="%.2f")
-total_capital = st.sidebar.number_input("💰 총 씨드머니(원):", value=16000000, step=1000000)
-max_agents = st.sidebar.number_input("⚔️ 종목당 최대 요원 수:", value=2, min_value=1, max_value=10)
-years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value=3, min_value=1, max_value=10)
+total_capital = st.sidebar.number_input("💰 총 씨드머니(원):", value=10000000, step=1000000)
+max_agents = st.sidebar.number_input("⚔️ 종목당 최대 요원 수:", value=1, min_value=1, max_value=10)
+years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value=1, min_value=1, max_value=10)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🛡️ 리스크 제어 3중 안전장치")
