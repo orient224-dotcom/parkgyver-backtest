@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.33", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.34", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -21,8 +21,8 @@ def format_money(num):
         return str(num)
 
 # --- 2. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.33")
-st.sidebar.caption("은퇴 과수원 에디션 - 지수폭락 감시 락 탑재")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.34")
+st.sidebar.caption("은퇴 과수원 에디션 - 장부 가독성(UI) 최적화")
 
 stock_database = {
     "테크윙 (089030)": "089030",
@@ -96,7 +96,7 @@ years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value
 st.sidebar.markdown("---")
 st.sidebar.subheader("🛡️ 리스크 제어 3중 안전장치")
 
-# 🌟 신규: 시장 지수 폭락 감시 락 옵션
+# 시장 지수 폭락 감시 락 옵션
 use_market_ma20_filter = st.sidebar.checkbox("🚨 지수 폭락 감시 락 (KOSPI/KQ 20일선 붕괴시 매수금지)", value=True)
 use_ma20_filter = st.sidebar.checkbox("🛡️ 개별주 20일선 아래 매수 금지 (추세 필터)", value=True)
 
@@ -104,7 +104,7 @@ use_ma20_filter = st.sidebar.checkbox("🛡️ 개별주 20일선 아래 매수 
 emergency_cut_active = st.sidebar.checkbox("🚨 비상 탈출 손절(Emergency Cut) 가동", value=True)
 emergency_cut_pct = st.sidebar.number_input("비상 탈출 손실 기준선 (%)", value=20.0, step=5.0, min_value=5.0, max_value=50.0)
 
-run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.33 작전 개시!", type="primary")
+run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.34 작전 개시!", type="primary")
 
 # --- 🚨 오후 3:20 PM 실전 신호등 모듈 ---
 st.markdown("<div style='background:#154360;color:white;padding:12px;border-radius:6px;margin-bottom:12px;'><h3 style='margin:0;font-size:16px;'>🚨 [오후 3:20 PM 실전 작전 지시서] 실시간 신호등 통제실</h3></div>", unsafe_allow_html=True)
@@ -440,8 +440,9 @@ if run_btn or 'calculated' in st.session_state:
                         agent_budget = int((s_capital // max_agents) * scale_ratio)
                         shares = max(int(agent_budget // close), 1)
 
+                        # 🌟 1. 요원 명칭 직관화 적용 (예: 와이지원-1호)
                         positions.append({
-                            'name': f"{agent_counter}호 요원", 'entry_price': close,
+                            'name': f"{s_name}-{agent_counter}호", 'entry_price': close,
                             'entry_date': date_str, 'entry_dt': date, 'entry_return': daily_return,
                             'shares': shares, 'target_ret': target_ret
                         })
@@ -683,15 +684,20 @@ if run_btn or 'calculated' in st.session_state:
 
             st.line_chart(chart_df)
 
-            # 공식 매매 장부
-            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.33 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
+            # 🌟 3. 공식 매매 장부 (컬럼 추가 및 No 역순 배치)
+            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.34 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
             
-            table_html = "<div style='max-height:400px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:750px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
+            table_html = "<div style='max-height:400px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:800px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fdedec;'>청산일(복귀)</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
 
+            total_m_trades = len(all_matched_trades)
             for idx_t, t in enumerate(all_matched_trades, 1):
+                # 🌟 일련번호(No) 역순 계산 로직 (최신 거래가 가장 높은 번호 부여)
+                row_no = total_m_trades - idx_t + 1
                 row_bg = "#fdedec" if t['is_win'] else "#ebf5fb"
                 text_color = "#c0392b" if t['is_win'] else "#2980b9"
-                table_html += f"<tr style='background-color:{row_bg};'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#7f8c8d;'>{idx_t}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{t['요원']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#2980b9;'>{t['작전구역']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['출격일']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['진입일 등락률']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['진입금액']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['매도금액']}</td><td style='padding:5px;border:1px solid #eaeded;color:#c0392b;'>{t['총수수료·세금']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['등락폭']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['소요기간']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['순수익률']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['정산내역']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{t['구분']}</td><td style='padding:5px;border:1px solid #eaeded;color:#d35400;font-weight:bold;'>{t['스노우볼 레벨']}</td></tr>"
+                
+                # 🌟 청산일(복귀일) <td> 추가
+                table_html += f"<tr style='background-color:{row_bg};'><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#7f8c8d;'>{row_no}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{t['요원']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#2980b9;'>{t['작전구역']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['출격일']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;color:#c0392b;'>{t['복귀일']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['진입일 등락률']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['진입금액']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['매도금액']}</td><td style='padding:5px;border:1px solid #eaeded;color:#c0392b;'>{t['총수수료·세금']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['등락폭']}</td><td style='padding:5px;border:1px solid #eaeded;'>{t['소요기간']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['순수익률']}</td><td style='padding:5px;border:1px solid #eaeded;color:{text_color};font-weight:bold;'>{t['정산내역']}</td><td style='padding:5px;border:1px solid #eaeded;font-weight:bold;'>{t['구분']}</td><td style='padding:5px;border:1px solid #eaeded;color:#d35400;font-weight:bold;'>{t['스노우볼 레벨']}</td></tr>"
 
             table_html += "</tbody></table></div>"
             st.markdown(table_html, unsafe_allow_html=True)
@@ -707,12 +713,12 @@ if run_btn or 'calculated' in st.session_state:
             csv_buffer = io.StringIO()
             df_export.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
             st.download_button(
-                label="📜 엑셀(CSV) V10.33 공식 작전장부 다운로드",
+                label="📜 엑셀(CSV) V10.34 공식 작전장부 다운로드",
                 data=csv_buffer.getvalue().encode('utf-8-sig'),
-                file_name=f"박가이버사령부_V10.33_{selected_strategy}.csv",
+                file_name=f"박가이버사령부_V10.34_{selected_strategy}.csv",
                 mime="text/csv"
             )
         else:
             st.error("❌ 분석할 수 있는 데이터가 없습니다. 종목 코드를 확인해 주세요.")
 else:
-    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.33 작전 개시!] 버튼을 눌러주세요.")
+    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.34 작전 개시!] 버튼을 눌러주세요.")
