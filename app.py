@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.37", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.38", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -21,21 +21,16 @@ def format_money(num):
         return str(num)
 
 # --- 2. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.37")
-st.sidebar.caption("은퇴 과수원 에디션 - 가짜 반등 완벽 차단(기울기 필터) 탑재")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.38")
+st.sidebar.caption("은퇴 과수원 에디션 - 철통 자금관리(칸막이) 모듈 탑재")
 
 # 🎯 사령부 정예 종목 데이터베이스
 stock_database = {
-    # 🏛️ 핵심 기둥
     "삼성전자 (005930)": "005930",
-    
-    # 🚀 신규 발굴 정예 편대
     "실리콘투 (257720)": "257720",
     "리노공업 (058470)": "058470",
     "HD현대일렉트릭 (267260)": "267260",
     "DN오토모티브 (007340)": "007340",
-    
-    # 📋 관심 및 기존 작전 종목군
     "와이지원 (019210)": "019210",
     "테크윙 (089030)": "089030",
     "피에스케이 (319660)": "319660",
@@ -102,27 +97,30 @@ strategy_option = st.sidebar.selectbox(
 )
 selected_strategy = strategy_option[1]
 
+# 🌟 V10.38 신규: 철통 자금관리 입력부
+total_capital = st.sidebar.number_input("💰 총 씨드머니(원):", value=10000000, step=1000000)
+stock_alloc_pct = st.sidebar.number_input("📊 1종목당 최대 할당 비중 (%):", value=20.0, step=5.0, min_value=1.0, max_value=100.0, help="한 종목에 계좌 총액의 몇 %까지만 허용할지 제한하여 몰빵을 막습니다.")
+max_agents = st.sidebar.number_input("⚔️ 종목당 최대 파견 요원 수:", value=2, min_value=1, max_value=10)
+
 buy_fee_val = st.sidebar.number_input("📉 매수수수료(%):", value=0.015, step=0.005, format="%.3f")
 sell_tax_val = st.sidebar.number_input("📈 매도세금+수수료(%):", value=0.20, step=0.01, format="%.2f")
-total_capital = st.sidebar.number_input("💰 총 씨드머니(원):", value=10000000, step=1000000)
-max_agents = st.sidebar.number_input("⚔️ 종목당 최대 요원 수:", value=1, min_value=1, max_value=10)
 years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value=1, min_value=1, max_value=10)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🛡️ 리스크 제어 3중 안전장치 (V10.37 업그레이드)")
+st.sidebar.subheader("🛡️ 리스크 제어 3중 안전장치")
 
 # 시장 지수 폭락 감시 락 옵션
 use_market_ma20_filter = st.sidebar.checkbox("🚨 지수 폭락 감시 락 (KOSPI/KQ 20일선 붕괴시 매수금지)", value=True)
 use_ma20_filter = st.sidebar.checkbox("🛡️ 개별주 20일선 지지 (종가가 20일선 위 유지)", value=True)
 
-# 🌟 V10.37 신규: 기울기 및 10일선 필터
-use_trend_filter = st.sidebar.checkbox("📈 [V10.37 신규] 20일선 우상향(기울기) & 10일선 정배열 필터", value=True)
+# 기울기 및 10일선 필터
+use_trend_filter = st.sidebar.checkbox("📈 20일선 우상향(기울기) & 10일선 정배열 필터", value=True)
 
-# 비상 탈출 옵션 (넉넉하게 25% 기본 세팅)
+# 비상 탈출 옵션
 emergency_cut_active = st.sidebar.checkbox("🚨 비상 탈출 손절(Emergency Cut) 가동", value=True)
 emergency_cut_pct = st.sidebar.number_input("비상 탈출 손실 기준선 (%)", value=25.0, step=5.0, min_value=5.0, max_value=50.0)
 
-run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.37 작전 개시!", type="primary")
+run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.38 작전 개시!", type="primary")
 
 # --- 🚨 오후 3:20 PM 실전 신호등 모듈 ---
 st.markdown("<div style='background:#154360;color:white;padding:12px;border-radius:6px;margin-bottom:12px;'><h3 style='margin:0;font-size:16px;'>🚨 [오후 3:20 PM 실전 작전 지시서] 실시간 신호등 통제실</h3></div>", unsafe_allow_html=True)
@@ -133,124 +131,130 @@ with live_col1:
     scan_live_btn = st.button("📡 [3시 20분] 실시간 시장 스캔 실행", type="primary", use_container_width=True)
 
 with live_col2:
-    st.caption("💡 매일 오후 3시 20분 동시호가 시작 전 클릭하시면, 오늘의 당일 등락률과 V10.37 추세 기울기를 정밀 분석하여 즉시 실행할 매수 주문을 생성합니다.")
+    st.caption("💡 매일 오후 3시 20분 동시호가 시작 전 클릭하시면, 당일 등락률과 V10.38 자금 배분 룰을 적용해 즉시 실행할 지시서를 생성합니다.")
 
 if scan_live_btn:
-    with st.spinner("🔍 실시간 시세 및 기울기(Trend) 조건을 정밀 분석 중입니다..."):
-        buy_orders = []
-        sell_orders = []
-        hold_stocks = []
-        
-        start_2mo = (datetime.datetime.today() - relativedelta(months=2)).strftime('%Y-%m-%d')
-
-        try:
-            k_hist = fdr.DataReader('KS11', start_2mo)
-            kd_hist = fdr.DataReader('KQ11', start_2mo)
-            k_hist['MA20'] = k_hist['Close'].rolling(20).mean()
-            kd_hist['MA20'] = kd_hist['Close'].rolling(20).mean()
+    if len(tickers_list) == 0:
+        st.warning("⚠️ 종목을 먼저 선택해 주세요.")
+    elif stock_alloc_pct * len(tickers_list) > 100.0:
+        st.error(f"❌ 설정 오류: {len(tickers_list)}개 종목에 각각 {stock_alloc_pct}%씩 할당하면 총 {stock_alloc_pct * len(tickers_list)}%가 되어 씨드머니를 초과합니다. 종목 수나 할당 비중을 줄이세요.")
+    else:
+        with st.spinner("🔍 실시간 시세 및 안전 조건을 정밀 분석 중입니다..."):
+            buy_orders = []
+            hold_stocks = []
             
-            k_curr = float(k_hist['Close'].iloc[-1])
-            k_ma20 = float(k_hist['MA20'].iloc[-1])
-            kd_curr = float(kd_hist['Close'].iloc[-1])
-            kd_ma20 = float(kd_hist['MA20'].iloc[-1])
-            
-            is_ks_safe = (k_curr >= k_ma20)
-            is_kd_safe = (kd_curr >= kd_ma20)
-        except:
-            is_ks_safe = True
-            is_kd_safe = True
+            start_2mo = (datetime.datetime.today() - relativedelta(months=2)).strftime('%Y-%m-%d')
 
-        if use_market_ma20_filter:
-            warn_msg = []
-            if not is_ks_safe: warn_msg.append("KOSPI 20일선 붕괴")
-            if not is_kd_safe: warn_msg.append("KOSDAQ 20일선 붕괴")
-            if warn_msg:
-                st.warning(f"🚨 **[기상 특보] 지수 폭락 경보 발령 중! ({', '.join(warn_msg)})** - 해당 시장 종목의 신규 진입이 차단됩니다.")
-
-        for idx, t_code in enumerate(tickers_list):
-            s_name = names_list[idx]
-            is_ks = t_code in KS_CODES
-            
             try:
-                hist = fdr.DataReader(t_code, start_2mo)
+                k_hist = fdr.DataReader('KS11', start_2mo)
+                kd_hist = fdr.DataReader('KQ11', start_2mo)
+                k_hist['MA20'] = k_hist['Close'].rolling(20).mean()
+                kd_hist['MA20'] = kd_hist['Close'].rolling(20).mean()
                 
-                if len(hist) >= 20:
-                    hist['MA10'] = hist['Close'].rolling(window=10).mean()
-                    hist['MA20'] = hist['Close'].rolling(window=20).mean()
-                    
-                    prev_close = float(hist['Close'].iloc[-2])
-                    curr_price = float(hist['Close'].iloc[-1])
-                    
-                    curr_ma10 = float(hist['MA10'].iloc[-1])
-                    curr_ma20 = float(hist['MA20'].iloc[-1])
-                    prev_ma20 = float(hist['MA20'].iloc[-2]) # 어제 20일선
-                    
-                    daily_ret = ((curr_price - prev_close) / prev_close) * 100
+                k_curr = float(k_hist['Close'].iloc[-1])
+                k_ma20 = float(k_hist['MA20'].iloc[-1])
+                kd_curr = float(kd_hist['Close'].iloc[-1])
+                kd_ma20 = float(kd_hist['MA20'].iloc[-1])
+                
+                is_ks_safe = (k_curr >= k_ma20)
+                is_kd_safe = (kd_curr >= kd_ma20)
+            except:
+                is_ks_safe = True
+                is_kd_safe = True
 
-                    if daily_ret <= -5.0:
-                        is_above_ma20 = (curr_price >= curr_ma20)
+            if use_market_ma20_filter:
+                warn_msg = []
+                if not is_ks_safe: warn_msg.append("KOSPI 20일선 붕괴")
+                if not is_kd_safe: warn_msg.append("KOSDAQ 20일선 붕괴")
+                if warn_msg:
+                    st.warning(f"🚨 **[기상 특보] 지수 폭락 경보 발령 중! ({', '.join(warn_msg)})** - 신규 진입이 차단됩니다.")
+
+            for idx, t_code in enumerate(tickers_list):
+                s_name = names_list[idx]
+                is_ks = t_code in KS_CODES
+                
+                try:
+                    hist = fdr.DataReader(t_code, start_2mo)
+                    
+                    if len(hist) >= 20:
+                        hist['MA10'] = hist['Close'].rolling(window=10).mean()
+                        hist['MA20'] = hist['Close'].rolling(window=20).mean()
                         
-                        # V10.37 신규 로직: 20일선 상승 추세 AND 10일선이 20일선 위에 위치(정배열)
-                        is_ma20_rising = (curr_ma20 > prev_ma20)
-                        is_ma10_aligned = (curr_ma10 >= curr_ma20)
+                        prev_close = float(hist['Close'].iloc[-2])
+                        curr_price = float(hist['Close'].iloc[-1])
                         
-                        market_safe = is_ks_safe if is_ks else is_kd_safe
-                        if not use_market_ma20_filter: market_safe = True
+                        curr_ma10 = float(hist['MA10'].iloc[-1])
+                        curr_ma20 = float(hist['MA20'].iloc[-1])
+                        prev_ma20 = float(hist['MA20'].iloc[-2])
                         
-                        trend_safe = True
-                        if use_trend_filter and not (is_ma20_rising and is_ma10_aligned):
-                            trend_safe = False
-                        
-                        if ((not use_ma20_filter) or is_above_ma20) and market_safe and trend_safe:
-                            buy_budget = (total_capital / len(tickers_list)) / max_agents
-                            est_shares = max(int(buy_budget // curr_price), 1)
-                            buy_orders.append({
-                                '종목': s_name,
-                                '코드': t_code,
-                                '현재가': format_money(curr_price) + "원",
-                                '당일등락률': f"{daily_ret:+.2f}%",
-                                '추천수량': f"{est_shares}주",
-                                '예상주문금액': format_money(est_shares * curr_price) + "원"
-                            })
-                        else:
-                            reason = ""
-                            if use_market_ma20_filter and not market_safe:
-                                reason = "지수 20일선 붕괴(시장위험)"
-                            elif use_trend_filter and not trend_safe:
-                                reason = "20일선 꺾임 또는 10일선 역배열(가짜반등)"
-                            elif use_ma20_filter and not is_above_ma20:
-                                reason = "개별 20일선 하회"
+                        daily_ret = ((curr_price - prev_close) / prev_close) * 100
+
+                        if daily_ret <= -5.0:
+                            is_above_ma20 = (curr_price >= curr_ma20)
+                            
+                            is_ma20_rising = (curr_ma20 > prev_ma20)
+                            is_ma10_aligned = (curr_ma10 >= curr_ma20)
+                            
+                            market_safe = is_ks_safe if is_ks else is_kd_safe
+                            if not use_market_ma20_filter: market_safe = True
+                            
+                            trend_safe = True
+                            if use_trend_filter and not (is_ma20_rising and is_ma10_aligned):
+                                trend_safe = False
+                            
+                            if ((not use_ma20_filter) or is_above_ma20) and market_safe and trend_safe:
+                                # 🌟 V10.38 실시간 예산 계산 (몰빵 방지)
+                                s_capital = total_capital * (stock_alloc_pct / 100.0)
+                                buy_budget = s_capital / max_agents
+                                est_shares = max(int(buy_budget // curr_price), 1)
                                 
+                                buy_orders.append({
+                                    '종목': s_name,
+                                    '코드': t_code,
+                                    '현재가': format_money(curr_price) + "원",
+                                    '당일등락률': f"{daily_ret:+.2f}%",
+                                    '추천수량': f"{est_shares}주",
+                                    '예상주문금액': format_money(est_shares * curr_price) + "원"
+                                })
+                            else:
+                                reason = ""
+                                if use_market_ma20_filter and not market_safe:
+                                    reason = "지수 20일선 붕괴(시장위험)"
+                                elif use_trend_filter and not trend_safe:
+                                    reason = "20일선 꺾임 또는 10일선 역배열"
+                                elif use_ma20_filter and not is_above_ma20:
+                                    reason = "개별 20일선 하회"
+                                    
+                                hold_stocks.append({
+                                    '종목': s_name,
+                                    '코드': t_code,
+                                    '현재가': format_money(curr_price) + "원",
+                                    '당일등락률': f"{daily_ret:+.2f}%",
+                                    '상태': f"대기 ({reason})"
+                                })
+                        else:
                             hold_stocks.append({
                                 '종목': s_name,
                                 '코드': t_code,
                                 '현재가': format_money(curr_price) + "원",
                                 '당일등락률': f"{daily_ret:+.2f}%",
-                                '상태': f"대기 ({reason}로 진입 보류)"
+                                '상태': "대기 (매수 조건 미충족)"
                             })
-                    else:
-                        hold_stocks.append({
-                            '종목': s_name,
-                            '코드': t_code,
-                            '현재가': format_money(curr_price) + "원",
-                            '당일등락률': f"{daily_ret:+.2f}%",
-                            '상태': "대기 (매수 조건 미충족)"
-                        })
-            except Exception as e:
-                st.error(f"⚠️ {s_name}({t_code}) 데이터 수집 실패: {e}")
+                except Exception as e:
+                    st.error(f"⚠️ {s_name}({t_code}) 데이터 수집 실패: {e}")
 
-        st.markdown("---")
-        if buy_orders:
-            st.markdown("<h4 style='color:#c0392b;margin-bottom:8px;'>🔴 [오늘 시장가 매수 실행 대상 종목]</h4>", unsafe_allow_html=True)
-            for b in buy_orders:
-                st.error(f"🎯 **{b['종목']} ({b['코드']})** | 현재가: **{b['현재가']}** ({b['당일등락률']}) ➔ **1호 요원 매수 발사!** (추천 수량: **{b['추천수량']}** / 예상 금액: {b['예상주문금액']})")
-        else:
-            st.success("🟢 **[매수 신호 없음]** 출격 조건을 만족하는 종목이 없습니다. 전액 현금을 안전하게 유지합니다.")
+            st.markdown("---")
+            if buy_orders:
+                st.markdown("<h4 style='color:#c0392b;margin-bottom:8px;'>🔴 [오늘 시장가 매수 실행 대상 종목]</h4>", unsafe_allow_html=True)
+                for b in buy_orders:
+                    st.error(f"🎯 **{b['종목']} ({b['코드']})** | 현재가: **{b['현재가']}** ({b['당일등락률']}) ➔ **1호 요원 매수 발사!** (수량: **{b['추천수량']}** / 금액: {b['예상주문금액']})")
+            else:
+                st.success("🟢 **[매수 신호 없음]** 출격 조건을 만족하는 종목이 없습니다. 현금을 안전하게 유지합니다.")
 
-        if hold_stocks:
-            with st.expander("⚪ [오늘 관망/대기 종목 현황 보기]"):
-                hold_df = pd.DataFrame(hold_stocks)
-                st.table(hold_df[['종목', '코드', '현재가', '당일등락률', '상태']])
+            if hold_stocks:
+                with st.expander("⚪ [오늘 관망/대기 종목 현황 보기]"):
+                    hold_df = pd.DataFrame(hold_stocks)
+                    st.table(hold_df[['종목', '코드', '현재가', '당일등락률', '상태']])
 
 st.markdown("---")
 
@@ -262,9 +266,14 @@ if run_btn or 'calculated' in st.session_state:
         st.warning("⚠️ 작전을 수행할 종목을 최소 1개 이상 선택해 주세요.")
         st.stop()
 
+    # 🌟 V10.38 백테스트 예산 초과 검증
+    total_alloc_pct = stock_alloc_pct * len(tickers_list)
+    if total_alloc_pct > 100.0:
+        st.error(f"❌ 설정 오류: {len(tickers_list)}개 종목에 각각 {stock_alloc_pct}%씩 할당하면 총 {total_alloc_pct}%가 되어 전체 씨드머니(100%)를 초과합니다. 종목 수를 줄이거나 투입 비중을 낮춰주세요.")
+        st.stop()
+
     buy_fee_rate = buy_fee_val / 100.0
     sell_tax_rate = sell_tax_val / 100.0
-    capital_per_stock = total_capital / len(tickers_list)
     emergency_threshold = -abs(emergency_cut_pct) if emergency_cut_active else -999.0
 
     strategy_names_map = {
@@ -274,7 +283,7 @@ if run_btn or 'calculated' in st.session_state:
     }
     current_strategy_name = strategy_names_map.get(selected_strategy, '전략')
 
-    with st.spinner("📡 [박가이버 사령부 V10.37] 기울기 및 생명선 필터 적용 연산 중..."):
+    with st.spinner("📡 [박가이버 사령부 V10.38] 철통 자금관리 필터 적용 연산 중..."):
         end_date = datetime.datetime.today()
         start_date = end_date - relativedelta(years=years + 1)
         
@@ -303,8 +312,10 @@ if run_btn or 'calculated' in st.session_state:
 
         for idx, ticker in enumerate(tickers_list):
             s_name = names_list[idx]
-            s_capital = capital_per_stock
             is_ks = ticker in KS_CODES
+            
+            # 🌟 V10.38 종목당 할당 예산
+            s_capital = total_capital * (stock_alloc_pct / 100.0)
 
             try:
                 df = fdr.DataReader(ticker, start_str, end_str)
@@ -318,8 +329,6 @@ if run_btn or 'calculated' in st.session_state:
             df['MA20'] = df['Close'].rolling(window=20).mean()
             df['MA60'] = df['Close'].rolling(window=60).mean()
             df['MA120'] = df['Close'].rolling(window=120).mean()
-            
-            # V10.37 기울기 측정을 위한 어제 20일선 데이터 생성
             df['MA20_prev'] = df['MA20'].shift(1)
             
             df = df[df.index >= (end_date - relativedelta(years=years)).strftime('%Y-%m-%d')].copy()
@@ -358,10 +367,8 @@ if run_btn or 'calculated' in st.session_state:
                 is_super_bear = (close < ma20) and (ma20 < ma60) and (ma60 < ma120)
                 target_ret = 15.0 if is_super_bull else (5.0 if is_super_bear else 10.0)
 
-                # 1. 익절 조건 달성 판별
                 has_winner = any(((close - pos['entry_price']) / pos['entry_price']) * 100 >= pos['target_ret'] for pos in positions)
                 
-                # 2. 비상 탈출 손절 조건 판별
                 has_emergency_cut = False
                 if emergency_cut_active and len(positions) > 0:
                     has_emergency_cut = any(((close - pos['entry_price']) / pos['entry_price']) * 100 <= emergency_threshold for pos in positions)
@@ -418,7 +425,6 @@ if run_btn or 'calculated' in st.session_state:
                             else: agent_perf_dist[batch_size]['losses'] += 1
 
                         duration_days = (date - pos['entry_dt']).days if 'entry_dt' in pos else 0
-                        
                         trade_label = "🎯 정상 복귀(+5%)" if is_win else f"🚨 비상 탈출({emergency_threshold:.0f}%)"
 
                         current_batch_trades.append({
@@ -454,7 +460,6 @@ if run_btn or 'calculated' in st.session_state:
                     matched_trades.extend(current_batch_trades)
                     positions = []
 
-                # 시장 지수 폭락 감시 락 검증
                 market_safe = True
                 if use_market_ma20_filter:
                     try:
@@ -471,10 +476,8 @@ if run_btn or 'calculated' in st.session_state:
                     except:
                         pass
 
-                # 신규 매수 진입 로직 (V10.37 반영)
                 if daily_return <= -5.0 and len(positions) < max_agents:
                     is_above_ma20 = (close >= ma20)
-                    
                     is_ma20_rising = (ma20 > ma20_prev)
                     is_ma10_aligned = (ma10 >= ma20)
                     
@@ -486,7 +489,7 @@ if run_btn or 'calculated' in st.session_state:
                     if ((not use_ma20_filter) or is_above_ma20) and market_safe and trend_safe:
                         agent_counter += 1; total_agent_counter += 1
                         scale_ratio = current_capital / s_capital if selected_strategy != 'equal_alloc' else 1.0
-                        agent_budget = int((s_capital // max_agents) * scale_ratio)
+                        agent_budget = int((s_capital / max_agents) * scale_ratio)
                         shares = max(int(agent_budget // close), 1)
 
                         positions.append({
@@ -542,7 +545,10 @@ if run_btn or 'calculated' in st.session_state:
 
         if not combined_equity_df.empty:
             combined_equity_df = combined_equity_df.ffill().bfill().dropna()
-            combined_equity_df['Portfolio_Equity'] = combined_equity_df.sum(axis=1)
+            
+            # 🌟 V10.38 예비군(미할당) 현금 포트폴리오 자산에 합산
+            total_unallocated_cash = total_capital - (total_capital * (stock_alloc_pct / 100.0) * len(tickers_list))
+            combined_equity_df['Portfolio_Equity'] = combined_equity_df.sum(axis=1) + total_unallocated_cash
 
             portfolio_eq = combined_equity_df['Portfolio_Equity']
             rolling_max = portfolio_eq.cummax()
@@ -609,7 +615,7 @@ if run_btn or 'calculated' in st.session_state:
             filter_status = 'ON (기울기&정배열 필터)' if use_trend_filter else ('ON (20일선 지지)' if use_ma20_filter else 'OFF')
             cut_status = f'ON ({emergency_threshold:.0f}% 강제 탈출)' if emergency_cut_active else 'OFF'
             
-            st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (총 씨드)</li><li><b>시장 락 & 추세 필터:</b> <b>시장지수 {market_lock_status}</b> / <b>개별주 {filter_status}</b></li><li><b>비상 탈출 손절(Emergency Cut):</b> <b>{cut_status}</b></li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록</li></ul></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (1종목당 최대 할당: {stock_alloc_pct}%)</li><li><b>시장 락 & 추세 필터:</b> <b>시장지수 {market_lock_status}</b> / <b>개별주 {filter_status}</b></li><li><b>비상 탈출 손절(Emergency Cut):</b> <b>{cut_status}</b></li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록</li></ul></div>", unsafe_allow_html=True)
 
             # 상단 KPI 카드 세트
             st.markdown(f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;'><div style='flex:1 1 125px;background:#e8f8f5;padding:12px;border-radius:6px;border-left:5px solid #1abc9c;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🎯 통합 청산 승률</span><div style='font-size:17px;font-weight:900;color:#2c3e50;margin:4px 0;'>{overall_win_rate:.1f}%</div><span style='font-size:10px;color:#16a085;'>익절 {win_trades_all} / 손절 {loss_trades_all}</span></div><div style='flex:1 1 125px;background:#ebf5fb;padding:12px;border-radius:6px;border-left:5px solid #3498db;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>⚔️ 총 투입 요원</span><div style='font-size:17px;font-weight:900;color:#2c3e50;margin:4px 0;'>{total_agent_counter}명</div><span style='font-size:10px;color:#2980b9;'>총 {total_cycles_all}회차 / 대기 {total_active_count}명</span></div><div style='flex:1 1 125px;background:#fdf2e9;padding:12px;border-radius:6px;border-left:5px solid #e67e22;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🔥 최대 요원 풀출력</span><div style='font-size:17px;font-weight:900;color:#c0392b;margin:4px 0;'>{full_launch_cycles_all}회 <span style='font-size:10px;'>({full_launch_pct:.1f}%)</span></div><span style='font-size:10px;color:#d35400;'>{max_agents}명 풀가동 비중</span></div><div style='flex:1 1 125px;background:#fadbd8;padding:12px;border-radius:6px;border-left:5px solid #c0392b;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>📉 최대 낙폭지수 (MDD)</span><div style='font-size:17px;font-weight:900;color:#78281f;margin:4px 0;'>{max_drawdown:.2f}%</div><span style='font-size:9.5px;color:#c0392b;font-weight:bold;'>지수: KS {kospi_mdd:.1f}% | KQ {kosdaq_mdd:.1f}%</span></div><div style='flex:1 1 125px;background:#fef9e7;padding:12px;border-radius:6px;border-left:5px solid #f1c40f;min-width:110px;'><span style='font-size:11px;color:#7f8c8d;font-weight:bold;'>🚀 스노우볼 레벨UP</span><div style='font-size:17px;font-weight:900;color:#d35400;margin:4px 0;'>{total_level_up}회 <span style='font-size:9px;color:#7f8c8d;'>(다운:{total_step_down})</span></div><span style='font-size:10px;color:#b7950b;'>복리 예산 스텝 업</span></div></div>", unsafe_allow_html=True)
@@ -735,7 +741,7 @@ if run_btn or 'calculated' in st.session_state:
             st.line_chart(chart_df)
 
             # 🌟 공식 매매 장부
-            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.37 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.38 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
             
             table_html = "<div style='max-height:430px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:920px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fdedec;'>청산일(복귀)</th><th style='padding:6px;border:1px solid #d5dbdf;background:#e8f8f5;color:#117a65;'>매수가(진입단가)</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fef9e7;color:#b7950b;'>매도가(청산단가)</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
 
@@ -761,12 +767,12 @@ if run_btn or 'calculated' in st.session_state:
             csv_buffer = io.StringIO()
             df_export.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
             st.download_button(
-                label="📜 엑셀(CSV) V10.37 공식 작전장부 다운로드",
+                label="📜 엑셀(CSV) V10.38 공식 작전장부 다운로드",
                 data=csv_buffer.getvalue().encode('utf-8-sig'),
-                file_name=f"박가이버사령부_V10.37_{selected_strategy}.csv",
+                file_name=f"박가이버사령부_V10.38_{selected_strategy}.csv",
                 mime="text/csv"
             )
         else:
             st.error("❌ 분석할 수 있는 데이터가 없습니다. 종목 코드를 확인해 주세요.")
 else:
-    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.37 작전 개시!] 버튼을 눌러주세요.")
+    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.38 작전 개시!] 버튼을 눌러주세요.")
