@@ -22,33 +22,48 @@ def format_money(num):
 
 # --- 2. 사이드바 조종간 ---
 st.sidebar.title("🎛️ 박가이버 사령부 V10.36")
-st.sidebar.caption("은퇴 과수원 에디션 - 매수가/매도가 장부 표기 최적화")
+st.sidebar.caption("은퇴 과수원 에디션 - 제미나이 정예 발굴 편대 탑재")
 
+# 🎯 사령부 정예 종목 데이터베이스 (기본축 + 신규 발굴 + 관심종목)
 stock_database = {
+    # 🏛️ 핵심 기둥 (기본축)
+    "삼성전자 (005930)": "005930",
+    
+    # 🚀 신규 발굴 정예 편대 (고마진/알짜 턴어라운드)
+    "실리콘투 (257720)": "257720",
+    "리노공업 (058470)": "058470",
+    "HD현대일렉트릭 (267260)": "267260",
+    "DN오토모티브 (007340)": "007340",
+    
+    # 📋 관심 및 기존 작전 종목군
+    "와이지원 (019210)": "019210",
     "테크윙 (089030)": "089030",
-    "클리오 (237880)": "237880",
     "피에스케이 (319660)": "319660",
     "제주반도체 (080220)": "080220",
-    "삼성전자 (005930)": "005930",
-    "와이지원 (019210)": "019210",
+    "SK하이닉스 (000660)": "000660",
     "두산에너빌리티 (034020)": "034020",
     "원익QNC (074600)": "074600",
     "한미반도체 (042700)": "042700",
     "주성엔지니어링 (036930)": "036930",
-    "SK하이닉스 (000660)": "000660",
     "LG에너지솔루션 (373220)": "373220",
-    "셀트리온 (068270)": "068270"
+    "셀트리온 (068270)": "068270",
+    "클리오 (237880)": "237880"
 }
 
-# 코스피 소속 종목 코드 (지수 락 연동용)
-KS_CODES = ['005930', '034020', '000660', '373220', '068270']
+# 🛡️ 코스피 소속 종목 코드 (지수 폭락 감시 락 연동용)
+KS_CODES = ['005930', '034020', '000660', '373220', '068270', '267260', '007340']
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 종목 간편 검색 및 선택")
 
+# 기본 세팅: 삼성전자 중심축 + 신규 발굴 정예 4종목
 default_selected = [
-    "와이지원 (019210)", "삼성전자 (005930)", "제주반도체 (080220)", 
-    "테크윙 (089030)", "피에스케이 (319660)"]
+    "삼성전자 (005930)", 
+    "실리콘투 (257720)", 
+    "리노공업 (058470)", 
+    "HD현대일렉트릭 (267260)", 
+    "DN오토모티브 (007340)"
+]
 
 selected_stocks = st.sidebar.multiselect(
     "클릭하거나 검색해서 종목을 담으세요:",
@@ -685,7 +700,7 @@ if run_btn or 'calculated' in st.session_state:
 
             st.line_chart(chart_df)
 
-            # 🌟 공식 매매 장부 (매수가/매도가 단가 컬럼 추가 완료)
+            # 🌟 공식 매매 장부 (매수가/매도가 단가 컬럼)
             st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.36 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
             
             table_html = "<div style='max-height:430px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:920px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fdedec;'>청산일(복귀)</th><th style='padding:6px;border:1px solid #d5dbdf;background:#e8f8f5;color:#117a65;'>매수가(진입단가)</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fef9e7;color:#b7950b;'>매도가(청산단가)</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
