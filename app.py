@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.36", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.37", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -21,15 +21,15 @@ def format_money(num):
         return str(num)
 
 # --- 2. 사이드바 조종간 ---
-st.sidebar.title("🎛️ 박가이버 사령부 V10.36")
-st.sidebar.caption("은퇴 과수원 에디션 - 제미나이 정예 발굴 편대 탑재")
+st.sidebar.title("🎛️ 박가이버 사령부 V10.37")
+st.sidebar.caption("은퇴 과수원 에디션 - 가짜 반등 완벽 차단(기울기 필터) 탑재")
 
-# 🎯 사령부 정예 종목 데이터베이스 (기본축 + 신규 발굴 + 관심종목)
+# 🎯 사령부 정예 종목 데이터베이스
 stock_database = {
-    # 🏛️ 핵심 기둥 (기본축)
+    # 🏛️ 핵심 기둥
     "삼성전자 (005930)": "005930",
     
-    # 🚀 신규 발굴 정예 편대 (고마진/알짜 턴어라운드)
+    # 🚀 신규 발굴 정예 편대
     "실리콘투 (257720)": "257720",
     "리노공업 (058470)": "058470",
     "HD현대일렉트릭 (267260)": "267260",
@@ -56,7 +56,6 @@ KS_CODES = ['005930', '034020', '000660', '373220', '068270', '267260', '007340'
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 종목 간편 검색 및 선택")
 
-# 기본 세팅: 삼성전자 중심축 + 신규 발굴 정예 4종목
 default_selected = [
     "삼성전자 (005930)", 
     "실리콘투 (257720)", 
@@ -110,17 +109,20 @@ max_agents = st.sidebar.number_input("⚔️ 종목당 최대 요원 수:", valu
 years = st.sidebar.number_input("🗓️ 백테스트 조회기간(년):", value=1, min_value=1, max_value=10)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🛡️ 리스크 제어 3중 안전장치")
+st.sidebar.subheader("🛡️ 리스크 제어 3중 안전장치 (V10.37 업그레이드)")
 
 # 시장 지수 폭락 감시 락 옵션
 use_market_ma20_filter = st.sidebar.checkbox("🚨 지수 폭락 감시 락 (KOSPI/KQ 20일선 붕괴시 매수금지)", value=True)
-use_ma20_filter = st.sidebar.checkbox("🛡️ 개별주 20일선 아래 매수 금지 (추세 필터)", value=True)
+use_ma20_filter = st.sidebar.checkbox("🛡️ 개별주 20일선 지지 (종가가 20일선 위 유지)", value=True)
 
-# 비상 탈출 옵션
+# 🌟 V10.37 신규: 기울기 및 10일선 필터
+use_trend_filter = st.sidebar.checkbox("📈 [V10.37 신규] 20일선 우상향(기울기) & 10일선 정배열 필터", value=True)
+
+# 비상 탈출 옵션 (넉넉하게 25% 기본 세팅)
 emergency_cut_active = st.sidebar.checkbox("🚨 비상 탈출 손절(Emergency Cut) 가동", value=True)
-emergency_cut_pct = st.sidebar.number_input("비상 탈출 손실 기준선 (%)", value=15.0, step=5.0, min_value=5.0, max_value=50.0)
+emergency_cut_pct = st.sidebar.number_input("비상 탈출 손실 기준선 (%)", value=25.0, step=5.0, min_value=5.0, max_value=50.0)
 
-run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.36 작전 개시!", type="primary")
+run_btn = st.sidebar.button("▶️ 박가이버 사령부 V10.37 작전 개시!", type="primary")
 
 # --- 🚨 오후 3:20 PM 실전 신호등 모듈 ---
 st.markdown("<div style='background:#154360;color:white;padding:12px;border-radius:6px;margin-bottom:12px;'><h3 style='margin:0;font-size:16px;'>🚨 [오후 3:20 PM 실전 작전 지시서] 실시간 신호등 통제실</h3></div>", unsafe_allow_html=True)
@@ -131,10 +133,10 @@ with live_col1:
     scan_live_btn = st.button("📡 [3시 20분] 실시간 시장 스캔 실행", type="primary", use_container_width=True)
 
 with live_col2:
-    st.caption("💡 매일 오후 3시 20분 동시호가 시작 전 클릭하시면, 오늘의 당일 등락률을 정밀 계산하여 즉시 실행할 매수/매도 주문 지시서를 생성합니다.")
+    st.caption("💡 매일 오후 3시 20분 동시호가 시작 전 클릭하시면, 오늘의 당일 등락률과 V10.37 추세 기울기를 정밀 분석하여 즉시 실행할 매수 주문을 생성합니다.")
 
 if scan_live_btn:
-    with st.spinner("🔍 실시간 시세 데이터 및 요원 파견 조건을 정밀 분석 중입니다..."):
+    with st.spinner("🔍 실시간 시세 및 기울기(Trend) 조건을 정밀 분석 중입니다..."):
         buy_orders = []
         sell_orders = []
         hold_stocks = []
@@ -173,18 +175,33 @@ if scan_live_btn:
                 hist = fdr.DataReader(t_code, start_2mo)
                 
                 if len(hist) >= 20:
+                    hist['MA10'] = hist['Close'].rolling(window=10).mean()
                     hist['MA20'] = hist['Close'].rolling(window=20).mean()
+                    
                     prev_close = float(hist['Close'].iloc[-2])
                     curr_price = float(hist['Close'].iloc[-1])
+                    
+                    curr_ma10 = float(hist['MA10'].iloc[-1])
                     curr_ma20 = float(hist['MA20'].iloc[-1])
+                    prev_ma20 = float(hist['MA20'].iloc[-2]) # 어제 20일선
+                    
                     daily_ret = ((curr_price - prev_close) / prev_close) * 100
 
                     if daily_ret <= -5.0:
                         is_above_ma20 = (curr_price >= curr_ma20)
+                        
+                        # V10.37 신규 로직: 20일선 상승 추세 AND 10일선이 20일선 위에 위치(정배열)
+                        is_ma20_rising = (curr_ma20 > prev_ma20)
+                        is_ma10_aligned = (curr_ma10 >= curr_ma20)
+                        
                         market_safe = is_ks_safe if is_ks else is_kd_safe
                         if not use_market_ma20_filter: market_safe = True
                         
-                        if ((not use_ma20_filter) or is_above_ma20) and market_safe:
+                        trend_safe = True
+                        if use_trend_filter and not (is_ma20_rising and is_ma10_aligned):
+                            trend_safe = False
+                        
+                        if ((not use_ma20_filter) or is_above_ma20) and market_safe and trend_safe:
                             buy_budget = (total_capital / len(tickers_list)) / max_agents
                             est_shares = max(int(buy_budget // curr_price), 1)
                             buy_orders.append({
@@ -199,6 +216,8 @@ if scan_live_btn:
                             reason = ""
                             if use_market_ma20_filter and not market_safe:
                                 reason = "지수 20일선 붕괴(시장위험)"
+                            elif use_trend_filter and not trend_safe:
+                                reason = "20일선 꺾임 또는 10일선 역배열(가짜반등)"
                             elif use_ma20_filter and not is_above_ma20:
                                 reason = "개별 20일선 하회"
                                 
@@ -255,7 +274,7 @@ if run_btn or 'calculated' in st.session_state:
     }
     current_strategy_name = strategy_names_map.get(selected_strategy, '전략')
 
-    with st.spinner("📡 [박가이버 사령부] 최신 시장 데이터를 수집 및 연산 중입니다..."):
+    with st.spinner("📡 [박가이버 사령부 V10.37] 기울기 및 생명선 필터 적용 연산 중..."):
         end_date = datetime.datetime.today()
         start_date = end_date - relativedelta(years=years + 1)
         
@@ -295,9 +314,14 @@ if run_btn or 'calculated' in st.session_state:
             if df.empty: continue
 
             df['Daily_Return'] = df['Close'].pct_change() * 100
+            df['MA10'] = df['Close'].rolling(window=10).mean()
             df['MA20'] = df['Close'].rolling(window=20).mean()
             df['MA60'] = df['Close'].rolling(window=60).mean()
             df['MA120'] = df['Close'].rolling(window=120).mean()
+            
+            # V10.37 기울기 측정을 위한 어제 20일선 데이터 생성
+            df['MA20_prev'] = df['MA20'].shift(1)
+            
             df = df[df.index >= (end_date - relativedelta(years=years)).strftime('%Y-%m-%d')].copy()
 
             positions = []
@@ -321,7 +345,9 @@ if run_btn or 'calculated' in st.session_state:
             for date, row in df.iterrows():
                 close = float(row['Close'])
                 daily_return = float(row['Daily_Return'])
+                ma10 = float(row['MA10']) if not pd.isna(row['MA10']) else close
                 ma20 = float(row['MA20']) if not pd.isna(row['MA20']) else close
+                ma20_prev = float(row['MA20_prev']) if not pd.isna(row['MA20_prev']) else close
                 ma60 = float(row['MA60']) if not pd.isna(row['MA60']) else close
                 ma120 = float(row['MA120']) if not pd.isna(row['MA120']) else close
                 date_str = date.strftime('%Y-%m-%d')
@@ -428,7 +454,7 @@ if run_btn or 'calculated' in st.session_state:
                     matched_trades.extend(current_batch_trades)
                     positions = []
 
-                # 시장 지수 폭락 감시 락 검증 로직
+                # 시장 지수 폭락 감시 락 검증
                 market_safe = True
                 if use_market_ma20_filter:
                     try:
@@ -445,11 +471,19 @@ if run_btn or 'calculated' in st.session_state:
                     except:
                         pass
 
-                # 신규 매수 진입 로직
+                # 신규 매수 진입 로직 (V10.37 반영)
                 if daily_return <= -5.0 and len(positions) < max_agents:
                     is_above_ma20 = (close >= ma20)
                     
-                    if ((not use_ma20_filter) or is_above_ma20) and market_safe:
+                    is_ma20_rising = (ma20 > ma20_prev)
+                    is_ma10_aligned = (ma10 >= ma20)
+                    
+                    trend_safe = True
+                    if use_trend_filter:
+                        if not (is_ma20_rising and is_ma10_aligned):
+                            trend_safe = False
+                    
+                    if ((not use_ma20_filter) or is_above_ma20) and market_safe and trend_safe:
                         agent_counter += 1; total_agent_counter += 1
                         scale_ratio = current_capital / s_capital if selected_strategy != 'equal_alloc' else 1.0
                         agent_budget = int((s_capital // max_agents) * scale_ratio)
@@ -572,7 +606,7 @@ if run_btn or 'calculated' in st.session_state:
             st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>📊 [백테스트 종합 분석] 전략: {current_strategy_name} ({len(tickers_list)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
 
             market_lock_status = 'ON (지수 폭락 감시)' if use_market_ma20_filter else 'OFF'
-            filter_status = 'ON (개별주 추세방어)' if use_ma20_filter else 'OFF'
+            filter_status = 'ON (기울기&정배열 필터)' if use_trend_filter else ('ON (20일선 지지)' if use_ma20_filter else 'OFF')
             cut_status = f'ON ({emergency_threshold:.0f}% 강제 탈출)' if emergency_cut_active else 'OFF'
             
             st.markdown(f"<div style='background:#fef9e7;border:1px solid #f39c12;border-radius:6px;padding:14px;margin-bottom:15px;'><h4 style='margin:0 0 8px 0;color:#b7950b;font-size:14px;font-weight:bold;'>🤖 [제미니 분석 보고서] 스노우볼 오토 파일럿 작전 결과 ({raw_tickers})</h4><div style='font-size:12px;color:#7f8c8d;font-weight:bold;margin-bottom:6px;'>📋 적용된 핵심 알고리즘 조건 명세서 및 알파(Alpha) 성과</div><ul style='margin:0;padding-left:18px;font-size:11px;color:#2c3e50;line-height:1.6;'><li><b>초기 투자금액:</b> <b>{format_money(total_capital)}원</b> (총 씨드)</li><li><b>시장 락 & 추세 필터:</b> <b>시장지수 {market_lock_status}</b> / <b>개별주 {filter_status}</b></li><li><b>비상 탈출 손절(Emergency Cut):</b> <b>{cut_status}</b></li><li><b>지수 대비 초과 수익률(Alpha):</b> 포트폴리오 수익률(<b>{portfolio_total_return:+.1f}%</b>)이 동기간 KOSPI({kospi_return:+.1f}%), KOSDAQ({kosdaq_return:+.1f}%) 대비 각각 <b>+{alpha_vs_kospi:.1f}%p</b>, <b>+{alpha_vs_kosdaq:.1f}%p</b> 초과 달성</li><li><b>하락장 방어 및 리스크 제어:</b> MDD {max_drawdown:.2f}% 기록</li></ul></div>", unsafe_allow_html=True)
@@ -700,8 +734,8 @@ if run_btn or 'calculated' in st.session_state:
 
             st.line_chart(chart_df)
 
-            # 🌟 공식 매매 장부 (매수가/매도가 단가 컬럼)
-            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.36 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
+            # 🌟 공식 매매 장부
+            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 V10.37 공식 매매 장부 (익절=연분홍 / 손절=연파랑)</div>", unsafe_allow_html=True)
             
             table_html = "<div style='max-height:430px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:920px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fdedec;'>청산일(복귀)</th><th style='padding:6px;border:1px solid #d5dbdf;background:#e8f8f5;color:#117a65;'>매수가(진입단가)</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fef9e7;color:#b7950b;'>매도가(청산단가)</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
 
@@ -727,12 +761,12 @@ if run_btn or 'calculated' in st.session_state:
             csv_buffer = io.StringIO()
             df_export.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
             st.download_button(
-                label="📜 엑셀(CSV) V10.36 공식 작전장부 다운로드",
+                label="📜 엑셀(CSV) V10.37 공식 작전장부 다운로드",
                 data=csv_buffer.getvalue().encode('utf-8-sig'),
-                file_name=f"박가이버사령부_V10.36_{selected_strategy}.csv",
+                file_name=f"박가이버사령부_V10.37_{selected_strategy}.csv",
                 mime="text/csv"
             )
         else:
             st.error("❌ 분석할 수 있는 데이터가 없습니다. 종목 코드를 확인해 주세요.")
 else:
-    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.36 작전 개시!] 버튼을 눌러주세요.")
+    st.info("👈 왼쪽 사이드바에서 종목과 조건 설정 후 [▶️ 박가이버 사령부 V10.37 작전 개시!] 버튼을 눌러주세요.")
