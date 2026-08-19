@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.39 (현금선 차트 탑재)", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.39 (추세추종 완전체)", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -28,7 +28,7 @@ def load_stock_data(ticker, start_date, end_date):
 
 # --- 2. 사이드바 조종간 ---
 st.sidebar.title("🎛️ 박가이버 사령부 V10.39")
-st.sidebar.caption("은퇴 과수원 에디션 - 현금선 추적 대시보드")
+st.sidebar.caption("은퇴 과수원 에디션 - 무제한 추세추종 탑재")
 
 stock_database = {
     "삼성전자 (005930)": "005930", "실리콘투 (257720)": "257720", "리노공업 (058470)": "058470",
@@ -172,7 +172,6 @@ if run_btn or 'calculated' in st.session_state:
 
         all_matched_trades, stock_results = [], {}
         
-        # 🌟 일일 자산 및 현금 추적용 DataFrame
         combined_equity_df = pd.DataFrame()
         combined_active_df = pd.DataFrame()
         combined_core_df = pd.DataFrame()
@@ -214,9 +213,13 @@ if run_btn or 'calculated' in st.session_state:
                 high = float(row['High']) if 'High' in row and not pd.isna(row['High']) else close
                 low = float(row['Low']) if 'Low' in row and not pd.isna(row['Low']) else close
                 
+                # ✅ 누락되었던 daily_return 변수 선언 추가 완료
+                daily_return = float(row['Daily_Return']) if not pd.isna(row['Daily_Return']) else 0.0
+                
                 ma10, ma20, ma20_prev = float(row['MA10']) if not pd.isna(row['MA10']) else close, float(row['MA20']) if not pd.isna(row['MA20']) else close, float(row['MA20_prev']) if not pd.isna(row['MA20_prev']) else close
                 ma60, ma120 = float(row['MA60']) if not pd.isna(row['MA60']) else close, float(row['MA120']) if not pd.isna(row['MA120']) else close
                 date_str = date.strftime('%Y-%m-%d')
+                
                 if pd.isna(row['Daily_Return']): continue
 
                 # 🌟 [1] 매도 감시
@@ -332,12 +335,12 @@ if run_btn or 'calculated' in st.session_state:
 
                         positions.append({
                             'name': f"{s_name}-{agent_counter}호", 'entry_price': close,
-                            'entry_date': date_str, 'entry_dt': date, 'entry_return': daily_return,
+                            'entry_date': date_str, 'entry_dt': date, 'entry_return': daily_return, # ✅ 변수 누락 수정됨
                             'shares': shares, 'target_ret': 15.0 if is_super_bull else (5.0 if is_super_bear else 10.0),
                             'max_price': close, 'trailing_active': False
                         })
 
-                # 🌟 [현금선 추출 로직] 그날의 투입/잔고 가치 계산
+                # 자산 기록
                 active_eval = sum(p['shares'] * close for p in positions)
                 core_eval = core_shares * close
                 stock_equity = s_capital + sum([t['raw_profit'] for t in matched_trades]) + reserve_cash + core_eval + active_eval - sum(p['shares']*p['entry_price'] for p in positions)
@@ -375,7 +378,7 @@ if run_btn or 'calculated' in st.session_state:
             }
             all_matched_trades.extend(matched_trades)
 
-        # 🌟 전체 포트폴리오 자산 및 현금선 결산
+        # 🌟 전체 포트폴리오 자산 결산
         if not combined_equity_df.empty:
             combined_equity_df = combined_equity_df.ffill().bfill().dropna()
             combined_active_df = combined_active_df.reindex(combined_equity_df.index).ffill().bfill().fillna(0)
@@ -387,7 +390,6 @@ if run_btn or 'calculated' in st.session_state:
             total_active_val = combined_active_df.sum(axis=1)
             total_core_val = combined_core_df.sum(axis=1)
             
-            # 현금선 = 총자산 - 현재 주식에 묶여있는 돈(Active) - 떼어놓은 코어주식 가치(Core)
             dynamic_cash_line = portfolio_eq - total_active_val - total_core_val
 
             max_drawdown = ((portfolio_eq - portfolio_eq.cummax()) / portfolio_eq.cummax() * 100).min()
@@ -423,7 +425,7 @@ if run_btn or 'calculated' in st.session_state:
             
             all_matched_trades.sort(key=lambda x: x['exit_date'], reverse=True)
 
-            # --- 4. 대시보드 UI (V10.37 100% 완전 복원) ---
+            # --- 4. 대시보드 UI ---
             st.markdown(f"<div style='background:#1b4f72;color:white;padding:12px 15px;border-radius:6px;margin-bottom:15px;'><h3 style='margin:0;font-size:16px;'>📊 [백테스트 종합 분석] 전략: {current_strategy_name} ({len(tickers_list)}개 종목 / 최근 {years}년)</h3></div>", unsafe_allow_html=True)
             
             market_lock_status = 'ON (지수 폭락 감시)' if use_market_ma20_filter else 'OFF'
@@ -479,20 +481,15 @@ if run_btn or 'calculated' in st.session_state:
             active_html += "</div>"
             st.markdown(active_html, unsafe_allow_html=True)
 
-            # 🌟 [업그레이드 차트] 성장 곡선 & 현금선 동시 표기
             st.subheader("📈 오토파일럿 자산 성장 vs 💵 현금선 추이 비교")
-            
             chart_df = pd.DataFrame(index=portfolio_eq.index)
             chart_df['🚀 오토파일럿 총자산'] = portfolio_eq
             chart_df['💵 현금 잔고 (비상금 + 대기자금)'] = dynamic_cash_line
-            
             if selected_strategy == '3tier':
                 chart_df['🍎 누적 코어주식 가치'] = total_core_val
-                
             try: 
                 chart_df['📉 KOSPI 지수 (비교용)'] = total_capital * (kospi_df['Close'].reindex(portfolio_eq.index, method='ffill') / kospi_df['Close'].reindex(portfolio_eq.index, method='ffill').iloc[0])
             except: pass
-            
             st.line_chart(chart_df)
 
             st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 공식 매매 장부 (최고가 달성 기록 추가)</div>", unsafe_allow_html=True)
