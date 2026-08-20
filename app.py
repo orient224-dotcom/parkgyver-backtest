@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # --- 1. 페이지 기본 설정 ---
-st.set_page_config(page_title="박가이버 사령부 V10.39 (추세추종 완전체)", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="박가이버 사령부 V10.39 (AI 분석 강화판)", layout="wide", page_icon="🎛️")
 
 def format_money(num):
     try:
@@ -480,7 +480,6 @@ if run_btn or 'calculated' in st.session_state:
             active_html += "</div>"
             st.markdown(active_html, unsafe_allow_html=True)
 
-            # 🌟 [업그레이드 1] 차트 색상 보라색으로 완전 분리
             st.subheader("📈 오토파일럿 자산 성장 vs 💵 현금선 추이 비교")
             
             chart_df = pd.DataFrame(index=portfolio_eq.index)
@@ -493,7 +492,6 @@ if run_btn or 'calculated' in st.session_state:
             except: pass
             
             try:
-                # 색상 커스텀 맵핑 (보라, 파랑, 빨강, 회색)
                 color_map = []
                 for col in chart_df.columns:
                     if '총자산' in col: color_map.append('#8e44ad') # 강렬한 보라색
@@ -502,9 +500,8 @@ if run_btn or 'calculated' in st.session_state:
                     elif 'KOSPI' in col: color_map.append('#95a5a6') # 회색
                 st.line_chart(chart_df, color=color_map)
             except:
-                st.line_chart(chart_df) # 하위 버전 스트림릿 호환용 백업
+                st.line_chart(chart_df)
 
-            # 🌟 [업그레이드 2] 연도별 성과 및 실현 손익 결산 테이블 추가 (에러 수정 완료!)
             st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📅 연도별 성과 및 실현 손익 결산</div>", unsafe_allow_html=True)
             
             portfolio_eq_df = pd.DataFrame({'Total_Asset': portfolio_eq})
@@ -523,19 +520,18 @@ if run_btn or 'calculated' in st.session_state:
                     '연도': f"{year}년",
                     '기초 자산': format_money(start_eq) + "원",
                     '기말 자산': format_money(end_eq) + "원",
-                    '실현 손익': f"{'+' if year_realized_profit > 0 else ''}{format_money(year_realized_profit)}원",
-                    '연간 총 수익률': f"{year_return:+.2f}%",
+                    '연간 실현 손익': f"{'+' if year_realized_profit > 0 else ''}{format_money(year_realized_profit)}원",
+                    '계좌 총 수익률': f"{year_return:+.2f}%",
                     '매매 횟수': f"{len(year_trades)}회"
                 })
             
             yearly_df = pd.DataFrame(yearly_performance).set_index('연도')
             
-            # Key 이름 정확하게 매칭 (연간 총 수익률, 실현 손익)
             y_html = "<div style='overflow-x:auto;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:12px;min-width:600px;'><thead style='background-color:#f4ecf7;color:#8e44ad;'><tr><th style='padding:8px;border:1px solid #d5dbdf;'>연도</th><th style='padding:8px;border:1px solid #d5dbdf;'>기초 자산</th><th style='padding:8px;border:1px solid #d5dbdf;'>기말 자산</th><th style='padding:8px;border:1px solid #d5dbdf;'>연간 실현 손익</th><th style='padding:8px;border:1px solid #d5dbdf;'>계좌 총 수익률</th><th style='padding:8px;border:1px solid #d5dbdf;'>매매 횟수</th></tr></thead><tbody>"
             for idx, row in yearly_df.iterrows():
-                ret_color = "#c0392b" if "+" in str(row['연간 총 수익률']) else "#2980b9"
-                pnl_color = "#c0392b" if "+" in str(row['실현 손익']) else "#2980b9"
-                y_html += f"<tr><td style='padding:7px;border:1px solid #eaeded;font-weight:bold;color:#8e44ad;'>{idx}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['기초 자산']}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['기말 자산']}</td><td style='padding:7px;border:1px solid #eaeded;color:{pnl_color};font-weight:bold;'>{row['실현 손익']}</td><td style='padding:7px;border:1px solid #eaeded;color:{ret_color};font-weight:bold;'>{row['연간 총 수익률']}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['매매 횟수']}</td></tr>"
+                ret_color = "#c0392b" if "+" in str(row['계좌 총 수익률']) else "#2980b9"
+                pnl_color = "#c0392b" if "+" in str(row['연간 실현 손익']) else "#2980b9"
+                y_html += f"<tr><td style='padding:7px;border:1px solid #eaeded;font-weight:bold;color:#8e44ad;'>{idx}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['기초 자산']}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['기말 자산']}</td><td style='padding:7px;border:1px solid #eaeded;color:{pnl_color};font-weight:bold;'>{row['연간 실현 손익']}</td><td style='padding:7px;border:1px solid #eaeded;color:{ret_color};font-weight:bold;'>{row['계좌 총 수익률']}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['매매 횟수']}</td></tr>"
             y_html += "</tbody></table></div>"
             st.markdown(y_html, unsafe_allow_html=True)
 
@@ -550,9 +546,55 @@ if run_btn or 'calculated' in st.session_state:
             table_html += "</tbody></table></div>"
             st.markdown(table_html, unsafe_allow_html=True)
 
+            # 🌟 [업그레이드 3] 제미니 AI 분석용 통합 리포트(.txt) 생성 모듈
             df_export = pd.DataFrame([{k: v for k, v in t.items() if k not in ['is_win', 'raw_profit', 'exit_date']} for t in all_matched_trades])
-            csv_buffer = io.StringIO()
-            df_export.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
-            st.download_button("📜 엑셀(CSV) 다운로드 (V10.39 풀버전)", data=csv_buffer.getvalue().encode('utf-8-sig'), file_name=f"박가이버사령부_V10.39_{selected_strategy}.csv", mime="text/csv")
+            
+            drop_rates_str = ", ".join([f"{names_list[i]}({custom_drop_rates[tickers_list[i]]}%)" for i in range(len(tickers_list))])
+            
+            ai_report = f"""# 🤖 박가이버 사령부 V10.39 백테스트 결과 보고서 (제미니 분석 요청용)
+
+## 1. ⚙️ 시스템 설정 (Parameters)
+- 전략명: {current_strategy_name}
+- 총 씨드머니: {format_money(total_capital)}원
+- 종목당 할당 비중: {stock_alloc_pct}% (최대 {max_agents}명 파견)
+- 종목별 맞춤 타점: {drop_rates_str}
+- 무제한 추세추종: {'가동 (추적시작 +' + str(trailing_start_pct) + '%, 하락청산 -' + str(trailing_pullback_pct) + '%)' if use_trailing_stop else '미가동 (고정 15% 익절)'}
+- 비상 탈출 손절선: {'가동 (-' + str(emergency_cut_pct) + '%)' if emergency_cut_active else '미가동'}
+- 매수 수수료: {buy_fee_val}%, 매도 세금+수수료: {sell_tax_val}%
+
+## 2. 📊 백테스트 종합 성과 (Summary)
+- 테스트 기간: 최근 {years}년
+- 통합 청산 승률: {overall_win_rate:.1f}% (익절 {win_trades_all}회 / 손절 {loss_trades_all}회)
+- 총 실현 순수익: {format_money(total_net_profit_all)}원
+- 최종 총자산: {format_money(portfolio_eq.iloc[-1])}원 (계좌 총 수익률: {portfolio_total_return:+.1f}%)
+- 최대 낙폭 (MDD): {max_drawdown:.2f}%
+- KOSPI 대비 초과 수익(Alpha): +{portfolio_total_return - kospi_return:.1f}%p
+
+## 3. 🍎 종목별 성적표 (Stock Performance)
+"""
+            for t_code, res in stock_results.items():
+                ai_report += f"- {res['name']} ({t_code}): {res['total_trades']}회 매매 | 승률 {res['win_rate']:.1f}% | 순수익 {format_money(res['net_profit'])}원\n"
+
+            ai_report += f"""
+## 4. 📝 상세 매매 장부 (Raw Data - CSV 형식)
+{df_export.to_csv(index=False)}
+
+---
+**[제미니에게 요청하는 분석 지시어]**
+안녕, 제미니! 위 박가이버 사령부 V10.39 백테스트 데이터를 정밀하게 분석해서 아래 3가지를 브리핑해 줘.
+1. **승률 및 손익비 분석**: 이 전략의 현재 강점과 약점(수익의 발목을 잡는 요인)은 무엇인가?
+2. **파라미터 튜닝 제안**: '추세추종 하락률'이나 '종목별 맞춤 타점' 등 시스템 설정값을 어떻게 바꾸면 수익금이 더 극대화될까?
+3. **옥석 가리기**: 데이터를 볼 때 당장 방출해야 할(교체해야 할) 부진한 종목과 그 이유는 무엇인가?
+"""
+            
+            # 다운로드 버튼 2단 분할 배치
+            dl_col1, dl_col2 = st.columns(2)
+            with dl_col1:
+                csv_buffer = io.StringIO()
+                df_export.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
+                st.download_button("📜 기본 매매 장부(CSV) 다운로드", data=csv_buffer.getvalue().encode('utf-8-sig'), file_name=f"박가이버사령부_V10.39_{selected_strategy}.csv", mime="text/csv", use_container_width=True)
+            with dl_col2:
+                st.download_button("🧠 제미니 AI 분석용 통합 리포트(.txt) 다운로드", data=ai_report.encode('utf-8-sig'), file_name=f"제미니_분석요청_V10.39_{selected_strategy}.txt", mime="text/plain", use_container_width=True)
+
 else:
     st.info("👈 왼쪽 사이드바에서 [무제한 추세추종 엔진] 옵션을 확인하고 [▶️ 작전 개시!] 버튼을 눌러주세요.")
