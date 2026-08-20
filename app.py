@@ -213,7 +213,6 @@ if run_btn or 'calculated' in st.session_state:
                 high = float(row['High']) if 'High' in row and not pd.isna(row['High']) else close
                 low = float(row['Low']) if 'Low' in row and not pd.isna(row['Low']) else close
                 
-                # ✅ 누락되었던 daily_return 변수 선언 추가 완료
                 daily_return = float(row['Daily_Return']) if not pd.isna(row['Daily_Return']) else 0.0
                 
                 ma10, ma20, ma20_prev = float(row['MA10']) if not pd.isna(row['MA10']) else close, float(row['MA20']) if not pd.isna(row['MA20']) else close, float(row['MA20_prev']) if not pd.isna(row['MA20_prev']) else close
@@ -335,7 +334,7 @@ if run_btn or 'calculated' in st.session_state:
 
                         positions.append({
                             'name': f"{s_name}-{agent_counter}호", 'entry_price': close,
-                            'entry_date': date_str, 'entry_dt': date, 'entry_return': daily_return, # ✅ 변수 누락 수정됨
+                            'entry_date': date_str, 'entry_dt': date, 'entry_return': daily_return,
                             'shares': shares, 'target_ret': 15.0 if is_super_bull else (5.0 if is_super_bear else 10.0),
                             'max_price': close, 'trailing_active': False
                         })
@@ -481,7 +480,9 @@ if run_btn or 'calculated' in st.session_state:
             active_html += "</div>"
             st.markdown(active_html, unsafe_allow_html=True)
 
+            # 🌟 [업그레이드 1] 차트 색상 보라색으로 완전 분리
             st.subheader("📈 오토파일럿 자산 성장 vs 💵 현금선 추이 비교")
+            
             chart_df = pd.DataFrame(index=portfolio_eq.index)
             chart_df['🚀 오토파일럿 총자산'] = portfolio_eq
             chart_df['💵 현금 잔고 (비상금 + 대기자금)'] = dynamic_cash_line
@@ -490,7 +491,53 @@ if run_btn or 'calculated' in st.session_state:
             try: 
                 chart_df['📉 KOSPI 지수 (비교용)'] = total_capital * (kospi_df['Close'].reindex(portfolio_eq.index, method='ffill') / kospi_df['Close'].reindex(portfolio_eq.index, method='ffill').iloc[0])
             except: pass
-            st.line_chart(chart_df)
+            
+            try:
+                # 색상 커스텀 맵핑 (보라, 파랑, 빨강, 회색)
+                color_map = []
+                for col in chart_df.columns:
+                    if '총자산' in col: color_map.append('#8e44ad') # 강렬한 보라색
+                    elif '현금' in col: color_map.append('#3498db') # 파란색
+                    elif '코어' in col: color_map.append('#e74c3c') # 빨간색
+                    elif 'KOSPI' in col: color_map.append('#95a5a6') # 회색
+                st.line_chart(chart_df, color=color_map)
+            except:
+                st.line_chart(chart_df) # 하위 버전 스트림릿 호환용 백업
+
+            # 🌟 [업그레이드 2] 연도별 성과 및 실현 손익 결산 테이블 추가
+            st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📅 연도별 성과 및 실현 손익 결산</div>", unsafe_allow_html=True)
+            
+            portfolio_eq_df = pd.DataFrame({'Total_Asset': portfolio_eq})
+            portfolio_eq_df['Year'] = portfolio_eq_df.index.year
+            yearly_performance = []
+            
+            for year, group in portfolio_eq_df.groupby('Year'):
+                start_eq = group['Total_Asset'].iloc[0]
+                end_eq = group['Total_Asset'].iloc[-1]
+                year_return = (end_eq - start_eq) / start_eq * 100
+                
+                year_trades = [t for t in all_matched_trades if t['exit_date'].year == year]
+                year_realized_profit = sum([t['raw_profit'] for t in year_trades])
+                
+                yearly_performance.append({
+                    '연도': f"{year}년",
+                    '기초 자산': format_money(start_eq) + "원",
+                    '기말 자산': format_money(end_eq) + "원",
+                    '실현 손익': f"{'+' if year_realized_profit > 0 else ''}{format_money(year_realized_profit)}원",
+                    '연간 총 수익률': f"{year_return:+.2f}%",
+                    '매매 횟수': f"{len(year_trades)}회"
+                })
+            
+            yearly_df = pd.DataFrame(yearly_performance).set_index('연도')
+            
+            y_html = "<div style='overflow-x:auto;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:12px;min-width:600px;'><thead style='background-color:#f4ecf7;color:#8e44ad;'><tr><th style='padding:8px;border:1px solid #d5dbdf;'>연도</th><th style='padding:8px;border:1px solid #d5dbdf;'>기초 자산</th><th style='padding:8px;border:1px solid #d5dbdf;'>기말 자산</th><th style='padding:8px;border:1px solid #d5dbdf;'>연간 실현 손익</th><th style='padding:8px;border:1px solid #d5dbdf;'>계좌 총 수익률</th><th style='padding:8px;border:1px solid #d5dbdf;'>매매 횟수</th></tr></thead><tbody>"
+            for idx, row in yearly_df.iterrows():
+                ret_color = "#c0392b" if "+" in str(row['계좌 총 수익률']) else "#2980b9"
+                pnl_color = "#c0392b" if "+" in str(row['연간 실현 손익']) else "#2980b9"
+                y_html += f"<tr><td style='padding:7px;border:1px solid #eaeded;font-weight:bold;color:#8e44ad;'>{idx}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['기초 자산']}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['기말 자산']}</td><td style='padding:7px;border:1px solid #eaeded;color:{pnl_color};font-weight:bold;'>{row['연간 실현 손익']}</td><td style='padding:7px;border:1px solid #eaeded;color:{ret_color};font-weight:bold;'>{row['계좌 총 수익률']}</td><td style='padding:7px;border:1px solid #eaeded;'>{row['매매 횟수']}</td></tr>"
+            y_html += "</tbody></table></div>"
+            st.markdown(y_html, unsafe_allow_html=True)
+
 
             st.markdown("<div style='margin-top:25px;margin-bottom:8px;font-size:14px;font-weight:bold;color:#2c3e50;'>📜 박가이버 사령부 공식 매매 장부 (최고가 달성 기록 추가)</div>", unsafe_allow_html=True)
             table_html = "<div style='max-height:430px;overflow-y:auto;border:1px solid #d6dbdf;border-radius:6px;margin-bottom:15px;'><table style='width:100%;border-collapse:collapse;text-align:center;font-size:11px;min-width:1000px;'><thead style='position:sticky;top:0;background-color:#f2f4f4;color:#2c3e50;z-index:1;'><tr><th style='padding:6px;border:1px solid #d5dbdf;width:40px;'>No.</th><th style='padding:6px;border:1px solid #d5dbdf;'>요원</th><th style='padding:6px;border:1px solid #d5dbdf;'>작전 구역</th><th style='padding:6px;border:1px solid #d5dbdf;'>출격일</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fdedec;'>청산일</th><th style='padding:6px;border:1px solid #d5dbdf;background:#e8f8f5;color:#117a65;'>진입단가</th><th style='padding:6px;border:1px solid #d5dbdf;background:#f4ecf7;color:#8e44ad;'>🚀 장중 최고가</th><th style='padding:6px;border:1px solid #d5dbdf;background:#fef9e7;color:#b7950b;'>최종 청산가</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입일 등락률</th><th style='padding:6px;border:1px solid #d5dbdf;'>진입금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>매도금액</th><th style='padding:6px;border:1px solid #d5dbdf;'>총 수수료·세금</th><th style='padding:6px;border:1px solid #d5dbdf;'>등락폭</th><th style='padding:6px;border:1px solid #d5dbdf;'>소요기간</th><th style='padding:6px;border:1px solid #d5dbdf;'>순수익률</th><th style='padding:6px;border:1px solid #d5dbdf;'>정산내역</th><th style='padding:6px;border:1px solid #d5dbdf;'>구분 (청산사유)</th><th style='padding:6px;border:1px solid #d5dbdf;'>스노우볼 레벨</th></tr></thead><tbody>"
