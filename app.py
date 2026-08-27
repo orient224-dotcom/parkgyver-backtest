@@ -11,7 +11,10 @@ st.set_page_config(page_title="박가이버 사령부 실전 관제탑", layout=
 # ==============================================================================
 # 2. 통신 보안키 및 4종목 타깃 설정
 # ==============================================================================
-
+APP_KEY = "PSYQxdExos15R4GouvYt7sRAd7MgVW7Sh40O"
+APP_SECRET = "H9Z0EktkYBp3xeQxEwyz7FEZGtS1CTSGxjKMMaAFh3Wg/xelongaLXWA9IeSZRqaAQFNUGlbv1VxmPhqw91EqqFCn6T3CfXz6iybBe89+BAfHowFa8pZFja9po31PErY0PZjBVpleSWehjvY2PJoA/eOGUgNAgXj01+/JOuBgDMe3Aa8pX8="
+CANO = "44879076"
+ACNT_PRDT_CD = "01"
 URL_BASE = "https://openapi.koreainvestment.com:9443"
 
 # 🎯 4종목 정예 타깃 (종목당 25% 배분)
