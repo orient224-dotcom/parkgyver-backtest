@@ -17,7 +17,6 @@ CANO = "44879076"
 ACNT_PRDT_CD = "01"
 URL_BASE = "https://openapi.koreainvestment.com:9443"
 
-# 🎯 4종목 정예 타깃 (종목당 25% 배분)
 TARGET_STOCKS = {
     "005930": {"name": "삼성전자", "drop_target": -3.0},
     "034020": {"name": "두산에너빌리티", "drop_target": -3.0},
@@ -25,8 +24,8 @@ TARGET_STOCKS = {
     "161890": {"name": "한국콜마", "drop_target": -3.0}
 }
 
-TRAILING_START = 30.0   # +30% 레이더 가동
-EMERGENCY_CUT = -12.0   # -12% 비상 탈출
+TRAILING_START = 30.0
+EMERGENCY_CUT = -12.0
 
 def format_money(num):
     try:
@@ -35,25 +34,33 @@ def format_money(num):
         return str(num)
 
 # ==============================================================================
-# 3. 한투 API 통신 모듈
+# 3. 한투 API 통신 모듈 (변수를 인자로 직접 전달하여 에러 차단)
 # ==============================================================================
-@st.cache_data(ttl=60) # 1분 캐싱
-def get_access_token():
+@st.cache_data(ttl=120)
+def get_access_token(app_key, app_secret, base_url):
     headers = {"content-type": "application/json"}
-    body = {"grant_type": "client_credentials", "appkey": APP_KEY, "appsecret": APP_SECRET}
-    url = f"{URL_BASE}/oauth2/tokenP"
+    body = {
+        "grant_type": "client_credentials",
+        "appkey": app_key,
+        "appsecret": app_secret
+    }
+    url = f"{base_url}/oauth2/tokenP"
     res = requests.post(url, headers=headers, data=json.dumps(body))
-    return res.json().get("access_token")
+    if res.status_code == 200:
+        return res.json().get("access_token")
+    return None
 
-def get_account_balance(token):
-    url = f"{URL_BASE}/uapi/domestic-stock/v1/trading/inquire-balance"
+def get_account_balance(token, app_key, app_secret, cano, acnt_prdt_cd, base_url):
+    url = f"{base_url}/uapi/domestic-stock/v1/trading/inquire-balance"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
         "authorization": f"Bearer {token}",
-        "appkey": APP_KEY, "appsecret": APP_SECRET, "tr_id": "TTTC8434R"
+        "appkey": app_key,
+        "appsecret": app_secret,
+        "tr_id": "TTTC8434R"
     }
     params = {
-        "CANO": CANO, "ACNT_PRDT_CD": ACNT_PRDT_CD, "AFHR_FLPR_YN": "N", "OFL_YN": "",
+        "CANO": cano, "ACNT_PRDT_CD": acnt_prdt_cd, "AFHR_FLPR_YN": "N", "OFL_YN": "",
         "INQR_DVSN": "02", "UNPR_DVSN": "01", "FUND_STTL_ICLD_YN": "N",
         "FNCG_AMT_AUTO_RDPT_YN": "N", "PRCS_DVSN": "00", "CTX_AREA_FK100": "", "CTX_AREA_NK100": ""
     }
@@ -63,18 +70,20 @@ def get_account_balance(token):
         return data.get('output2', [{}])[0], data.get('output1', [])
     return {}, []
 
-def get_realtime_price(token, ticker):
-    url = f"{URL_BASE}/uapi/domestic-stock/v1/quotations/inquire-price"
+def get_realtime_price(token, app_key, app_secret, ticker, base_url):
+    url = f"{base_url}/uapi/domestic-stock/v1/quotations/inquire-price"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
         "authorization": f"Bearer {token}",
-        "appkey": APP_KEY, "appsecret": APP_SECRET, "tr_id": "FHKST01010100"
+        "appkey": app_key,
+        "appsecret": app_secret,
+        "tr_id": "FHKST01010100"
     }
     params = {"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": ticker}
     res = requests.get(url, headers=headers, params=params)
     if res.status_code == 200:
-        out = res.json()['output']
-        return float(out['stck_prpr']), float(out['prdy_ctrt'])
+        out = res.json().get('output', {})
+        return float(out.get('stck_prpr', 0)), float(out.get('prdy_ctrt', 0))
     return 0.0, 0.0
 
 # ==============================================================================
@@ -86,10 +95,11 @@ if st.button("🔄 실시간 데이터 갱신", type="primary"):
     st.cache_data.clear()
     st.rerun()
 
-token = get_access_token()
+token = get_access_token(APP_KEY, APP_SECRET, URL_BASE)
 
 if token:
-    summary, holdings = get_account_balance(token)
+    summary, holdings = get_account_balance(token, APP_KEY, APP_SECRET, CANO, ACNT_PRDT_CD, URL_BASE)
+    
     tot_eval = float(summary.get('tot_evlu_amt', 0))
     dnca_cash = float(summary.get('dnca_tot_amt', 0))
     pnl_amt = float(summary.get('evlu_pfls_smtl_amt', 0))
@@ -102,7 +112,7 @@ if token:
 
     st.markdown("---")
 
-    # 1. 보유 종목 전황판
+    # 1. 보유 종목 현황판
     st.subheader("🕵️ [실전 전장] 파견 요원 현황판")
     if holdings:
         active_list = []
@@ -134,11 +144,11 @@ if token:
 
     st.markdown("---")
 
-    # 2. 4종목 타점 레이더 (삼성전자, 두산에너빌리티, 대우건설, 한국콜마)
+    # 2. 4종목 타점 레이더
     st.subheader("🎯 [타점 레이더] 4종목 실시간 종가 스캔")
     radar_list = []
     for code, conf in TARGET_STOCKS.items():
-        curr_price, daily_rate = get_realtime_price(token, code)
+        curr_price, daily_rate = get_realtime_price(token, APP_KEY, APP_SECRET, code, URL_BASE)
         is_in_pocket = any(h.get('pdno') == code for h in holdings)
         
         if is_in_pocket:
@@ -160,4 +170,4 @@ if token:
 
     st.dataframe(pd.DataFrame(radar_list), use_container_width=True)
 else:
-    st.error("한국투자증권 API 통신 토큰 발급에 실패했습니다.")
+    st.error("한국투자증권 API 통신 토큰 발급에 실패했습니다. 키 설정을 확인해 주세요.")
