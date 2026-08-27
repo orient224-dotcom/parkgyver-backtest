@@ -34,33 +34,32 @@ def format_money(num):
         return str(num)
 
 # ==============================================================================
-# 3. 한투 API 통신 모듈 (변수를 인자로 직접 전달하여 에러 차단)
+# 3. 한투 API 통신 모듈 (캐시 충돌 제거)
 # ==============================================================================
-@st.cache_data(ttl=120)
-def get_access_token(app_key, app_secret, base_url):
+def get_access_token():
     headers = {"content-type": "application/json"}
     body = {
         "grant_type": "client_credentials",
-        "appkey": app_key,
-        "appsecret": app_secret
+        "appkey": APP_KEY,
+        "appsecret": APP_SECRET
     }
-    url = f"{base_url}/oauth2/tokenP"
+    url = f"{URL_BASE}/oauth2/tokenP"
     res = requests.post(url, headers=headers, data=json.dumps(body))
     if res.status_code == 200:
         return res.json().get("access_token")
     return None
 
-def get_account_balance(token, app_key, app_secret, cano, acnt_prdt_cd, base_url):
-    url = f"{base_url}/uapi/domestic-stock/v1/trading/inquire-balance"
+def get_account_balance(token):
+    url = f"{URL_BASE}/uapi/domestic-stock/v1/trading/inquire-balance"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
         "authorization": f"Bearer {token}",
-        "appkey": app_key,
-        "appsecret": app_secret,
+        "appkey": APP_KEY,
+        "appsecret": APP_SECRET,
         "tr_id": "TTTC8434R"
     }
     params = {
-        "CANO": cano, "ACNT_PRDT_CD": acnt_prdt_cd, "AFHR_FLPR_YN": "N", "OFL_YN": "",
+        "CANO": CANO, "ACNT_PRDT_CD": ACNT_PRDT_CD, "AFHR_FLPR_YN": "N", "OFL_YN": "",
         "INQR_DVSN": "02", "UNPR_DVSN": "01", "FUND_STTL_ICLD_YN": "N",
         "FNCG_AMT_AUTO_RDPT_YN": "N", "PRCS_DVSN": "00", "CTX_AREA_FK100": "", "CTX_AREA_NK100": ""
     }
@@ -70,13 +69,13 @@ def get_account_balance(token, app_key, app_secret, cano, acnt_prdt_cd, base_url
         return data.get('output2', [{}])[0], data.get('output1', [])
     return {}, []
 
-def get_realtime_price(token, app_key, app_secret, ticker, base_url):
-    url = f"{base_url}/uapi/domestic-stock/v1/quotations/inquire-price"
+def get_realtime_price(token, ticker):
+    url = f"{URL_BASE}/uapi/domestic-stock/v1/quotations/inquire-price"
     headers = {
         "Content-Type": "application/json; charset=utf-8",
         "authorization": f"Bearer {token}",
-        "appkey": app_key,
-        "appsecret": app_secret,
+        "appkey": APP_KEY,
+        "appsecret": APP_SECRET,
         "tr_id": "FHKST01010100"
     }
     params = {"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": ticker}
@@ -87,19 +86,17 @@ def get_realtime_price(token, app_key, app_secret, ticker, base_url):
     return 0.0, 0.0
 
 # ==============================================================================
-# 4. 실전 관제탑 대시보드 뷰
+# 4. 실전 관제탑 대시보드 화면 구성
 # ==============================================================================
 st.markdown("<div style='background:#1b4f72;color:white;padding:12px 18px;border-radius:8px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;'><h3 style='margin:0;'>📡 박가이버 사령부 실전 관제탑</h3><span>🟢 한국투자증권 실시간 연동 (4종목 체제)</span></div>", unsafe_allow_html=True)
 
 if st.button("🔄 실시간 데이터 갱신", type="primary"):
-    st.cache_data.clear()
     st.rerun()
 
-token = get_access_token(APP_KEY, APP_SECRET, URL_BASE)
+token = get_access_token()
 
 if token:
-    summary, holdings = get_account_balance(token, APP_KEY, APP_SECRET, CANO, ACNT_PRDT_CD, URL_BASE)
-    
+    summary, holdings = get_account_balance(token)
     tot_eval = float(summary.get('tot_evlu_amt', 0))
     dnca_cash = float(summary.get('dnca_tot_amt', 0))
     pnl_amt = float(summary.get('evlu_pfls_smtl_amt', 0))
@@ -112,7 +109,7 @@ if token:
 
     st.markdown("---")
 
-    # 1. 보유 종목 현황판
+    # 1. 보유 종목 전황판
     st.subheader("🕵️ [실전 전장] 파견 요원 현황판")
     if holdings:
         active_list = []
@@ -148,7 +145,7 @@ if token:
     st.subheader("🎯 [타점 레이더] 4종목 실시간 종가 스캔")
     radar_list = []
     for code, conf in TARGET_STOCKS.items():
-        curr_price, daily_rate = get_realtime_price(token, APP_KEY, APP_SECRET, code, URL_BASE)
+        curr_price, daily_rate = get_realtime_price(token, code)
         is_in_pocket = any(h.get('pdno') == code for h in holdings)
         
         if is_in_pocket:
