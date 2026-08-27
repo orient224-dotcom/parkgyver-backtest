@@ -9,14 +9,15 @@ import pandas as pd
 st.set_page_config(page_title="박가이버 사령부 실전 관제탑", layout="wide", page_icon="📡")
 
 # ==============================================================================
-# 2. 통신 보안키 및 4종목 타깃 설정
+# 2. 스트림릿 비밀 금고(Secrets)에서 안전하게 보안키 꺼내오기
 # ==============================================================================
-APP_KEY = "PSYQxdExos15R4GouvYt7sRAd7MgVW7Sh40O"
-APP_SECRET = "H9Z0EktkYBp3xeQxEwyz7FEZGtS1CTSGxjKMMaAFh3Wg/xelongaLXWA9IeSZRqaAQFNUGlbv1VxmPhqw91EqqFCn6T3CfXz6iybBe89+BAfHowFa8pZFja9po31PErY0PZjBVpleSWehjvY2PJoA/eOGUgNAgXj01+/JOuBgDMe3Aa8pX8="
-CANO = "44879076"
-ACNT_PRDT_CD = "01"
+APP_KEY = st.secrets["APP_KEY"]
+APP_SECRET = st.secrets["APP_SECRET"]
+CANO = st.secrets["CANO"]
+ACNT_PRDT_CD = st.secrets["ACNT_PRDT_CD"]
 URL_BASE = "https://openapi.koreainvestment.com:9443"
 
+# 🎯 4종목 정예 타깃 (종목당 25% 배분)
 TARGET_STOCKS = {
     "005930": {"name": "삼성전자", "drop_target": -3.0},
     "034020": {"name": "두산에너빌리티", "drop_target": -3.0},
@@ -24,8 +25,8 @@ TARGET_STOCKS = {
     "161890": {"name": "한국콜마", "drop_target": -3.0}
 }
 
-TRAILING_START = 30.0
-EMERGENCY_CUT = -12.0
+TRAILING_START = 30.0   # +30% 레이더 가동
+EMERGENCY_CUT = -12.0   # -12% 비상 탈출
 
 def format_money(num):
     try:
@@ -34,7 +35,7 @@ def format_money(num):
         return str(num)
 
 # ==============================================================================
-# 3. 한투 API 통신 모듈 (캐시 충돌 제거)
+# 3. 한투 API 통신 모듈
 # ==============================================================================
 def get_access_token():
     headers = {"content-type": "application/json"}
@@ -86,7 +87,7 @@ def get_realtime_price(token, ticker):
     return 0.0, 0.0
 
 # ==============================================================================
-# 4. 실전 관제탑 대시보드 화면 구성
+# 4. 실전 관제탑 화면 구성
 # ==============================================================================
 st.markdown("<div style='background:#1b4f72;color:white;padding:12px 18px;border-radius:8px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;'><h3 style='margin:0;'>📡 박가이버 사령부 실전 관제탑</h3><span>🟢 한국투자증권 실시간 연동 (4종목 체제)</span></div>", unsafe_allow_html=True)
 
