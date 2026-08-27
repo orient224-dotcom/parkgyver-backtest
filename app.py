@@ -5,13 +5,12 @@ import datetime
 import pandas as pd
 
 # ==============================================================================
-# 🌟 페이지 기본 설정
+# 📱 모바일 최적화 페이지 설정
 # ==============================================================================
 st.set_page_config(
-    page_title="박가이버 사령부 V3.1 종합 관제탑",
+    page_title="사령부 관제탑",
     page_icon="📡",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered"  # 모바일 화면에 최적화된 중앙 집중형 레이아웃
 )
 
 # ==============================================================================
@@ -25,7 +24,7 @@ URL_BASE = "https://openapi.koreainvestment.com:9443"
 
 TARGET_STOCKS = {
     "005930": {"name": "삼성전자", "drop_target": -3.0},
-    "034020": {"name": "두산에너빌리티", "drop_target": -3.0},
+    "034020": {"name": "두산에너빌", "drop_target": -3.0},
     "047040": {"name": "대우건설", "drop_target": -3.0},
     "002700": {"name": "신일전자", "drop_target": -3.0}
 }
@@ -33,7 +32,7 @@ TARGET_STOCKS = {
 # ==============================================================================
 # 🛠️ 데이터 통신 함수군
 # ==============================================================================
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=1800)
 def get_token():
     headers = {"content-type": "application/json"}
     body = {"grant_type": "client_credentials", "appkey": APP_KEY, "appsecret": APP_SECRET}
@@ -75,99 +74,111 @@ def get_kospi_info():
     try:
         url = "https://m.stock.naver.com/api/index/KOSPI/basic"
         headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=5).json()
+        res = requests.get(url, headers=headers, timeout=3).json()
         return float(res['nowValue'].replace(',', '')), float(res['fluctuationsRatio'])
     except:
         return 0.0, 0.0
 
 # ==============================================================================
-# 📱 사이드바 (무전기 매뉴얼 및 전략 브리핑)
+# 📱 모바일 헤더 및 상태 배너
 # ==============================================================================
-with st.sidebar:
-    st.header("🎖️ 박가이버 사령부")
-    st.info("💡 **버전:** V3.1 과수원 최종 완전체\n\n🛡️ **기지국:** 24시간 스마트폰(Termux) 무인 가동")
-    
-    st.divider()
-    st.subheader("📱 텔레그램 무전 명령어")
-    st.code("/상태 : 자산 및 요원 전황\n/타점 : 4종목 타점 스캔\n/뉴스 삼성전자 : 최신 뉴스 요약\n/월말결산 : 월간 전투 정산서\n/도움말 : 명령어 안내", language="text")
-    
-    st.divider()
-    st.subheader("🍎 과수원 3분할 룰")
-    st.markdown("- **📈 60% :** 원금 합류 (재투자/복리)\n- **🎁 20% :** 공짜주식 평생 보관\n- **🛡️ 20% :** 비상금 영구 잠금")
+st.subheader("📡 박가이버 사령부 V3.1")
+now_time = datetime.datetime.now().strftime('%H:%M:%S')
 
-# ==============================================================================
-# 🖥️ 메인 관제 화면
-# ==============================================================================
-st.title("📡 박가이버 사령부 라이브 관제탑")
-now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-# 1. 상단 KOSPI 시장 방패 모니터링 배너
+# 상단 코스피 한 줄 브리핑
 kospi_val, kospi_rate = get_kospi_info()
 if kospi_rate <= -3.0:
-    st.error(f"🚨 **[강철 방패 가동 중]** 코스피 지수 {kospi_val:,.2f} ({kospi_rate:+.2f}%) 폭락 감지! 오늘 오후 매수 진입은 전면 차단됩니다.")
+    st.error(f"🚨 코스피 {kospi_val:,.0f} ({kospi_rate:+.2f}%) [강철 방패 가동]")
 else:
-    st.success(f"🌐 **[시장 정상 순항]** 코스피 {kospi_val:,.2f} ({kospi_rate:+.2f}%) | 15:19 종가 타점 감시 정상 가동 중 (기준시각: {now_str})")
+    st.caption(f"🌐 코스피: {kospi_val:,.1f} ({kospi_rate:+.2f}%) | 갱신 {now_time}")
 
-st.markdown("---")
+# ==============================================================================
+# 📑 모바일 핵심: 3단 가로 탭 분할 (스크롤 제거)
+# ==============================================================================
+tab1, tab2, tab3 = st.tabs(["💰 금고 / 요원", "🎯 4종목 타점", "📱 무전 매뉴얼"])
 
 try:
     token = get_token()
     tot_asset, cash_amt, stock_amt, holdings = get_balance(token)
     
-    # 2. 사령부 금고 핵심 지표
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("👑 사령부 총자산", f"{tot_asset:,} 원")
-    c2.metric("💵 가용 예수금(현금)", f"{cash_amt:,} 원", delta=f"비중 { (cash_amt/tot_asset*100) if tot_asset else 0:.1f}%")
-    c3.metric("📈 주식 평가총액", f"{stock_amt:,} 원", delta=f"비중 { (stock_amt/tot_asset*100) if tot_asset else 0:.1f}%")
-    c4.metric("🛡️ 시스템 방어막", "코스피 -3% 킬스위치 ON")
-
-    st.markdown("###")
-
-    # 3. 4종목 타점 정찰대 (남은 거리 게이지)
-    st.subheader("🎯 4종목 정예 정찰대 (15:19 종가 타점 감시)")
-    cols = st.columns(4)
-    
-    for idx, (ticker, conf) in enumerate(TARGET_STOCKS.items()):
-        price, rate = get_stock_price(token, ticker)
-        gap = rate - conf['drop_target'] # -3.0%까지 남은 거리
+    # --------------------------------------------------------------------------
+    # 탭 1: 자산 현황 및 실전 파견 요원
+    # --------------------------------------------------------------------------
+    with tab1:
+        # 모바일용 2열 메트릭
+        c1, c2 = st.columns(2)
+        c1.metric("👑 총자산", f"{tot_asset:,}원")
+        c2.metric("💵 예수금", f"{cash_amt:,}원")
         
-        with cols[idx]:
-            with st.container(border=True):
-                st.markdown(f"**{conf['name']}** `{ticker}`")
-                st.metric(label="현재가", value=f"{price:,.0f}원", delta=f"{rate:+.2f}%")
-                
-                if rate <= conf['drop_target']:
-                    st.success(f"🎯 **타점 돌파 완료!** ({rate:.2f}%)")
-                    st.caption("오후 3:19 조건 만족 시 자동 출격")
-                else:
-                    st.info(f"⚪ **관망 중** (타점까지 {gap:+.2f}%p)")
-                    st.caption("진입 기준선: -3.00% 이하")
+        c3, c4 = st.columns(2)
+        c3.metric("📈 주식평가", f"{stock_amt:,}원")
+        c4.metric("🛡️ 킬스위치", "정상 작동 중")
+        
+        st.divider()
+        
+        st.markdown("**⚔️ 현재 보유 요원**")
+        active_holdings = [h for h in holdings if int(h.get('hldg_qty', 0)) > 0]
+        if active_holdings:
+            for h in active_holdings:
+                with st.container(border=True):
+                    hc1, hc2 = st.columns([1.5, 1])
+                    hc1.markdown(f"**{h['prdt_name']}** ({int(h['hldg_qty'])}주)")
+                    hc1.caption(f"매입가: {float(h['pchs_avg_pric']):,.0f}원")
+                    hc2.metric("수익률", f"{float(h['evlu_pfls_rt']):+.2f}%", f"{int(h['evlu_pfls_amt']):,}원")
+        else:
+            st.info("🛡️ 현재 파견 요원 없음 (100% 안전 현금 대기)")
 
-    st.markdown("---")
+    # --------------------------------------------------------------------------
+    # 탭 2: 4종목 타점 정찰대 (2x2 모바일 그리드)
+    # --------------------------------------------------------------------------
+    with tab2:
+        st.caption("🎯 오후 3시 19분 (-3.0% 이하) 진입 스캔")
+        
+        # 2개씩 2줄로 콤팩트 배치
+        stock_items = list(TARGET_STOCKS.items())
+        
+        # 1행 (삼성전자, 두산에너빌)
+        r1_c1, r1_c2 = st.columns(2)
+        for idx, (t, conf) in enumerate(stock_items[:2]):
+            price, rate = get_stock_price(token, t)
+            col = r1_c1 if idx == 0 else r1_c2
+            with col:
+                with st.container(border=True):
+                    st.markdown(f"**{conf['name']}**")
+                    st.metric("현재가", f"{price:,.0f}원", f"{rate:+.2f}%")
+                    if rate <= conf['drop_target']:
+                        st.success("🎯 타점 진입!")
+                    else:
+                        st.caption(f"거리: {rate - conf['drop_target']:+.2f}%p")
 
-    # 4. 실전 파견 요원(보유 종목) 현황표
-    st.subheader("⚔️ 현재 파견 요원(보유 주식) 전황")
-    active_holdings = [h for h in holdings if int(h.get('hldg_qty', 0)) > 0]
-    
-    if active_holdings:
-        table_list = []
-        for h in active_holdings:
-            table_list.append({
-                "종목명": h['prdt_name'],
-                "종목코드": h['pdno'],
-                "보유수량": f"{int(h['hldg_qty']):,} 주",
-                "매입단가": f"{float(h['pchs_avg_pric']):,.0f} 원",
-                "현재가": f"{int(h['prpr']):,} 원",
-                "평가손익": f"{int(h['evlu_pfls_amt']):,} 원",
-                "수익률": f"{float(h['evlu_pfls_rt']):+.2f}%"
-            })
-        st.dataframe(pd.DataFrame(table_list), use_container_width=True, hide_index=True)
-    else:
-        st.info("🛡️ 현재 전장에 파견된 요원이 없습니다. (전원 100% 안전 현금 대기 중)")
+        # 2행 (대우건설, 신일전자)
+        r2_c1, r2_c2 = st.columns(2)
+        for idx, (t, conf) in enumerate(stock_items[2:]):
+            price, rate = get_stock_price(token, t)
+            col = r2_c1 if idx == 0 else r2_c2
+            with col:
+                with st.container(border=True):
+                    st.markdown(f"**{conf['name']}**")
+                    st.metric("현재가", f"{price:,.0f}원", f"{rate:+.2f}%")
+                    if rate <= conf['drop_target']:
+                        st.success("🎯 타점 진입!")
+                    else:
+                        st.caption(f"거리: {rate - conf['drop_target']:+.2f}%p")
+
+    # --------------------------------------------------------------------------
+    # 탭 3: 텔레그램 무전 매뉴얼
+    # --------------------------------------------------------------------------
+    with tab3:
+        st.markdown("**📱 텔레그램 무전 명령어**")
+        st.code("/상태 : 계좌 총자산 및 요원 전황\n/타점 : 4종목 타점 실시간 스캔\n/뉴스 삼성전자 : 최신 뉴스 요약\n/월말결산 : 월간 전투 정산서\n/도움말 : 명령어 리스트", language="text")
+        
+        st.markdown("**🍎 과수원 3분할 룰**")
+        st.info("📈 60% : 거름(재투자 복리)\n🎁 20% : 공짜주식 평생 보관\n🛡️ 20% : 비상금 영구 잠금")
 
 except Exception as e:
-    st.error(f"통신 연결 중 오류가 발생했습니다: {e}")
+    st.error(f"통신 연결 실패: {e}")
 
-st.markdown("###")
+# 하단 한눈에 누르는 새로고침 버튼
+st.markdown("---")
 if st.button("🔄 실시간 전황 새로고침", use_container_width=True):
     st.rerun()
