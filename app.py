@@ -10,7 +10,7 @@ import pandas as pd
 st.set_page_config(
     page_title="사령부 관제탑",
     page_icon="📡",
-    layout="centered"  # 모바일 화면에 최적화된 중앙 집중형 레이아웃
+    layout="centered"
 )
 
 # ==============================================================================
@@ -22,11 +22,12 @@ CANO = st.secrets["CANO"]
 ACNT_PRDT_CD = st.secrets["ACNT_PRDT_CD"]
 URL_BASE = "https://openapi.koreainvestment.com:9443"
 
+# 🎯 [4종목 정예 라인업 - 일진전기 반영]
 TARGET_STOCKS = {
     "005930": {"name": "삼성전자", "drop_target": -3.0},
     "034020": {"name": "두산에너빌", "drop_target": -3.0},
     "047040": {"name": "대우건설", "drop_target": -3.0},
-    "002700": {"name": "신일전자", "drop_target": -3.0}
+    "103590": {"name": "일진전기", "drop_target": -3.0}
 }
 
 # ==============================================================================
@@ -85,7 +86,6 @@ def get_kospi_info():
 st.subheader("📡 박가이버 사령부 V3.1")
 now_time = datetime.datetime.now().strftime('%H:%M:%S')
 
-# 상단 코스피 한 줄 브리핑
 kospi_val, kospi_rate = get_kospi_info()
 if kospi_rate <= -3.0:
     st.error(f"🚨 코스피 {kospi_val:,.0f} ({kospi_rate:+.2f}%) [강철 방패 가동]")
@@ -93,7 +93,7 @@ else:
     st.caption(f"🌐 코스피: {kospi_val:,.1f} ({kospi_rate:+.2f}%) | 갱신 {now_time}")
 
 # ==============================================================================
-# 📑 모바일 핵심: 3단 가로 탭 분할 (스크롤 제거)
+# 📑 3단 가로 탭 분할 (스크롤 제로)
 # ==============================================================================
 tab1, tab2, tab3 = st.tabs(["💰 금고 / 요원", "🎯 4종목 타점", "📱 무전 매뉴얼"])
 
@@ -101,11 +101,8 @@ try:
     token = get_token()
     tot_asset, cash_amt, stock_amt, holdings = get_balance(token)
     
-    # --------------------------------------------------------------------------
-    # 탭 1: 자산 현황 및 실전 파견 요원
-    # --------------------------------------------------------------------------
+    # 탭 1: 자산 현황
     with tab1:
-        # 모바일용 2열 메트릭
         c1, c2 = st.columns(2)
         c1.metric("👑 총자산", f"{tot_asset:,}원")
         c2.metric("💵 예수금", f"{cash_amt:,}원")
@@ -115,7 +112,6 @@ try:
         c4.metric("🛡️ 킬스위치", "정상 작동 중")
         
         st.divider()
-        
         st.markdown("**⚔️ 현재 보유 요원**")
         active_holdings = [h for h in holdings if int(h.get('hldg_qty', 0)) > 0]
         if active_holdings:
@@ -128,16 +124,12 @@ try:
         else:
             st.info("🛡️ 현재 파견 요원 없음 (100% 안전 현금 대기)")
 
-    # --------------------------------------------------------------------------
-    # 탭 2: 4종목 타점 정찰대 (2x2 모바일 그리드)
-    # --------------------------------------------------------------------------
+    # 탭 2: 4종목 타점 정찰대 (일진전기 2x2 격자)
     with tab2:
         st.caption("🎯 오후 3시 19분 (-3.0% 이하) 진입 스캔")
-        
-        # 2개씩 2줄로 콤팩트 배치
         stock_items = list(TARGET_STOCKS.items())
         
-        # 1행 (삼성전자, 두산에너빌)
+        # 1행: 삼성전자, 두산에너빌
         r1_c1, r1_c2 = st.columns(2)
         for idx, (t, conf) in enumerate(stock_items[:2]):
             price, rate = get_stock_price(token, t)
@@ -151,7 +143,7 @@ try:
                     else:
                         st.caption(f"거리: {rate - conf['drop_target']:+.2f}%p")
 
-        # 2행 (대우건설, 신일전자)
+        # 2행: 대우건설, 일진전기
         r2_c1, r2_c2 = st.columns(2)
         for idx, (t, conf) in enumerate(stock_items[2:]):
             price, rate = get_stock_price(token, t)
@@ -165,12 +157,10 @@ try:
                     else:
                         st.caption(f"거리: {rate - conf['drop_target']:+.2f}%p")
 
-    # --------------------------------------------------------------------------
-    # 탭 3: 텔레그램 무전 매뉴얼
-    # --------------------------------------------------------------------------
+    # 탭 3: 무전 매뉴얼
     with tab3:
         st.markdown("**📱 텔레그램 무전 명령어**")
-        st.code("/상태 : 계좌 총자산 및 요원 전황\n/타점 : 4종목 타점 실시간 스캔\n/뉴스 삼성전자 : 최신 뉴스 요약\n/월말결산 : 월간 전투 정산서\n/도움말 : 명령어 리스트", language="text")
+        st.code("/상태 : 계좌 총자산 및 요원 전황\n/타점 : 4종목 타점 실시간 스캔\n/뉴스 일진전기 : 최신 뉴스 요약\n/월말결산 : 월간 전투 정산서\n/도움말 : 명령어 리스트", language="text")
         
         st.markdown("**🍎 과수원 3분할 룰**")
         st.info("📈 60% : 거름(재투자 복리)\n🎁 20% : 공짜주식 평생 보관\n🛡️ 20% : 비상금 영구 잠금")
@@ -178,7 +168,6 @@ try:
 except Exception as e:
     st.error(f"통신 연결 실패: {e}")
 
-# 하단 한눈에 누르는 새로고침 버튼
 st.markdown("---")
 if st.button("🔄 실시간 전황 새로고침", use_container_width=True):
     st.rerun()
