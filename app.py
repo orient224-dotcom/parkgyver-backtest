@@ -12,13 +12,12 @@ import os
 # ==============================================================================
 st.set_page_config(page_title="박가이버 사령부", page_icon="🎖️", layout="centered")
 
-# 모바일 화면을 위한 여백 압축 및 폰트 CSS
 st.markdown("""
     <style>
     .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
-    h1, h2, h3 { margin-bottom: 0.2rem; }
+    h1, h2, h3, h4 { margin-bottom: 0.3rem; }
     .stMetric { padding-bottom: 0.5rem; }
-    div[data-testid="stMetricValue"] { font-size: 1.5rem; }
+    div[data-testid="stMetricValue"] { font-size: 1.4rem; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -108,11 +107,24 @@ def get_current_price_and_rate(ticker, token=None):
     except: pass
     return None, None
 
+# 📰 뉴스 정찰 엔진 (다중 키 자동 감지 및 HTML 정제)
 def get_stock_news(ticker):
     try:
-        res = requests.get(f"https://m.stock.naver.com/api/news/stock/{ticker}?pageSize=5", headers={"User-Agent": "Mozilla/5.0"}, timeout=5).json()
-        return [n.get('tit', '제목 없음').replace('&quot;', '"').replace('&amp;', '&') for n in res]
-    except: return ["통신 장애"]
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        url = f"https://m.stock.naver.com/api/news/stock/{ticker}?pageSize=5"
+        res = requests.get(url, headers=headers, timeout=5).json()
+        
+        items = res if isinstance(res, list) else res.get("items", res.get("itemList", []))
+        news_list = []
+        for n in items:
+            title = n.get('title') or n.get('tit') or n.get('articleTitle') or n.get('subject') or n.get('body')
+            if title:
+                title = title.replace('&quot;', '"').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('<b>', '').replace('</b>', '')
+                news_list.append(title)
+        
+        return news_list[:5] if news_list else ["최근 24시간 내 주요 뉴스가 없습니다."]
+    except Exception:
+        return ["뉴스 정찰 중 통신 지연이 발생했습니다."]
 
 def get_kospi_rate():
     try:
@@ -139,7 +151,7 @@ def ask_gemini_strategy_report():
     except Exception as e: return f"⚠️ 오류: {e}"
 
 # ==============================================================================
-# 🛰️ 3. 백그라운드 무전 데몬 (유지)
+# 🛰️ 3. 백그라운드 무전 데몬
 # ==============================================================================
 @st.cache_resource
 def start_background_daemon():
@@ -171,6 +183,14 @@ def start_background_daemon():
                             send_telegram(scan)
                         elif msg in ["AI진단"]:
                             send_telegram(f"📋 [AI 보고서]\n\n{ask_gemini_strategy_report()}")
+                        elif msg.startswith("뉴스"):
+                            parts = item.get("message", {}).get("text", "").split()
+                            if len(parts) >= 2:
+                                name = parts[1]
+                                tk = next((k for k, v in TARGET_STOCKS.items() if v['name'] == name), None)
+                                if tk:
+                                    n_list = get_stock_news(tk)
+                                    send_telegram(f"📰 [{name} 뉴스]\n" + "\n".join([f"▪️ {x}" for x in n_list[:3]]))
             except: time.sleep(5)
             time.sleep(1)
     t = threading.Thread(target=telegram_command_loop, daemon=True)
@@ -189,10 +209,8 @@ token = ACCESS_TOKEN or issue_token()
 tot_asset, avail_cash = get_account_status(token)
 state = load_state()
 
-# 모바일 화면을 3개의 탭으로 깔끔하게 분리
 tab1, tab2, tab3 = st.tabs(["🎯 타점스캔", "💼 자산·요원", "🧠 참모·뉴스"])
 
-# --- 탭 1: 핵심 타점 모니터링 ---
 with tab1:
     col1, col2 = st.columns(2)
     col1.metric("👑 총 자산", f"{format_money(tot_asset)}원" if tot_asset else "조회 중")
@@ -203,15 +221,12 @@ with tab1:
         price, rate = get_current_price_and_rate(ticker, token)
         if rate is not None:
             if rate <= conf['drop_target']:
-                # 타점 도달 시 붉은색 강조 카드
                 st.error(f"**{conf['name']}** 🎯 **출격 조건 충족**\n\n현재가: {int(price):,}원 (**{rate:+.2f}%**)")
             else:
-                # 관망 시 푸른색 일반 카드
                 st.info(f"**{conf['name']}** ⚪ 관망 (필요: {rate - conf['drop_target']:+.2f}%p)\n\n현재가: {int(price):,}원 ({rate:+.2f}%)")
         else:
             st.warning(f"**{conf['name']}** : 장마감 대기")
 
-# --- 탭 2: 보유 포트폴리오 및 금고 ---
 with tab2:
     st.metric("🛡️ 잠금 비상금 (20%)", f"{format_money(state.get('locked_reserve', 0))}원")
     
@@ -234,7 +249,6 @@ with tab2:
     else:
         st.write("아직 수확된 과일이 없습니다.")
 
-# --- 탭 3: AI 분석 및 뉴스 도구 ---
 with tab3:
     st.markdown("#### 🧠 AI 참모 브리핑")
     if st.button("📋 브리핑 생성 및 텔레그램 발송", use_container_width=True):
@@ -244,11 +258,13 @@ with tab3:
             st.markdown(f"<div style='font-size:0.9rem; padding:10px; background:#f0f2f6; border-radius:5px;'>{rep}</div>", unsafe_allow_html=True)
             send_telegram(f"📋 [AI 수석 참모 전략 보고서]\n\n{rep}")
 
-    st.markdown("<br>#### 📰 종목별 긴급 뉴스", unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("#### 📰 종목별 긴급 뉴스")
     selected_stock = st.selectbox("정찰 종목 선택", list(TARGET_STOCKS.values()), format_func=lambda x: x["name"])
     selected_ticker = next(k for k, v in TARGET_STOCKS.items() if v["name"] == selected_stock["name"])
     
     if st.button("🔍 뉴스 스캔", use_container_width=True):
-        news = get_stock_news(selected_ticker)
-        for n in news:
-            st.markdown(f"- <span style='font-size:0.9rem;'>{n}</span>", unsafe_allow_html=True)
+        with st.spinner("최신 뉴스 정찰 중..."):
+            news = get_stock_news(selected_ticker)
+            for n in news:
+                st.markdown(f"▪️ {n}")
