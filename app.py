@@ -4,18 +4,17 @@ import json
 import datetime
 import time
 import threading
-import calendar
 import os
 
 # ==============================================================================
-# 📱 1. 사령부 관제탑 모바일 최적화 설정
+# 📱 1. 관제탑 모바일 최적화 & 환경설정
 # ==============================================================================
 st.set_page_config(page_title="박가이버 사령부", page_icon="🎖️", layout="centered")
 
 st.markdown("""
     <style>
     .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
-    h1, h2, h3, h4 { margin-bottom: 0.3rem; }
+    h4 { margin-bottom: 0.3rem; }
     .stMetric { padding-bottom: 0.5rem; }
     div[data-testid="stMetricValue"] { font-size: 1.4rem; }
     </style>
@@ -36,23 +35,29 @@ TELEGRAM_TOKEN = get_secret("TELEGRAM_TOKEN")
 CHAT_ID = get_secret("CHAT_ID")
 URL_BASE = "https://openapi.koreainvestment.com:9443"
 
-# 🎯 대우건설 삭제 (3대 종목 유지)
-TARGET_STOCKS = {
-    "005930": {"name": "삼성전자", "drop_target": -3.0},
-    "034020": {"name": "두산에너빌리티", "drop_target": -3.0},
-    "103590": {"name": "일진전기", "drop_target": -3.0}
-}
-
 STATE_FILE = "bot_state.json"
 ACCESS_TOKEN = ""
-token_date = ""
 
 def load_state():
+    state = {
+        "portfolio": {}, "free_stocks": {}, "locked_reserve": 0.0, "monthly_history": [],
+        "targets": {
+            "005930": {"name": "삼성전자", "drop_target": -3.0},
+            "034020": {"name": "두산에너빌리티", "drop_target": -3.0},
+            "103590": {"name": "일진전기", "drop_target": -3.0}
+        },
+        "emergency_stop": False
+    }
     if os.path.exists(STATE_FILE):
         try:
-            with open(STATE_FILE, "r", encoding='utf-8') as f: return json.load(f)
+            with open(STATE_FILE, "r", encoding='utf-8') as f: state.update(json.load(f))
         except: pass
-    return {"portfolio": {}, "free_stocks": {}, "locked_reserve": 0.0, "monthly_history": []}
+    return state
+
+def save_state(state):
+    try:
+        with open(STATE_FILE, "w", encoding='utf-8') as f: json.dump(state, f, ensure_ascii=False, indent=4)
+    except: pass
 
 def format_money(num):
     try: return f"{int(round(float(num))):,}"
@@ -64,14 +69,12 @@ def send_telegram(msg):
     except: pass
 
 def issue_token():
-    global ACCESS_TOKEN, token_date
+    global ACCESS_TOKEN
     if not APP_KEY or not APP_SECRET: return ""
     try:
         res = requests.post(f"{URL_BASE}/oauth2/tokenP", headers={"content-type": "application/json"}, data=json.dumps({"grant_type": "client_credentials", "appkey": APP_KEY, "appsecret": APP_SECRET}), timeout=10)
-        token = res.json().get("access_token", "")
-        ACCESS_TOKEN = token
-        token_date = datetime.datetime.now().strftime("%Y%m%d")
-        return token
+        ACCESS_TOKEN = res.json().get("access_token", "")
+        return ACCESS_TOKEN
     except: return ""
 
 def get_account_status(token=None):
@@ -93,10 +96,15 @@ def get_current_price_and_rate(ticker, token=None):
     except: pass
     return None, None
 
+def send_order(ticker, quantity, is_buy=True):
+    tok = ACCESS_TOKEN or issue_token()
+    if quantity <= 0 or not tok: return
+    try: requests.post(f"{URL_BASE}/uapi/domestic-stock/v1/trading/order-cash", headers={"Content-Type": "application/json; charset=utf-8", "authorization": f"Bearer {tok}", "appkey": APP_KEY, "appsecret": APP_SECRET, "tr_id": "TTTC0802U" if is_buy else "TTTC0801U"}, data=json.dumps({"CANO": CANO, "ACNT_PRDT_CD": ACNT_PRDT_CD, "PDNO": ticker, "ORD_DVSN": "01", "ORD_QTY": str(quantity), "ORD_UNPR": "0"}), timeout=10)
+    except: pass
+
 def get_stock_news(ticker):
     try:
-        url = f"https://m.stock.naver.com/api/news/stock/{ticker}?pageSize=5"
-        res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5).json()
+        res = requests.get(f"https://m.stock.naver.com/api/news/stock/{ticker}?pageSize=5", headers={"User-Agent": "Mozilla/5.0"}, timeout=5).json()
         items = res if isinstance(res, list) else res.get("items", res.get("itemList", []))
         news_list = []
         for n in items:
@@ -107,10 +115,10 @@ def get_stock_news(ticker):
 
 def ask_gemini_strategy_report():
     if not GEMINI_API_KEY: return "⚠️ GEMINI_API_KEY 미설정"
-    tot, cash = get_account_status()
-    state = load_state()
-    hist = "\n".join([f"- {h['date']} {h['name']}: {h['type']} ({h['ret']:+.1f}%)" for h in state.get("monthly_history", [])[-5:]]) or "기록 없음"
-    prompt = f"박가이버 사령부의 AI CSO로서 현재 포트폴리오 진단 및 조언을 500자 이내로 텔레그램 양식 브리핑하라. 총자산:{tot:,}원\n기록:\n{hist}"
+    tot, _ = get_account_status()
+    s = load_state()
+    hist = "\n".join([f"- {h['date']} {h['name']}: {h['type']}" for h in s.get("monthly_history", [])[-5:]]) or "기록 없음"
+    prompt = f"박가이버 사령부의 AI CSO로서 진단 및 교체 후보 1~2종목 추천 (500자 이내). 총자산:{tot:,}원\n기록:\n{hist}"
     try:
         avail = [m["name"] for m in requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}", timeout=10).json().get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
         for m_name in avail:
@@ -122,14 +130,117 @@ def ask_gemini_strategy_report():
     except Exception as e: return f"⚠️ 오류: {e}"
 
 # ==============================================================================
+# 🛰️ 3. 백그라운드 무전 수신 데몬 (원격 리모컨 탑재)
+# ==============================================================================
+@st.cache_resource
+def start_background_daemon():
+    def telegram_command_loop():
+        last_id = 0
+        while True:
+            try:
+                if not TELEGRAM_TOKEN:
+                    time.sleep(10)
+                    continue
+                res = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates?offset={last_id + 1}&timeout=30", timeout=35).json()
+                if res.get("ok"):
+                    for item in res.get("result", []):
+                        last_id = item["update_id"]
+                        raw_msg = item.get("message", {}).get("text", "")
+                        msg = raw_msg.strip().replace("/", "")
+                        sender = str(item.get("message", {}).get("chat", {}).get("id", ""))
+                        if sender != CHAT_ID or not msg: continue
+                        
+                        s = load_state()
+                        
+                        if msg in ["상태", "현황"]:
+                            t, c = get_account_status()
+                            rep = f"📊 [현황]\n총자산: {format_money(t)}원\n비상금: {format_money(s.get('locked_reserve', 0))}원"
+                            send_telegram(rep)
+                        elif msg in ["타점", "스캔"]:
+                            scan = "🎯 [타점 스캔]\n"
+                            for tk, cf in s['targets'].items():
+                                _, r = get_current_price_and_rate(tk)
+                                scan += f"- {cf['name']}: {r:+.2f}%\n" if r is not None else ""
+                            send_telegram(scan)
+                        elif msg in ["AI진단"]:
+                            send_telegram(f"📋 [AI 보고서]\n\n{ask_gemini_strategy_report()}")
+                        elif msg.startswith("뉴스"):
+                            parts = raw_msg.split()
+                            if len(parts) >= 2:
+                                tk = next((k for k, v in s['targets'].items() if v['name'] == parts[1]), None)
+                                if tk: send_telegram(f"📰 [{parts[1]}]\n" + "\n".join([f"▪️ {x}" for x in get_stock_news(tk)[:3]]))
+                        
+                        # 🚨 [신규] 원격 리모컨 명령어
+                        elif msg == "비상정지":
+                            s['emergency_stop'] = not s.get('emergency_stop', False)
+                            save_state(s)
+                            send_telegram(f"🚨 [킬스위치] 신규 매수 차단(관망 모드): {'활성화 🔴' if s['emergency_stop'] else '해제 🟢'}")
+                        
+                        elif msg == "전량현금화":
+                            send_telegram("🚨 [긴급명령] 전량 현금화 작전 개시!")
+                            for t, d in list(s['portfolio'].items()):
+                                send_order(t, d['quantity'], is_buy=False)
+                                del s['portfolio'][t]
+                            save_state(s)
+                            send_telegram("✔️ 모든 파견 요원 철수(매도) 완료!")
+                            
+                        elif msg.startswith("전량매도"):
+                            parts = raw_msg.split()
+                            if len(parts) >= 2:
+                                name = parts[1]
+                                tk = next((k for k, v in s['portfolio'].items() if v.get('name') == name or s['targets'].get(k, {}).get('name') == name), None)
+                                if tk:
+                                    send_order(tk, s['portfolio'][tk]['quantity'], is_buy=False)
+                                    send_telegram(f"✔️ [원격명령] {name} 전량 매도 완료!")
+                                    del s['portfolio'][tk]
+                                    save_state(s)
+                                    
+                        elif msg.startswith("타깃추가"):
+                            parts = raw_msg.split()
+                            if len(parts) >= 3:
+                                code, name = parts[1], parts[2]
+                                s['targets'][code] = {"name": name, "drop_target": -3.0}
+                                save_state(s)
+                                send_telegram(f"🎯 [타깃추가] {name}({code}) 감시 레이더 등록 완료!")
+                                
+                        elif msg.startswith("타깃제외"):
+                            parts = raw_msg.split()
+                            if len(parts) >= 2:
+                                name = parts[1]
+                                tk = next((k for k, v in s['targets'].items() if v['name'] == name), None)
+                                if tk:
+                                    del s['targets'][tk]
+                                    save_state(s)
+                                    send_telegram(f"🗑️ [타깃제외] {name} 감시 레이더에서 삭제 완료!")
+                                    
+                        elif msg.startswith("매수"):
+                            parts = raw_msg.split()
+                            if len(parts) >= 3:
+                                name, qty_str = parts[1], parts[2]
+                                tk = next((k for k, v in s['targets'].items() if v['name'] == name), None)
+                                if tk:
+                                    send_order(tk, int(qty_str.replace("주", "")), is_buy=True)
+                                    send_telegram(f"⚔️ [원격명령] {name} {qty_str}주 시장가 매수 주문 전송 완료!")
+                                else:
+                                    send_telegram("⚠️ 레이더에 없는 종목입니다. (완전 신규 종목은 MTS에서 직접 사시면 봇이 감지합니다)")
+            except: time.sleep(5)
+            time.sleep(1)
+    t = threading.Thread(target=telegram_command_loop, daemon=True)
+    t.start()
+    return t
+
+start_background_daemon()
+
+# ==============================================================================
 # 📱 4. 스마트폰 전용 탭(Tab) UI
 # ==============================================================================
+state = load_state()
+status_icon = "🔴 비상정지 가동 중" if state.get("emergency_stop") else "🟢 정상 감시 중"
 st.markdown("## 🎖️ 박가이버 사령부")
-st.caption(f"기준: {datetime.datetime.now().strftime('%m-%d %H:%M')} | 📡 무전망 ONLINE")
+st.caption(f"기준: {datetime.datetime.now().strftime('%m-%d %H:%M')} | {status_icon}")
 
 token = ACCESS_TOKEN or issue_token()
 tot_asset, avail_cash = get_account_status(token)
-state = load_state()
 
 tab1, tab2, tab3 = st.tabs(["🎯 타점스캔", "💼 자산·요원", "🧠 참모·뉴스"])
 
@@ -139,7 +250,7 @@ with tab1:
     col2.metric("💵 예수금", f"{format_money(avail_cash)}원" if avail_cash else "조회 중")
     
     st.markdown("#### 🚨 정예 종목 타점")
-    for ticker, conf in TARGET_STOCKS.items():
+    for ticker, conf in state['targets'].items():
         price, rate = get_current_price_and_rate(ticker, token)
         if rate is not None:
             if rate <= conf['drop_target']:
@@ -151,7 +262,6 @@ with tab1:
 
 with tab2:
     st.metric("🛡️ 잠금 비상금 (20%)", f"{format_money(state.get('locked_reserve', 0))}원")
-    
     st.markdown("#### ⚔️ 파견 요원 (보유 중)")
     portfolio = state.get("portfolio", {})
     if portfolio:
@@ -159,8 +269,7 @@ with tab2:
             cur, _ = get_current_price_and_rate(t, token)
             cur = cur or d['entry_price']
             ret = ((cur - d['entry_price']) / d['entry_price']) * 100
-            name = d.get('name', TARGET_STOCKS.get(t, {}).get('name', t))
-            # 수동 매수 종목이면 아이콘 표시
+            name = d.get('name', state['targets'].get(t, {}).get('name', t))
             icon = "🕵️‍♂️" if d.get('manual') else "🤖"
             st.success(f"{icon} **{name}** {d['quantity']}주\n\n단가 {int(d['entry_price']):,}원 ➔ 현재 {int(cur):,}원 (**{ret:+.2f}%**)")
     else:
@@ -170,7 +279,7 @@ with tab2:
     free_stocks = state.get("free_stocks", {})
     if free_stocks:
         for t, qty in free_stocks.items():
-            name = TARGET_STOCKS.get(t, {}).get('name', t)
+            name = state['targets'].get(t, {}).get('name', t)
             st.warning(f"**{name}** : {qty}주 보관 중")
     else:
         st.write("아직 수확된 과일이 없습니다.")
@@ -186,10 +295,11 @@ with tab3:
 
     st.markdown("---")
     st.markdown("#### 📰 종목별 긴급 뉴스")
-    selected_stock = st.selectbox("정찰 종목 선택", list(TARGET_STOCKS.values()), format_func=lambda x: x["name"])
-    selected_ticker = next(k for k, v in TARGET_STOCKS.items() if v["name"] == selected_stock["name"])
-    
-    if st.button("🔍 뉴스 스캔", use_container_width=True):
-        with st.spinner("최신 뉴스 정찰 중..."):
-            news = get_stock_news(selected_ticker)
-            for n in news: st.markdown(f"▪️ {n}")
+    if state['targets']:
+        selected_stock = st.selectbox("정찰 종목 선택", list(state['targets'].values()), format_func=lambda x: x["name"])
+        selected_ticker = next(k for k, v in state['targets'].items() if v["name"] == selected_stock["name"])
+        
+        if st.button("🔍 뉴스 스캔", use_container_width=True):
+            with st.spinner("최신 뉴스 정찰 중..."):
+                news = get_stock_news(selected_ticker)
+                for n in news: st.markdown(f"▪️ {n}")
